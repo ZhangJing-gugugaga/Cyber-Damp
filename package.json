@@ -13,7 +13,8 @@
     "typecheck": "tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.main.json --noEmit",
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win --x64",
-    "test:constants": "node --test scripts/check-shared.mjs"
+    "test:constants": "node --test scripts/check-shared.mjs",
+    "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs"
   },
   "devDependencies": {
     "electron": "44.8.0",
