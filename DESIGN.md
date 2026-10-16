@@ -1,12 +1,13 @@
-# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.3
+# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.4
 
 > 生成日期：2026-10-17 | 设计师：颜好看 | 基于：PRD v1.0（立项版）+ 架构文档 v1.0（docs/architecture.md，已锁定）
 > v1.1 变更：对齐架构锁定——Lucide 1.58.0 + data-lucide/createIcons 渲染约定；DOM 层 plain CSS 无框架；阶段命名对齐 fresh/damp/wet/moldy；天气源改本地种子模拟器（ADR-007）；水珠折射诚实约束（不采样桌面背景，滤镜只挂 Sprite）；焦化 MVP 用 scale/skew 近似；蘑菇范围按验收优先级分级
 > v1.2 变更：绳索崩断判定改**字节制**（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现、禁止用作崩断阈值；写入陈铜金强调色域隔离规则（仅 DOM chrome + 三处 sanctioned crossing + --success 不进画布）
 > v1.3 变更：sag_px 改 sizeToMass 表达的参考公式（k≈3.5 平方式，双锚点 10KB→5px / 24GB→140px）并明确禁止用作绳渲染输入（Matter 解算唯一真相源）；预警阈值按字节 ≥0.8×绳型上限；新增 DOM chrome 指针事件纪律（非交互元素 pointer-events:none）
+> v1.4 变更：sizeToMass 实算锚点表按两位小数固化（1KB→0.40 / 10KB→1.20 / 1MB→2.81 / 1GB→5.22 / 20GB→6.26 / 24GB→6.32，作为与代码对表唯一参考）；指针事件纪律展开为元素级断言清单 `design-system/POINTER-EVENTS.md`
 > 三轴刻度：DESIGN_VARIANCE=7 / MOTION_INTENSITY=6 / VISUAL_DENSITY=5
 > 寄存器：Product（设计服务产品，桌面玩具挂件）；平台轴：Windows 桌面（透明置顶 overlay，指针优先，非移动端）
-> 配套文件：`design-system/design-tokens.css`（四层 Token）、`design-system/design-tokens.json`（机器可读 sidecar）、`design-system/MASTER.md`（全局设计源）
+> 配套文件：`design-system/design-tokens.css`（四层 Token）、`design-system/design-tokens.json`（机器可读 sidecar）、`design-system/MASTER.md`（全局设计源）、`design-system/POINTER-EVENTS.md`（指针事件断言清单）
 
 ---
 
@@ -280,9 +281,20 @@ Lucide 没有以下语义，需补画并保持同一描边语言（圆线帽、�
 - 304 不锈钢杆（`--rope-steel`）：刚性直线不坍塌（约束 stiffness 1.0），5px + 防滑波浪卡槽（齿距 24px 的微齿路径）；字节承重 ≥100GB（MVP 文件树最大 24GB，等效不限）。
 
 **配重与下垂（三个映射严格分工，防沉默逻辑错误）**：
-- 崩断判定按**字节**：该绳悬挂文件 Σ sizeBytes 超绳型字节上限即断（架构 §5.2 硬约束）。sizeToMass 对数映射**禁止用作崩断阈值**（大文件段被压缩：5GB→质量 5.8、25GB→质量 6.3，按质量判三档绳几乎无差异）。
-- sizeToMass = 0.4 + log10(kb) × 0.8（kb = sizeBytes/1024；公式实算：10KB→1.2 / 1MB→2.8 / 1GB→5.2 / 24GB→6.3）是**唯一下垂驱动量**：绳体形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置画曲线），不存在第二条渲染路径。
-- 下垂量**参考公式**（仅作视觉目标与验收参考，禁止前端用它直接驱动绳渲染——公式与模拟双源真相必然打架）：sag_px = clamp(k × sizeToMass(sizeBytes)², 2, 140)，k ≈ 3.5。定标锚点（按上述公式实算质量）：10KB txt（质量 1.2）→ 约 5px，纹丝不动、微风高高飘起；20GB（质量 6.3）→ 约 137px、24GB（质量 6.3）→ 约 140px，瞬间深 V。采用平方形式的原因：线性形式无法同时满足双锚点（满足 24GB→140px 的线性 k 会让 10KB 垂 27px，违背 PRD"纹丝不动"）；且参考式与物理驱动量同基（都用 sizeToMass），不会出现以字节对数直接估算时小文件段被高估约 3 倍的问题。
+- 崩断判定按**字节**：该绳悬挂文件 Σ sizeBytes 超绳型字节上限即断（架构 §5.2 硬约束）。sizeToMass 对数映射**禁止用作崩断阈值**（大文件段被压缩：5GB→质量 5.78、25GB→质量 6.33，按质量判三档绳几乎无差异）。
+- sizeToMass = 0.4 + log10(kb) × 0.8（kb = sizeBytes/1024）是**唯一下垂驱动量**：绳体形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置画曲线），不存在第二条渲染路径。
+- **sizeToMass 实算锚点表（两位小数，与代码对表的唯一参考；2026-10-17 总监裁定：公式为准，系数不改。注意 1GB=1048576KB，log10=6.0206 非整 6，故 1GB→5.22 而非 5.20）**：
+
+| sizeBytes | kb | log10(kb) | sizeToMass |
+|---|---|---|---|
+| 1KB | 1 | 0.0000 | 0.40 |
+| 10KB | 10 | 1.0000 | 1.20 |
+| 1MB | 1024 | 3.0103 | 2.81 |
+| 1GB | 1048576 | 6.0206 | 5.22 |
+| 20GB | 20971520 | 7.3216 | 6.26 |
+| 24GB | 25165824 | 7.4008 | 6.32 |
+
+- 下垂量**参考公式**（仅作视觉目标与验收参考，禁止前端用它直接驱动绳渲染——公式与模拟双源真相必然打架）：sag_px = clamp(k × sizeToMass(sizeBytes)², 2, 140)，k ≈ 3.5。定标锚点（按上表实算质量）：10KB txt（1.20）→ 约 5px，纹丝不动、微风高高飘起；20GB（6.26）→ 约 137px、24GB（6.32）→ 约 140px，瞬间深 V。采用平方形式的原因：线性形式无法同时满足双锚点（满足 24GB→140px 的线性 k 会让 10KB 垂 27px，违背 PRD"纹丝不动"）；且参考式与物理驱动量同基（都用 sizeToMass），不会出现以字节对数直接估算时小文件段被高估约 3 倍的问题。
 - 超限预警与崩断表现：Σ sizeBytes ≥ 0.8 × 绳型字节上限时，绳体高频颤抖 + 纤维断裂粒子 + `triangle-alert` 小角标 + 绳色闪 `--warn` 一次（150ms）；超限即移除锚点约束，文件自由落体撞任务栏刚体弹跳两次（弹性 0.4）。
 
 **失衡滑落**：一侧过重导致倾角过大时，轻文件沿绳滑到最低点挤作一团（堆叠时边缘轻微重叠 + 霉菌交叉感染提示气泡）；挂钩滑脱：吸盘"啪"脱落 + 文件落任务栏弹跳两次（Matter.js 弹性 0.4）。
@@ -431,4 +443,4 @@ Loading / Empty / Error / Populated / Edge，各态规范已在商品卡（6.5�
 
 ---
 
-*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）；v1.2（2026-10-17）绳索崩断判定改字节制（5GB/25GB/≥100GB，sizeToMass 仅用于下垂）+ 陈铜金强调色域隔离规则（仅 DOM chrome，三处 sanctioned crossing，--success 不进画布）；v1.3（2026-10-17）sag_px 改 sizeToMass 参考公式并禁作渲染输入 + 预警阈值按字节 ≥0.8× + DOM 指针事件纪律。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*
+*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）；v1.2（2026-10-17）绳索崩断判定改字节制（5GB/25GB/≥100GB，sizeToMass 仅用于下垂）+ 陈铜金强调色域隔离规则（仅 DOM chrome，三处 sanctioned crossing，--success 不进画布）；v1.3（2026-10-17）sag_px 改 sizeToMass 参考公式并禁作渲染输入 + 预警阈值按字节 ≥0.8× + DOM 指针事件纪律；v1.4（2026-10-17）sizeToMass 锚点表两位小数固化（含 1GB→5.22 精度修正）+ 指针事件断言清单独立成文 POINTER-EVENTS.md。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*

@@ -3,6 +3,7 @@
 > 人类可读契约见上级目录 `DESIGN.md`；本文件是页面级覆盖（`pages/<page>.md`）的合并基准。
 > 写入规则：只追加/修正具体条目，禁止整篇重写。变更在文末记录表追加一行。
 > 上游对齐：docs/architecture.md v1.0（2026-10-17 对齐锁定）
+> 配套断言清单：`design-system/POINTER-EVENTS.md`（Spec §9 AC-36 元素级展开）
 
 ## 身份
 - 项目：回南天 Cyber Damp（Windows 透明置顶桌面挂件，Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0）
@@ -48,8 +49,9 @@
 - 老板键 Ctrl+Alt+H 专注模式（HUD 淡至 15%，in-world 暂停）
 - Demo 控制台 Ctrl+Shift+D：时间机器 / 场景预设 / 一键培育 / 状态读数；焦点圈禁 + Esc 关闭
 - 绳索三档**字节**承重（架构 §5.2 活规格）：麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）；崩断判定按 Σ sizeBytes（预警阈值 ≥0.8× 绳型上限），sizeToMass（0.4 + log10(kb)×0.8）仅用于下垂深度与配重表现，禁止用作崩断阈值
-- 绳渲染唯一真相源：绳形 100% 由 Matter 解算涌现；sag_px = clamp(3.5 × sizeToMass², 2, 140)（10KB→5px / 24GB→140px，质量按 0.4+log10(kb)×0.8 实算）仅作视觉目标与验收参考，**禁止前端用它驱动绳渲染**（双源真相禁忌）
-- 指针事件纪律：窗口常态点击穿透；非交互 DOM 元素（预警角标/装饰贴片/读数文本/气泡正文）一律 pointer-events:none，仅交互控件开 auto
+- 绳渲染唯一真相源：绳形 100% 由 Matter 解算涌现；sag_px = clamp(3.5 × sizeToMass², 2, 140)（10KB→5px / 24GB→140px）仅作视觉目标与验收参考，**禁止前端用它驱动绳渲染**（双源真相禁忌）
+- sizeToMass 实算锚点（两位小数，与代码对表唯一参考，见 DESIGN.md §6.3）：1KB→0.40 / 10KB→1.20 / 1MB→2.81 / 1GB→5.22（1048576KB，log10=6.0206 非整 6）/ 20GB→6.26 / 24GB→6.32
+- 指针事件纪律：窗口常态点击穿透；非交互 DOM 元素（预警角标/装饰贴片/读数文本/气泡正文）一律 pointer-events:none，仅交互控件开 auto；元素级断言清单见 POINTER-EVENTS.md
 - 蘑菇优先级：P0 = 平菇 N（含狗尿苔变体）+ 二进制金针菇 R + 蜗牛食苔；P1 = 胆小菇缩头行为；SR/SSR/UR 杂交公式搁置
 
 ## 反 AI 模板（构建期校验）
@@ -63,4 +65,5 @@
 | 2026-10-17 | v1.0 初版 | 基于 PRD v1.0 立项 | 全部 |
 | 2026-10-17 | v1.1 对齐架构 v1.0 | Lucide 1.58.0 + createIcons 约定；plain CSS 无框架；阶段命名 fresh/damp/wet/moldy；本地种子天气 ADR-007；水珠折射诚实约束；滤镜挂 Sprite；粒子 300/DPR 2；蘑菇优先级分级；新增 --fog-cool、--shroom-oyster-variant | 全部 |
 | 2026-10-17 | v1.2 绳索字节制 + 强调色域隔离 | 崩断判定改字节（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现；陈铜金仅 DOM chrome + 三处 sanctioned crossing；--success 不进画布 | 全部 |
-| 2026-10-17 | v1.3 sag 参考式 + 指针事件纪律 | sag_px 改 clamp(1.46 × sizeToMass², 2, 140) 参考式并禁作绳渲染输入（Matter 解算唯一真相源）；预警阈值 ≥0.8× 字节上限；非交互 DOM 元素 pointer-events:none | 全部 |
+| 2026-10-17 | v1.3 sag 参考式 + 指针事件纪律 | sag_px 改 clamp(3.5 × sizeToMass², 2, 140) 参考式并禁作绳渲染输入（Matter 解算唯一真相源）；预警阈值 ≥0.8× 字节上限；非交互 DOM 元素 pointer-events:none | 全部 |
+| 2026-10-17 | v1.4 锚点固化 + 断言清单 | sizeToMass 锚点表两位小数固化（1GB→5.22 精度修正：1048576KB 的 log10=6.0206 非整 6）；新增 POINTER-EVENTS.md（AC-36 元素级断言表 + QA 配方） | 全部 |
