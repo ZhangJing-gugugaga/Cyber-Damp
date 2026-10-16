@@ -115,7 +115,8 @@
 - **FileNode**：`{ id, name, ext, category: 'doc-code'|'image-video'|'audio'|'archive', sizeBytes, mtime, x, y }`
 - **FileRuntime**：`{ id, humidity: 0..1, mold: 0..1, char: 0..1, stage: 'fresh'|'damp'|'wet'|'moldy', state: 'idle'|'hung'|'drying'|'burnt', mushroom: { species, growth }|null }`
 - **演化状态机**（world/evolution.ts 纯函数可单测）：humidity 趋向 env.humidity×0.9；mold += dt×0.004×humidity；mold>0.6 蘑菇萌生 growth += dt×0.01；heat>0.8 且 humidity<0.3 时 char += dt×0.01；char>0.6 锁定 burnt；hung+wind>0.5 风干 ×1.8
-- **sizeToMass**：`0.4 + log10(max(kb,1)) × 0.8`（仅下垂深度：1KB→0.4 / 1MB→4.8 / 1GB→8.4 / 24GB→9.8；质量比 ≤35:1 防迭代抖动）
+- **sizeToMass**：`0.4 + log10(max(kb,1)) × 0.8`（仅下垂深度参考：1KB→0.40 / 10KB→1.20 / 1MB→2.81 / 1GB→5.20 / 20GB→6.26 / 24GB→6.32；质量比 ≤35:1 防迭代抖动）
+- **指数化质量（物理实现硬约束，防下垂对比度不足）**：sizeToMass 线性对数映射仅 5.3 倍跨度，直接驱动绳索无法表达「10KB 纹丝不动 vs 24GB 夸张深 V」（需约 28 倍视觉跨度）。刚体实际质量用 `mass_eff = sizeToMass(sizeBytes) ** p`（p 默认 2，范围 1.8-2.4）经 `Body.setMass` 设置；**sizeToMass 函数本身不变**（参考公式/存档语义依赖）。绳链质量 0.5/链（总 7.0，14 链）：10KB mass_eff=1.44 ≤ 0.3×绳重、24GB mass_eff=39.9 ≥ 4×绳重。**mass_eff > 10 的重文件必须 2-3 个夹子约束多点挂载**（单挂点质量比 ≤ 40:1）。验收双锚点（红塑料绳 25GB 上）：10KB 下垂 ≤5px、24GB 下垂 ≥120px、60fps 无可见约束抖动/回弹
 - **绳索崩断（字节判定，硬约束）**：该绳 Σ sizeBytes 超绳型字节上限时移除锚点约束——麻绳 5GB / 红塑料绳 25GB / 304 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）。GB 统一定义为 1024³ 字节（GiB 语义，与文件系统一致），在 shared/constants.ts 锁定 `GB = 1024**3`
 - **下垂单一来源（防双源真相，硬约束）**：绳索形状 100% 由 Matter 物理解算涌现，sizeToMass 是唯一下垂驱动量。设计文档 sag_px 公式仅作视觉目标/验收参考，**禁止用作渲染输入**；代码中不得存在按文件大小直接计算绳形的分支（QA 以源码审查断言）
 - **80% 预警态（P1 表现层）**：Σ sizeBytes ≥ 0.8 × 绳型字节上限时绳体颤抖 + 断裂粒子 + DOM 警示角标；不改变物理解算与崩断时机；DOM 预警角标必须 `pointer-events: none`（穿透窗口纪律）。崩断字节判定为 P0，预警表现为 P1
@@ -191,6 +192,7 @@
 | AC-34 | 下垂单一来源(P0) | While 渲染晾衣绳，the 渲染层 shall 直接采样 Matter 绳链刚体坐标，代码中不得存在按文件大小直接计算绳形的分支（源码审查断言） | P0 |
 | AC-35 | 80%预警(P1) | While 该绳 Σ sizeBytes ≥ 0.8 × 绳型字节上限，the 表现层 shall 显示绳体颤抖+断裂粒子+DOM 警示角标（pointer-events:none），且不得改变崩断判定时机 | P1 |
 | AC-36 | 指针纪律(P0) | While 窗口常态点击穿透，the DOM 层 shall 对非交互元素（预警角标/装饰贴片/读数文本/气泡正文）一律 pointer-events:none，仅交互控件（按钮/工具格/输入框/可拖拽标题栏）开 auto，禁止纯展示元素遮挡桌面下层应用 | P0 |
+| AC-37 | 指数化质量(P0) | While 同一根红塑料绳上挂 10KB 与 24GB 文件，the 物理层 shall 以 mass_eff=sizeToMass^p（p∈[1.8,2.4]）驱动下垂，两文件下垂比 ≥10:1（10KB ≤5px、24GB ≥120px），且 60fps 无可见约束抖动 | P0 |
 
 ## 10. 边界与约束
 
