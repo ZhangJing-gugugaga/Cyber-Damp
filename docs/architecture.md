@@ -300,9 +300,9 @@ export function sizeToMass(sizeBytes: number): number {
 }
 ```
 
-挂载：文件刚体 `Bodies.rectangle(x, y, w, h, { collisionFilter: { category: CAT.FILE, mask: CAT.FILE | CAT.TASKBAR } })` + `Body.setMass(body, sizeToMass(sizeBytes))`，用Constraint 夹到最近绳链（pointA=夹口偏移）。滑落 = 提高 file frictionAir 低 + 绳倾角超阈值时夹子约束 stiffness 衰减。
+挂载：文件刚体 `Bodies.rectangle(x, y, w, h, { collisionFilter: { category: CAT.FILE, mask: CAT.FILE | CAT.TASKBAR } })` + `Body.setMass(body, mass_eff)`（mass_eff = sizeToMass 的 p 次幂，见下方调参包络；**禁止直接设 sizeToMass 原值**——线性对数跨度不足，见包络），用Constraint 夹到最近绳链（pointA=夹口偏移；mass_eff > 10 时改 2-3 点挂载）。滑落 = 提高 file frictionAir 低 + 绳倾角超阈值时夹子约束 stiffness 衰减。
 
-**崩断判定按字节、不按质量（硬约束，防沉默逻辑错误）**：该绳悬挂文件的 Σ sizeBytes 超过绳型字节上限时，移除锚点约束，文件自由落体撞任务栏（TASKBAR 静态刚体）弹跳。绳型字节上限：老式麻绳 5GB / 妈妈的红塑料绳 25GB / 304 不锈钢防风晒衣杆 ≥100GB（MVP 文件树最大 24GB，等效不限）。sizeToMass 仅用于下垂深度与配重表现，**禁止用作崩断阈值**——对数映射在大文件段被压缩（5GB→质量 5.8、25GB→质量 6.3），按质量判定会使绳索三档几乎无差异。不锈钢杆 = 约束 stiffness 1.0 + engine constraintIterations 上调，视觉笔直不垂坠，夹子防滑槽使文件不滑向最低点挤团。
+**崩断判定按字节、不按质量（硬约束，防沉默逻辑错误）**：该绳悬挂文件的 Σ sizeBytes 超过绳型字节上限时，移除锚点约束，文件自由落体撞任务栏（TASKBAR 静态刚体）弹跳。绳型字节上限：老式麻绳 5GB / 妈妈的红塑料绳 25GB / 304 不锈钢防风晒衣杆 ≥100GB（MVP 文件树最大 24GB，等效不限）。sizeToMass 仅用于下垂深度与配重表现，**禁止用作崩断阈值**——对数映射在大文件段被压缩（5GB→5.78、25GB→6.33），按质量判定会使绳索三档几乎无差异。不锈钢杆 = 约束 stiffness 1.0 + engine constraintIterations 上调，视觉笔直不垂坠，夹子防滑槽使文件不滑向最低点挤团。
 
 **下垂动态范围调参包络（Phase 2 物理调参硬约束）**：sizeToMass 线性对数映射只给出 5.3 倍质量跨度（10KB→1.2 vs 24GB→6.3），直接驱动绳索时下垂对比度不足以表达 PRD"10KB 纹丝不动 vs 24GB 夸张深 V"（参考曲线要求约 28 倍视觉跨度）。因此实际设置刚体质量时用指数化质量：`mass_eff = sizeToMass(sizeBytes) ** p`，p 默认 2（调参范围 1.8-2.4），经 `Body.setMass` 设置；sizeToMass 本身保持线性对数不变（参考公式与存档语义依赖它）。绳链质量相应上调至 0.5/链（总 7.0），满足：10KB 文件（mass_eff 1.44）≤ 0.3 × 绳链总质量 → 视觉纹丝不动；24GB 文件（mass_eff 39.9）≥ 4 × 绳链总质量 → 夸张深 V。mass_eff > 10 的重文件必须用 2-3 个夹子约束分散挂载（多点挂载），单挂点质量比 ≤ 40:1，防迭代解算抖动。验收目标（红塑料绳上）：10KB 下垂 ≤ 5px、24GB 下垂 ≥ 120px、60fps 无可见约束抖动或回弹。此为调参包络非定死值——实现期可在包络内按实测观感调整，但四条边界（小文件 ≤0.3×绳重、大文件 ≥4×绳重、单挂点 ≤40:1、验收双锚点）不可破。
 
@@ -310,7 +310,7 @@ export function sizeToMass(sizeBytes: number): number {
 
 **Demo 控制台容量预检（硬约束，路演防翻车）**：`一键挂满` 自动选文件时必须做容量预检——按文件字节降序尝试挂载，累计和不超过该绳字节上限为止（贪心截断，保住最重文件出深 V，其余顺延）；深 V 演示绳必须用会下垂的绳型（红塑料绳 25GB），**304 不锈钢杆刚性笔直不下垂，禁止用于深 V 演示**；手动挂载超限保持 PRD 设计的"啪嗒滑脱"崩断戏剧效果，不做拦截。虚拟文件树最大文件 24GB，最重 5 个 Σ 可达 36-69GB，远超麻绳 5GB——不预检会双绳齐断，深 V 亮点直接演砸。
 
-**下垂的真实来源（双源真相禁忌）**：绳索形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置绘制曲线），sizeToMass 是唯一下垂驱动量。设计侧 sag_px 参考公式（clamp(k·log10(bytes+1), 2, 140)）**仅作视觉目标与验收参考，禁止用作渲染输入**——且参考公式应改用 sizeToMass 表达（sag_px = clamp(k × sizeToMass(sizeBytes), 2, 140)），否则小文件下垂量被高估约 3 倍，违背"10KB txt 纹丝不动"的 PRD 表现。k 由视觉侧定标（24GB→接近 140px，10KB→接近 2-5px）。
+**下垂的真实来源（双源真相禁忌）**：绳索形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置绘制曲线），mass_eff（sizeToMass 的 p 次幂）是唯一下垂驱动量。设计侧 sag_px 参考公式 `sag_px = clamp(k × sizeToMass², 2, 140)`（k≈3.5，定标锚点 10KB→5.0px / 24GB→139.8px）**仅作视觉目标与验收参考，禁止用作渲染输入**——参考式取平方式与物理驱动指数 p=2 同构，参考与物理按构造一致；线性式无法同时满足双锚点（满足 24GB→140px 的线性 k 会令 10KB 垂 27px，违背"纹丝不动"），故不采用。sizeToMass 原值（线性对数）不直接驱动刚体质量，仅作 mass_eff 与参考公式的中间量。
 
 **80% 预警态（sanctioned 表现层增强）**：Σ sizeBytes ≥ 0.8 × 绳型字节上限时进预警（绳身颤抖 + 断裂粒子 + 警示角标），属表现层，不改变物理解算与崩断时机；预警角标若为 DOM 元素必须 pointer-events: none，不得拦截穿透。演示控制台的容量预检绳同样适用预警。
 
