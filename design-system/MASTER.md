@@ -18,9 +18,9 @@
 
 ## 颜色（唯一真相源：design-tokens.css / design-tokens.json）
 - 面板统一 veil：`--panel-bg` = ink-900 @ 90%（`data-veil="high"` 96% / `"low"` 82%）；对比：fg>=12:1，muted>=4.5:1
-- 强调：`--accent` #C0952F 陈铜金（每屏可见 <=2 处，只给 CTA/金币/选中）
-- 语义：success 干草绿 #7D9B5E / warn 琥珀 #D9A441 / danger 铁锈红 #B5462B / info 水青 #6FA3B0
-- 阶段命名对齐领域层 NeglectStage：fresh(<3d) / damp(3-14d) / wet(14-30d) / moldy(>30d)；色板 `--damp-0-*` 干宣纸、`--damp-1-*` 水珠+晕染、`--damp-2/3-*` 青苔+焦化
+- 强调：`--accent` #C0952F 陈铜金（每屏可见 <=2 处，只给 CTA/金币/选中）；**域隔离：仅 DOM chrome；进画布只限三处 sanctioned crossing（金币粒子/+N 飘字、工具/商店上下文激活时文件替身选中描边、气象牌晴天丁达尔光束）**
+- 语义：success 干草绿 #7D9B5E（仅 DOM chrome，**不进画布**）/ warn 琥珀 #D9A441 / danger 铁锈红 #B5462B / info 水青 #6FA3B0
+- 阶段命名对齐领域层 NeglectStage：fresh(<3d) / damp(3-14d) / wet(14-30d) / moldy(>30d)；色板 `--damp-0-*` 干宣纸、`--damp-1-*` 水珠+晕染、`--damp-2/3-*` 青苔+焦化；in-world 的绿全部是霉变 token，无 success 绿
 - Shader 基准色（架构 §5.3）：水珠高光 `--damp-1-water-hi` #F4FAFB；霉斑 `--damp-2-moss`→`--damp-3-moss-deep` #6E7F4E→#45542F；焦化 `--damp-3-char` #4A3826；挂雾 `--fog-cool` #DFE9EA
 - 诚实约束：透明 WebGL 画布不采样桌面背景像素；水珠 = 图标自身纹理局部折射偏移 + 近白高光 + 暗环
 - 禁：紫到粉渐变（P0-2）、渐变文字、纯黑 #000/纯白 #fff 直上 UI、灰叠灰
@@ -47,7 +47,7 @@
 - HUD 六件：气象牌(top-center 264x64，本地种子天气 ADR-007，迁徙 1 次/日) / 金币 pill / 商店 / 设置 (top-right) / 工具箱 (bottom-left) / 锚定气泡
 - 老板键 Ctrl+Alt+H 专注模式（HUD 淡至 15%，in-world 暂停）
 - Demo 控制台 Ctrl+Shift+D：时间机器 / 场景预设 / 一键培育 / 状态读数；焦点圈禁 + Esc 关闭
-- 绳索三档承重（架构 §6）：麻绳 6GB / 红塑料绳 25GB / 不锈钢杆刚性；sizeToMass = 0.4 + log10(kb) × 0.8
+- 绳索三档**字节**承重（架构 §5.2 活规格）：麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）；崩断判定按 Σ sizeBytes，sizeToMass（0.4 + log10(kb)×0.8）仅用于下垂深度与配重表现，禁止用作崩断阈值
 - 蘑菇优先级：P0 = 平菇 N（含狗尿苔变体）+ 二进制金针菇 R + 蜗牛食苔；P1 = 胆小菇缩头行为；SR/SSR/UR 杂交公式搁置
 
 ## 反 AI 模板（构建期校验）
@@ -59,4 +59,5 @@
 | 日期 | 变更 | 原因 | 影响范围 |
 |---|---|---|---|
 | 2026-10-17 | v1.0 初版 | 基于 PRD v1.0 立项 | 全部 |
-| 2026-10-17 | v1.1 对齐架构 v1.0 | Lucide 1.58.0 + createIcons 约定；plain CSS 无框架；阶段命名 fresh/damp/wet/moldy；绳索承重 6/25/∞；本地种子天气 ADR-007；水珠折射诚实约束；滤镜挂 Sprite；粒子 300/DPR 2；蘑菇优先级分级；新增 --fog-cool、--shroom-oyster-variant | 全部 |
+| 2026-10-17 | v1.1 对齐架构 v1.0 | Lucide 1.58.0 + createIcons 约定；plain CSS 无框架；阶段命名 fresh/damp/wet/moldy；本地种子天气 ADR-007；水珠折射诚实约束；滤镜挂 Sprite；粒子 300/DPR 2；蘑菇优先级分级；新增 --fog-cool、--shroom-oyster-variant | 全部 |
+| 2026-10-17 | v1.2 绳索字节制 + 强调色域隔离 | 崩断判定改字节（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现；陈铜金仅 DOM chrome + 三处 sanctioned crossing；--success 不进画布 | 全部 |

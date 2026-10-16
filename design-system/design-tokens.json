@@ -1,7 +1,7 @@
 {
   "$meta": {
     "name": "Cyber Damp Design Tokens",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "project": "回南天 Cyber Damp",
     "platform": "windows-desktop-overlay (Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0)",
     "designer": "颜好看",
@@ -9,10 +9,11 @@
     "alignedWith": "docs/architecture.md v1.0",
     "rules": [
       "组件只引用 var(--token)，禁止硬编码色值（例外 #fff/#000）",
-      "每屏强调色 --accent 可见使用 <= 2 处",
+      "每屏强调色 --accent 可见使用 <= 2 处；域隔离：仅 DOM chrome，进画布只限三处 sanctioned crossing（金币粒子/+N 飘字、激活态文件描边、晴天丁达尔光束）",
       "图标统一 Lucide 1.58.0（data-lucide + createIcons），DOM 层 plain CSS 无框架",
       "所有面板经 --panel-bg veil 保证任意壁纸可读性（对比度 >= 4.5:1）",
-      "滤镜只挂 Pixi Sprite 不挂 stage；同屏粒子 <= 300；DPR <= 2"
+      "滤镜只挂 Pixi Sprite 不挂 stage；同屏粒子 <= 300；DPR <= 2",
+      "绳索崩断按字节（5GB/25GB/≥100GB）；sizeToMass 仅用于下垂深度与配重表现"
     ]
   },
   "color": {
@@ -75,9 +76,9 @@
       "spore": { "value": "#D6E8B4", "type": "color" }
     },
     "material": {
-      "rope-hmp": { "value": "#A88B5F", "type": "color", "role": "老式麻绳（承重 6GB）" },
-      "rope-plastic": { "value": "#C0453A", "type": "color", "role": "红塑料绳（承重 25GB）" },
-      "rope-steel": { "value": "#C9CDD3", "type": "color", "role": "不锈钢杆（刚性）" },
+      "rope-hmp": { "value": "#A88B5F", "type": "color", "role": "老式麻绳（字节承重 5GB）" },
+      "rope-plastic": { "value": "#C0453A", "type": "color", "role": "红塑料绳（字节承重 25GB）" },
+      "rope-steel": { "value": "#C9CDD3", "type": "color", "role": "不锈钢杆（≥100GB，MVP 等效不限）" },
       "clip-wood": { "value": "#B08A56", "type": "color", "role": "木衣夹" },
       "clip-heated": { "value": "#C65A2E", "type": "color", "role": "恒温发热夹" },
       "fan-body": { "value": "#4E7B5A", "type": "color", "role": "绿头电扇" },

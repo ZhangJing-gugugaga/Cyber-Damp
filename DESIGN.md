@@ -1,7 +1,8 @@
-# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.1
+# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.2
 
 > 生成日期：2026-10-17 | 设计师：颜好看 | 基于：PRD v1.0（立项版）+ 架构文档 v1.0（docs/architecture.md，已锁定）
-> v1.1 变更：对齐架构锁定——Lucide 1.58.0 + data-lucide/createIcons 渲染约定；DOM 层 plain CSS 无框架；阶段命名对齐 fresh/damp/wet/moldy；绳索承重 6/25/∞；天气源改本地种子模拟器（ADR-007）；水珠折射诚实约束（不采样桌面背景，滤镜只挂 Sprite）；焦化 MVP 用 scale/skew 近似；蘑菇范围按验收优先级分级
+> v1.1 变更：对齐架构锁定——Lucide 1.58.0 + data-lucide/createIcons 渲染约定；DOM 层 plain CSS 无框架；阶段命名对齐 fresh/damp/wet/moldy；天气源改本地种子模拟器（ADR-007）；水珠折射诚实约束（不采样桌面背景，滤镜只挂 Sprite）；焦化 MVP 用 scale/skew 近似；蘑菇范围按验收优先级分级
+> v1.2 变更：绳索崩断判定改**字节制**（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现、禁止用作崩断阈值；写入陈铜金强调色域隔离规则（仅 DOM chrome + 三处 sanctioned crossing + --success 不进画布）
 > 三轴刻度：DESIGN_VARIANCE=7 / MOTION_INTENSITY=6 / VISUAL_DENSITY=5
 > 寄存器：Product（设计服务产品，桌面玩具挂件）；平台轴：Windows 桌面（透明置顶 overlay，指针优先，非移动端）
 > 配套文件：`design-system/design-tokens.css`（四层 Token）、`design-system/design-tokens.json`（机器可读 sidecar）、`design-system/MASTER.md`（全局设计源）
@@ -65,6 +66,11 @@
 | 强调底 | `--accent-veil` | rgba(192,149,47,0.14) | 选中态底、微光晕（<12%） |
 
 每屏 `--accent` 可见使用 <= 2 处（例：HUD 金币读数 + 商店购买按钮）。标题不用强调色，用 `--fg` + 字重。
+
+**强调色域隔离规则（架构侧确认的边界，P0 级执行）**：
+- `--accent` 陈铜金只允许出现在 DOM chrome（`ui/` 面板）；in-world 画布实体一律用世界色板（霉绿/焦褐/墨/纸/水痕），DOM 强调色不上画布实体。
+- 仅三处 sanctioned crossing 允许金色进画布：(a) 金币粒子与 "+N" 飘字；(b) 工具/商店上下文激活时文件替身的选中描边；(c) 气象牌晴天的丁达尔阳光束（语义即金）。
+- `--success` 干草绿**不进画布**：in-world 的绿全部是霉变 token（`--damp-2-moss` #6E7F4E → `--damp-3-moss-deep` #45542F）。金绿按域隔离，永不打架。
 
 ### 2.3 语义色（按产品材料语言定义，非通用红绿黄）
 
@@ -267,12 +273,15 @@ Lucide 没有以下语义，需补画并保持同一描边语言（圆线帽、�
 
 ### 6.3 模块三：悬链线晾衣绳视觉与交互反馈
 
-**绳体**：Matter.js 约束渲染为分段悬链线（架构 §5.2：Composites.chain + 世界锚点 Constraint，14 段）。三种材质视觉（承重上限对齐架构 §6 验收表：6GB / 25GB / 刚性）：
-- 老式麻绳（`--rope-hmp`）：3px，表面纤维噪声纹理，静态时轻微毛糙抖动；承重 6GB；
-- 红塑料绳（`--rope-plastic`）：4px，带 1px 同色系纵向高光；承重 25GB；
-- 304 不锈钢杆（`--rope-steel`）：刚性直线不坍塌（约束 stiffness 1.0），5px + 防滑波浪卡槽（齿距 24px 的微齿路径）；承重刚性无上限。
+**绳体**：Matter.js 约束渲染为分段悬链线（架构 §5.2：Composites.chain + 世界锚点 Constraint，14 段）。三种材质视觉（字节承重上限对齐架构 §5.2 活规格：5GB / 25GB / ≥100GB）：
+- 老式麻绳（`--rope-hmp`）：3px，表面纤维噪声纹理，静态时轻微毛糙抖动；字节承重 5GB；
+- 红塑料绳（`--rope-plastic`）：4px，带 1px 同色系纵向高光；字节承重 25GB；
+- 304 不锈钢杆（`--rope-steel`）：刚性直线不坍塌（约束 stiffness 1.0），5px + 防滑波浪卡槽（齿距 24px 的微齿路径）；字节承重 ≥100GB（MVP 文件树最大 24GB，等效不限）。
 
-**配重与下垂**：架构 `sizeToMass = 0.4 + log10(kb) × 0.8`（1KB→0.4 / 10KB→1.2 / 1MB→4.8 / 24GB→9.8）。视觉下垂量 sag_px = clamp(k · log10(bytes+1), 2, 140)：10KB txt 下垂约 2px（微风高高飘起）；20GB 文件瞬间压成深 V（约 140px）。绳上总质量超绳型 loadLimit 时：绳体高频颤抖 + 纤维断裂粒子 + `triangle-alert` 小角标 + 绳色闪 `--warn` 一次（150ms）；锚点约束移除、文件自由落体撞任务栏刚体弹跳两次（弹性 0.4）。
+**配重与下垂（两个映射严格分工，防沉默逻辑错误）**：
+- 崩断判定按**字节**：该绳悬挂文件 Σ sizeBytes 超绳型字节上限即断（架构 §5.2 硬约束）。sizeToMass 对数映射**禁止用作崩断阈值**（大文件段被压缩：5GB→质量 5.8、25GB→质量 6.3，按质量判三档绳几乎无差异）。
+- sizeToMass = 0.4 + log10(kb) × 0.8（1KB→0.4 / 10KB→1.2 / 1MB→4.8 / 24GB→9.8）**只用于下垂深度与配重表现**：视觉下垂量 sag_px = clamp(k · log10(bytes+1), 2, 140)，10KB txt 下垂约 2px（微风高高飘起）；20GB 文件瞬间压成深 V（约 140px）。
+- 超限预警与崩断表现：Σ字节达到绳型上限 80% 时绳体高频颤抖 + 纤维断裂粒子 + `triangle-alert` 小角标 + 绳色闪 `--warn` 一次（150ms）；超限即移除锚点约束，文件自由落体撞任务栏刚体弹跳两次（弹性 0.4）。
 
 **失衡滑落**：一侧过重导致倾角过大时，轻文件沿绳滑到最低点挤作一团（堆叠时边缘轻微重叠 + 霉菌交叉感染提示气泡）；挂钩滑脱：吸盘"啪"脱落 + 文件落任务栏弹跳两次（Matter.js 弹性 0.4）。
 
@@ -417,4 +426,4 @@ Loading / Empty / Error / Populated / Edge，各态规范已在商品卡（6.5�
 
 ---
 
-*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 绳索承重 6/25/∞ / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*
+*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）；v1.2（2026-10-17）绳索崩断判定改字节制（5GB/25GB/≥100GB，sizeToMass 仅用于下垂）+ 陈铜金强调色域隔离规则（仅 DOM chrome，三处 sanctioned crossing，--success 不进画布）。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*

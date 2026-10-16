@@ -1,5 +1,5 @@
 /* ==========================================================================
-   《回南天 Cyber Damp》 Design Tokens v1.1
+   《回南天 Cyber Damp》 Design Tokens v1.2
    四层架构：A1-identity / A1-structure / A2 / B-slot / C-extension
    原则：组件只允许引用 var(--token)，禁止硬编码色值（唯一例外 #fff/#000）
    平台：Windows 桌面透明置顶挂件（Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0）
@@ -7,7 +7,9 @@
    基底假设：画布全透明，UI 元素悬浮于任意桌面壁纸之上，
            所有面板必须通过 --ink veil 层保证可读性（对比度 >= 4.5:1）
    v1.1：对齐架构文档 v1.0——新增 --fog-cool（挂雾冷白）、--shroom-oyster-variant
-        （狗尿苔变体）；绳索承重口径 6GB/25GB/刚性
+        （狗尿苔变体）
+   v1.2：绳索字节承重口径 5GB/25GB/≥100GB（崩断按字节，sizeToMass 仅用于下垂）；
+         --accent 域隔离（仅 DOM chrome，三处 sanctioned crossing 除外）
    ========================================================================== */
 
 :root {
@@ -33,7 +35,9 @@
   --border-soft: rgba(242, 237, 224, 0.06);
   --border-strong: rgba(242, 237, 224, 0.18);
 
-  /* 强调色：除湿币·陈铜金（每屏可见使用 <= 2 处） */
+  /* 强调色：除湿币·陈铜金（每屏可见 <= 2 处）
+     域隔离：仅 DOM chrome；进画布只限三处 sanctioned crossing
+     （金币粒子/+N 飘字、激活态文件描边、晴天丁达尔光束） */
   --accent: #C0952F;
   --accent-on: #1C190C;        /* accent 底上的前景（深墨，非纯黑） */
   --accent-hover: #D3A947;
@@ -180,10 +184,10 @@
   --shroom-shy-pupil: #2A2622;
   --spore: #D6E8B4;               /* 发光孢子 */
 
-  /* 环境与工具材料（绳索承重口径对齐架构 §6：6GB / 25GB / 刚性） */
-  --rope-hmp: #A88B5F;            /* 老式麻绳（承重 6GB） */
-  --rope-plastic: #C0453A;        /* 妈妈的红塑料绳（承重 25GB） */
-  --rope-steel: #C9CDD3;          /* 304 不锈钢防风晒衣杆（刚性） */
+  /* 环境与工具材料（绳索崩断按字节：5GB / 25GB / ≥100GB，架构 §5.2 活规格） */
+  --rope-hmp: #A88B5F;            /* 老式麻绳（字节承重 5GB） */
+  --rope-plastic: #C0453A;        /* 妈妈的红塑料绳（字节承重 25GB） */
+  --rope-steel: #C9CDD3;          /* 304不锈钢防风晒衣杆（≥100GB，MVP 等效不限） */
   --clip-wood: #B08A56;           /* 普通木衣夹 */
   --clip-heated: #C65A2E;          /* 恒温发热夹暖光 */
   --fan-body: #4E7B5A;            /* 老式绿头摇头电扇 */
