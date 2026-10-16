@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+.pnp
+.pnp.js
+
+# 构建产物
+dist/
+out/
+release/
+*.exe
+*.blockmap
+
+# 环境与缓存
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.log
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+
+# WorkBuddy
+.workbuddy/
+
+# 临时文件
+*.tmp
+*.temp
