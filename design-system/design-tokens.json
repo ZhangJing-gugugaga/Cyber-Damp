@@ -1,7 +1,7 @@
 {
   "$meta": {
     "name": "Cyber Damp Design Tokens",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "project": "回南天 Cyber Damp",
     "platform": "windows-desktop-overlay (Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0)",
     "designer": "颜好看",
@@ -13,7 +13,8 @@
       "图标统一 Lucide 1.58.0（data-lucide + createIcons），DOM 层 plain CSS 无框架",
       "所有面板经 --panel-bg veil 保证任意壁纸可读性（对比度 >= 4.5:1）",
       "滤镜只挂 Pixi Sprite 不挂 stage；同屏粒子 <= 300；DPR <= 2",
-      "绳索崩断按字节（5GB/25GB/≥100GB）；sizeToMass 仅用于下垂深度与配重表现"
+      "绳索崩断按字节（5GB/25GB/≥100GB，预警阈值 ≥0.8× 上限）；sizeToMass 仅用于下垂深度；sag_px 参考式禁作绳渲染输入（Matter 解算唯一真相源）",
+      "非交互 DOM 元素 pointer-events:none，仅交互控件开 auto（窗口常态点击穿透）"
     ]
   },
   "color": {

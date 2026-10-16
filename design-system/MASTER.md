@@ -47,7 +47,9 @@
 - HUD 六件：气象牌(top-center 264x64，本地种子天气 ADR-007，迁徙 1 次/日) / 金币 pill / 商店 / 设置 (top-right) / 工具箱 (bottom-left) / 锚定气泡
 - 老板键 Ctrl+Alt+H 专注模式（HUD 淡至 15%，in-world 暂停）
 - Demo 控制台 Ctrl+Shift+D：时间机器 / 场景预设 / 一键培育 / 状态读数；焦点圈禁 + Esc 关闭
-- 绳索三档**字节**承重（架构 §5.2 活规格）：麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）；崩断判定按 Σ sizeBytes，sizeToMass（0.4 + log10(kb)×0.8）仅用于下垂深度与配重表现，禁止用作崩断阈值
+- 绳索三档**字节**承重（架构 §5.2 活规格）：麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）；崩断判定按 Σ sizeBytes（预警阈值 ≥0.8× 绳型上限），sizeToMass（0.4 + log10(kb)×0.8）仅用于下垂深度与配重表现，禁止用作崩断阈值
+- 绳渲染唯一真相源：绳形 100% 由 Matter 解算涌现；sag_px = clamp(3.5 × sizeToMass², 2, 140)（10KB→5px / 24GB→140px，质量按 0.4+log10(kb)×0.8 实算）仅作视觉目标与验收参考，**禁止前端用它驱动绳渲染**（双源真相禁忌）
+- 指针事件纪律：窗口常态点击穿透；非交互 DOM 元素（预警角标/装饰贴片/读数文本/气泡正文）一律 pointer-events:none，仅交互控件开 auto
 - 蘑菇优先级：P0 = 平菇 N（含狗尿苔变体）+ 二进制金针菇 R + 蜗牛食苔；P1 = 胆小菇缩头行为；SR/SSR/UR 杂交公式搁置
 
 ## 反 AI 模板（构建期校验）
@@ -61,3 +63,4 @@
 | 2026-10-17 | v1.0 初版 | 基于 PRD v1.0 立项 | 全部 |
 | 2026-10-17 | v1.1 对齐架构 v1.0 | Lucide 1.58.0 + createIcons 约定；plain CSS 无框架；阶段命名 fresh/damp/wet/moldy；本地种子天气 ADR-007；水珠折射诚实约束；滤镜挂 Sprite；粒子 300/DPR 2；蘑菇优先级分级；新增 --fog-cool、--shroom-oyster-variant | 全部 |
 | 2026-10-17 | v1.2 绳索字节制 + 强调色域隔离 | 崩断判定改字节（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现；陈铜金仅 DOM chrome + 三处 sanctioned crossing；--success 不进画布 | 全部 |
+| 2026-10-17 | v1.3 sag 参考式 + 指针事件纪律 | sag_px 改 clamp(1.46 × sizeToMass², 2, 140) 参考式并禁作绳渲染输入（Matter 解算唯一真相源）；预警阈值 ≥0.8× 字节上限；非交互 DOM 元素 pointer-events:none | 全部 |

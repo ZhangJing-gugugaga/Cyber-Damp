@@ -1,8 +1,9 @@
-# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.2
+# 《回南天 Cyber Damp》设计规范 DESIGN.md v1.3
 
 > 生成日期：2026-10-17 | 设计师：颜好看 | 基于：PRD v1.0（立项版）+ 架构文档 v1.0（docs/architecture.md，已锁定）
 > v1.1 变更：对齐架构锁定——Lucide 1.58.0 + data-lucide/createIcons 渲染约定；DOM 层 plain CSS 无框架；阶段命名对齐 fresh/damp/wet/moldy；天气源改本地种子模拟器（ADR-007）；水珠折射诚实约束（不采样桌面背景，滤镜只挂 Sprite）；焦化 MVP 用 scale/skew 近似；蘑菇范围按验收优先级分级
 > v1.2 变更：绳索崩断判定改**字节制**（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现、禁止用作崩断阈值；写入陈铜金强调色域隔离规则（仅 DOM chrome + 三处 sanctioned crossing + --success 不进画布）
+> v1.3 变更：sag_px 改 sizeToMass 表达的参考公式（k≈3.5 平方式，双锚点 10KB→5px / 24GB→140px）并明确禁止用作绳渲染输入（Matter 解算唯一真相源）；预警阈值按字节 ≥0.8×绳型上限；新增 DOM chrome 指针事件纪律（非交互元素 pointer-events:none）
 > 三轴刻度：DESIGN_VARIANCE=7 / MOTION_INTENSITY=6 / VISUAL_DENSITY=5
 > 寄存器：Product（设计服务产品，桌面玩具挂件）；平台轴：Windows 桌面（透明置顶 overlay，指针优先，非移动端）
 > 配套文件：`design-system/design-tokens.css`（四层 Token）、`design-system/design-tokens.json`（机器可读 sidecar）、`design-system/MASTER.md`（全局设计源）
@@ -278,10 +279,11 @@ Lucide 没有以下语义，需补画并保持同一描边语言（圆线帽、�
 - 红塑料绳（`--rope-plastic`）：4px，带 1px 同色系纵向高光；字节承重 25GB；
 - 304 不锈钢杆（`--rope-steel`）：刚性直线不坍塌（约束 stiffness 1.0），5px + 防滑波浪卡槽（齿距 24px 的微齿路径）；字节承重 ≥100GB（MVP 文件树最大 24GB，等效不限）。
 
-**配重与下垂（两个映射严格分工，防沉默逻辑错误）**：
+**配重与下垂（三个映射严格分工，防沉默逻辑错误）**：
 - 崩断判定按**字节**：该绳悬挂文件 Σ sizeBytes 超绳型字节上限即断（架构 §5.2 硬约束）。sizeToMass 对数映射**禁止用作崩断阈值**（大文件段被压缩：5GB→质量 5.8、25GB→质量 6.3，按质量判三档绳几乎无差异）。
-- sizeToMass = 0.4 + log10(kb) × 0.8（1KB→0.4 / 10KB→1.2 / 1MB→4.8 / 24GB→9.8）**只用于下垂深度与配重表现**：视觉下垂量 sag_px = clamp(k · log10(bytes+1), 2, 140)，10KB txt 下垂约 2px（微风高高飘起）；20GB 文件瞬间压成深 V（约 140px）。
-- 超限预警与崩断表现：Σ字节达到绳型上限 80% 时绳体高频颤抖 + 纤维断裂粒子 + `triangle-alert` 小角标 + 绳色闪 `--warn` 一次（150ms）；超限即移除锚点约束，文件自由落体撞任务栏刚体弹跳两次（弹性 0.4）。
+- sizeToMass = 0.4 + log10(kb) × 0.8（kb = sizeBytes/1024；公式实算：10KB→1.2 / 1MB→2.8 / 1GB→5.2 / 24GB→6.3）是**唯一下垂驱动量**：绳体形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置画曲线），不存在第二条渲染路径。
+- 下垂量**参考公式**（仅作视觉目标与验收参考，禁止前端用它直接驱动绳渲染——公式与模拟双源真相必然打架）：sag_px = clamp(k × sizeToMass(sizeBytes)², 2, 140)，k ≈ 3.5。定标锚点（按上述公式实算质量）：10KB txt（质量 1.2）→ 约 5px，纹丝不动、微风高高飘起；20GB（质量 6.3）→ 约 137px、24GB（质量 6.3）→ 约 140px，瞬间深 V。采用平方形式的原因：线性形式无法同时满足双锚点（满足 24GB→140px 的线性 k 会让 10KB 垂 27px，违背 PRD"纹丝不动"）；且参考式与物理驱动量同基（都用 sizeToMass），不会出现以字节对数直接估算时小文件段被高估约 3 倍的问题。
+- 超限预警与崩断表现：Σ sizeBytes ≥ 0.8 × 绳型字节上限时，绳体高频颤抖 + 纤维断裂粒子 + `triangle-alert` 小角标 + 绳色闪 `--warn` 一次（150ms）；超限即移除锚点约束，文件自由落体撞任务栏刚体弹跳两次（弹性 0.4）。
 
 **失衡滑落**：一侧过重导致倾角过大时，轻文件沿绳滑到最低点挤作一团（堆叠时边缘轻微重叠 + 霉菌交叉感染提示气泡）；挂钩滑脱：吸盘"啪"脱落 + 文件落任务栏弹跳两次（Matter.js 弹性 0.4）。
 
@@ -338,6 +340,7 @@ DOM 模块映射（架构 §8 `renderer/ui/`）：气象牌 = `weather-sign.ts`�
 - **商店 / 设置**：top-right 第二三席，44x44 独立按钮（`store` / `settings`，24px 图标）。
 - **工具箱**：bottom-left 44x44 入口（`wrench`），点击弹出工具面板（剪刀、吹风机、保湿喷雾、吸湿盒、刮水器；麦克风吹气架构列 P2，MVP 入口置灰），工具格 44x44，选中工具 2px `--accent` 描边。
 - **提示气泡**：锚定触发物（文件/蘑菇/绳），宣纸便利贴隐喻（`--damp-0-label` 底 + `--damp-0-label-ink` 字，随机旋转 -2°~+2°，6s 自动消失，可点击关闭）；紧急警示（绳将断）切换为 `--warn` 边线 + 不自动消失。
+- **指针事件纪律（架构边界，P0 级执行）**：窗口常态是点击穿透，DOM chrome 默认不吃事件。所有**非交互** DOM 元素（预警角标、装饰性贴片、读数文本、tip 气泡的正文区）一律 `pointer-events: none`；只有真正的交互控件（按钮、工具格、输入框、可拖拽面板标题栏）才开启 `pointer-events: auto`。禁止任何纯展示元素把桌面下面的应用挡住。
 - **专注模式（老板键 Ctrl+Alt+H）**：HUD 全部淡出至 15% 透明度，in-world 暂停渲染（省电，架构 R3：`document.hidden` 暂停 ticker + powerMonitor 锁屏暂停物理），托盘提示已进入专注模式；再按恢复。
 - **多显示器**：架构 R6 已处理 display-metrics-changed 重算 bounds；HUD 锚主屏，in-world 覆盖工作区（任务栏避让由 `workAreaBounds` 保证）。
 
@@ -420,10 +423,12 @@ Loading / Empty / Error / Populated / Edge，各态规范已在商品卡（6.5�
 2. **分层**（架构 §3）：in-world = Pixi.js 画布（`view/`：文件替身/绳/蘑菇/粒子/Shader，实体全部程序化 Graphics 绘制，不用图标贴图，保持拟物手绘感）；chrome = DOM 覆盖层（`ui/`：气象牌/商店侧栏/工具箱/Demo 控制台/Toast）。chrome 永远跑在 veil 上，不直接接触透明像素；`ui/` 禁止直接操作物理体。
 3. **渲染要点**（架构 §5.3）：水珠 = DropletFilter（程序化高度场 + 局部折射偏移 + 近白高光 + 暗环，诚实约束见 2.6）；霉斑 = MoldFilter（Simplex 噪声 + 阈值 + 蔓延 mask）；焦化 = CharFilter（褐色矩阵 + scale/skew 近似）；挂雾 = FogFilter（全屏噪声 alpha，基准色 `--fog-cool`）。滤镜只挂单个 Sprite 不挂 stage；同屏粒子 ≤ 300；DPR ≤ 2；`document.hidden` 暂停 ticker；锁 60fps，掉帧优先砍粒子与水珠密度。
 4. **Lucide 集成**（架构 §8）：`renderer/ui/icons.ts` 用 `createIcons({ icons })` 显式注册用到的图标子集；DOM 写 `<i data-lucide="scissors">` 占位；`renderer/types/lucide.d.ts` 补 ambient 声明。图标 node 可序列化为 SVG 字符串供 Pixi 贴图（如需要）。
-5. **安全红线联动设计**：MVP 不碰真实文件（虚拟替身方案，架构 §6 out-of-scope 已确认）；替身图标双击仍唤起系统默认程序（虚拟层语义）。
-6. **文案**：全部走 i18n 文案表（zh-CN 起步），气泡/错误/空状态文案以本文档为基准，不即兴撰写。
-6. **已知坑**：Windows 透明窗口 +  alwaysOnTop 与全屏应用的 z-order 冲突（专注模式降透明度而非抢焦点）；点击穿透边缘误判（可交互元素命中区外扩 8px）；Noto SC 子集化后回退链必须保留系统字体；mono 数字必须 tabular-nums 防滚动跳动。
+5. **绳索渲染唯一真相源**（架构 §5.2 澄清）：绳体形状 100% 由 Matter 物理解算涌现，rope-view.ts 沿绳链位置画曲线；DESIGN.md §6.3 的 sag_px 参考公式只作视觉目标与验收参考，**禁止用它直接驱动绳渲染**（公式与模拟双源真相必然打架）。
+6. **指针事件纪律**（架构边界）：非交互 DOM 元素（预警角标、装饰贴片、读数文本、气泡正文）一律 `pointer-events: none`；只有交互控件（按钮、工具格、输入框、可拖拽标题栏）开 `pointer-events: auto`。禁止纯展示元素挡住桌面下面的应用。
+7. **安全红线联动设计**：MVP 不碰真实文件（虚拟替身方案，架构 §6 out-of-scope 已确认）；替身图标双击仍唤起系统默认程序（虚拟层语义）。
+8. **文案**：全部走 i18n 文案表（zh-CN 起步），气泡/错误/空状态文案以本文档为基准，不即兴撰写。
+9. **已知坑**：Windows 透明窗口 + alwaysOnTop 与全屏应用的 z-order 冲突（专注模式降透明度而非抢焦点）；点击穿透边缘误判（可交互元素命中区外扩 8px）；Noto SC 子集化后回退链必须保留系统字体；mono 数字必须 tabular-nums 防滚动跳动。
 
 ---
 
-*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）；v1.2（2026-10-17）绳索崩断判定改字节制（5GB/25GB/≥100GB，sizeToMass 仅用于下垂）+ 陈铜金强调色域隔离规则（仅 DOM chrome，三处 sanctioned crossing，--success 不进画布）。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*
+*变更记录：v1.0（2026-10-17）初版，基于 PRD v1.0；v1.1（2026-10-17）对齐架构文档 v1.0 锁定（Lucide 1.58.0 / plain CSS / 阶段命名 / 本地种子天气 ADR-007 / 水珠折射诚实约束 / 滤镜挂 Sprite / 粒子预算 300 / DPR 2 / 蘑菇优先级分级 / --fog-cool 与狗尿苔变体 token）；v1.2（2026-10-17）绳索崩断判定改字节制（5GB/25GB/≥100GB，sizeToMass 仅用于下垂）+ 陈铜金强调色域隔离规则（仅 DOM chrome，三处 sanctioned crossing，--success 不进画布）；v1.3（2026-10-17）sag_px 改 sizeToMass 参考公式并禁作渲染输入 + 预警阈值按字节 ≥0.8× + DOM 指针事件纪律。后续页面级覆盖写入 `design-system/pages/<page>.md`，只写差异。*
