@@ -239,6 +239,8 @@ export interface FileRuntime {
 
 确定性 PRNG（mulberry32，seed 由 `Date` 日期派生，保证同一天同一桌面）。产出 40-60 个 FileNode：4 类 ext 加权抽样；文件名池按类别分（季度汇报.docx / 毕业设计.zip / IMG_20230715.jpg / 039_混音最终版.flac / main.py / 新建文件夹 …）；sizeBytes 对数均匀分布（1KB ~ 24GB）；mtime 在 0-400 天前分布，保证至少 8 个 > 30 天的"陈年老文件"供开局延时演出。布局：网格 + 抖动，避开左右边缘 140px（晾衣绳吸附区）。
 
+**固定 showcase 集（pin 集）机制**：生成器必须先放置一小组命名锚文件（已知锚点：demo.mp4 = 2.3GB，用于用户旅程"深 V 但不崩断"演示；完整 pin 清单由架构侧在 Spec 阶段从设计资产清单收敛锁定），其余名额由 PRNG 生成。PRD/设计文档中出现的具体文件名与 sizeBytes 数值，一律以生成器 pin 集为权威源——运行时数据由代码生成器定义，设计 mockup 引用 pin 集，禁止各文档自行发明数值造成 mockup 与运行时漂移。
+
 ---
 
 ## 5. 核心交互的技术实现路径
@@ -272,7 +274,7 @@ export function createRope(world: Matter.World, ax: number, ay: number, bx: numb
   const links = Array.from({ length: linkCount }, (_, i) => {
     const t = i / (linkCount - 1);
     return Bodies.circle(ax + (bx - ax) * t, ay + (by - ay) * t, 3, {
-      mass: 0.02, frictionAir: 0.03,
+      mass: 0.5, frictionAir: 0.03,
       collisionFilter: { category: CAT.ROPE, mask: 0 }, // 绳链互不碰撞也不撞文件
     });
   });
@@ -294,13 +296,23 @@ export function createRope(world: Matter.World, ax: number, ay: number, bx: numb
 ```ts
 export function sizeToMass(sizeBytes: number): number {
   const kb = Math.max(sizeBytes / 1024, 1);
-  return 0.4 + Math.log10(kb) * 0.8; // 1KB→0.4 / 10KB→1.2 / 1MB→4.8 / 1GB→8.4 / 24GB→9.8
+  return 0.4 + Math.log10(kb) * 0.8; // 公式实算锚点（kb=sizeBytes/1024 二进制口径）：1KB→0.40 / 10KB→1.20 / 1MB→2.81 / 1GB→5.22 / 20GB→6.26 / 24GB→6.32；另 5GB→5.78 vs 25GB→6.33 几乎无差——崩断必须按字节判，见下
 }
 ```
 
-挂载：文件刚体 `Bodies.rectangle(x, y, w, h, { collisionFilter: { category: CAT.FILE, mask: CAT.FILE | CAT.TASKBAR } })` + `Body.setMass(body, sizeToMass(sizeBytes))`，用Constraint 夹到最近绳链（pointA=夹口偏移）。滑落 = 提高 file frictionAir 低 + 绳倾角超阈值时夹子约束 stiffness 衰减；崩断 = 该绳 Σmass 超绳型 loadLimit 时移除锚点约束，文件自由落体撞任务栏（TASKBAR 静态刚体）弹跳。不锈钢杆 = 约束 stiffness 1.0 + engine constraintIterations 上调，视觉笔直不垂坠。
+挂载：文件刚体 `Bodies.rectangle(x, y, w, h, { collisionFilter: { category: CAT.FILE, mask: CAT.FILE | CAT.TASKBAR } })` + `Body.setMass(body, sizeToMass(sizeBytes))`，用Constraint 夹到最近绳链（pointA=夹口偏移）。滑落 = 提高 file frictionAir 低 + 绳倾角超阈值时夹子约束 stiffness 衰减。
 
-**已知精度约束（必须写进后续 Spec）**：Matter 约束解算为迭代式，质量比过大（>40:1）会抖。绳链总质量 0.28，文件最大质量 ~9.8 ≈ 35 倍，处于安全区；engine 固定 `constraintIterations: 4`、`positionIterations: 8`，固定步长 16.666ms 累加器驱动，禁止可变 dt 直喂。
+**崩断判定按字节、不按质量（硬约束，防沉默逻辑错误）**：该绳悬挂文件的 Σ sizeBytes 超过绳型字节上限时，移除锚点约束，文件自由落体撞任务栏（TASKBAR 静态刚体）弹跳。绳型字节上限：老式麻绳 5GB / 妈妈的红塑料绳 25GB / 304 不锈钢防风晒衣杆 ≥100GB（MVP 文件树最大 24GB，等效不限）。sizeToMass 仅用于下垂深度与配重表现，**禁止用作崩断阈值**——对数映射在大文件段被压缩（5GB→质量 5.8、25GB→质量 6.3），按质量判定会使绳索三档几乎无差异。不锈钢杆 = 约束 stiffness 1.0 + engine constraintIterations 上调，视觉笔直不垂坠，夹子防滑槽使文件不滑向最低点挤团。
+
+**下垂动态范围调参包络（Phase 2 物理调参硬约束）**：sizeToMass 线性对数映射只给出 5.3 倍质量跨度（10KB→1.2 vs 24GB→6.3），直接驱动绳索时下垂对比度不足以表达 PRD"10KB 纹丝不动 vs 24GB 夸张深 V"（参考曲线要求约 28 倍视觉跨度）。因此实际设置刚体质量时用指数化质量：`mass_eff = sizeToMass(sizeBytes) ** p`，p 默认 2（调参范围 1.8-2.4），经 `Body.setMass` 设置；sizeToMass 本身保持线性对数不变（参考公式与存档语义依赖它）。绳链质量相应上调至 0.5/链（总 7.0），满足：10KB 文件（mass_eff 1.44）≤ 0.3 × 绳链总质量 → 视觉纹丝不动；24GB 文件（mass_eff 39.9）≥ 4 × 绳链总质量 → 夸张深 V。mass_eff > 10 的重文件必须用 2-3 个夹子约束分散挂载（多点挂载），单挂点质量比 ≤ 40:1，防迭代解算抖动。验收目标（红塑料绳上）：10KB 下垂 ≤ 5px、24GB 下垂 ≥ 120px、60fps 无可见约束抖动或回弹。此为调参包络非定死值——实现期可在包络内按实测观感调整，但四条边界（小文件 ≤0.3×绳重、大文件 ≥4×绳重、单挂点 ≤40:1、验收双锚点）不可破。
+
+**已知精度约束（必须写进后续 Spec）**：Matter 约束解算为迭代式，质量比过大（>40:1）会抖。按上调参包络：单挂点最坏比 39.9/(0.5×3) ≈ 27 倍，处于安全区；engine 固定 `constraintIterations: 4`、`positionIterations: 8`，固定步长 16.666ms 累加器驱动，禁止可变 dt 直喂。
+
+**Demo 控制台容量预检（硬约束，路演防翻车）**：`一键挂满` 自动选文件时必须做容量预检——按文件字节降序尝试挂载，累计和不超过该绳字节上限为止（贪心截断，保住最重文件出深 V，其余顺延）；深 V 演示绳必须用会下垂的绳型（红塑料绳 25GB），**304 不锈钢杆刚性笔直不下垂，禁止用于深 V 演示**；手动挂载超限保持 PRD 设计的"啪嗒滑脱"崩断戏剧效果，不做拦截。虚拟文件树最大文件 24GB，最重 5 个 Σ 可达 36-69GB，远超麻绳 5GB——不预检会双绳齐断，深 V 亮点直接演砸。
+
+**下垂的真实来源（双源真相禁忌）**：绳索形状 100% 由 Matter 物理解算涌现（rope-view.ts 沿绳链位置绘制曲线），sizeToMass 是唯一下垂驱动量。设计侧 sag_px 参考公式（clamp(k·log10(bytes+1), 2, 140)）**仅作视觉目标与验收参考，禁止用作渲染输入**——且参考公式应改用 sizeToMass 表达（sag_px = clamp(k × sizeToMass(sizeBytes), 2, 140)），否则小文件下垂量被高估约 3 倍，违背"10KB txt 纹丝不动"的 PRD 表现。k 由视觉侧定标（24GB→接近 140px，10KB→接近 2-5px）。
+
+**80% 预警态（sanctioned 表现层增强）**：Σ sizeBytes ≥ 0.8 × 绳型字节上限时进预警（绳身颤抖 + 断裂粒子 + 警示角标），属表现层，不改变物理解算与崩断时机；预警角标若为 DOM 元素必须 pointer-events: none，不得拦截穿透。演示控制台的容量预检绳同样适用预警。
 
 ### 5.3 Pixi v8 写实 Shader（view/shaders/）
 
@@ -389,8 +401,8 @@ weather-simulator.ts：城市表（广州/敦煌/吐鲁番/阿塔卡马/伦敦/�
 | 一 环境气候 | 气象牌切城（模拟源）、湿度影响受潮速率、迁徙 1 次/日、CPU 占用 >80% 出汗顶栏滴落 | 屏幕挂雾 + 刮水器刮雾 | 真实天气 API、麦克风吹气 |
 | 二 文件生理学 | 4 类 ext 差异化受潮视觉（墨水洇染/褪色/蓄水袋/胀气）；文档滴黑字符、图片滴颜料、音频袋晃动、压缩包膨胀爆裂 | 字符黑灰堆积需扫进回收站 | 八音盒走调旋律（音频类播放） |
 | 三 工具箱晾晒 | 边缘拉绳悬链线、对数配重、超重崩断摔落、拧麻花除湿（humidity ×0.5）、吹风机 + 过热焦化 + 保湿喷雾恢复 | 滑落挤团 + 霉菌交叉感染 | 真 Mesh 顶点坍缩（用 scale/skew 近似） |
-| 四 蘑菇生态 | moldy 文件长蘑菇（N 平菇/狗尿苔 + R 二进制金针菇带 0/1 粒子）、growth 满可剪、卖币；蜗牛吃青苔留银道 | Demo 控制台一键发霉/一键挂满/胆小菇缩头行为（行为实现，杂交条件不做） | SR/SSR/UR 杂交培育公式全部搁置 |
-| 五 杂货铺 | 卖菇得币；绳索 3 档（承重 6/25/∞刚性）、夹子 2 档、电扇（绳浪起伏）、加湿器（局部催熟） | 吸湿盒消耗品（泼洒半屏淹湿） | 商店动效打磨 |
+| 四 蘑菇生态 | moldy 文件长蘑菇（N 平菇/狗尿苔 + R 二进制金针菇带 0/1 粒子）、growth 满可剪、卖币；蜗牛吃青苔留银道 | Demo 控制台一键发霉/一键挂满；胆小菇缩头行为（P1，总监已锁定，路演前必须可用；纯行为实现，杂交培育条件不做） | SR/SSR/UR 杂交培育公式全部搁置 |
+| 五 杂货铺 | 卖菇得币；绳索 3 档（字节承重 5GB / 25GB / ≥100GB 刚性）、夹子 2 档、电扇（绳浪起伏）、加湿器（局部催熟） | 吸湿盒消耗品（泼洒半屏淹湿） | 商店动效打磨 |
 
 **明确不做（out-of-scope）**：真实桌面扫描与 SysListView32 原生图标隐藏（绝对安全红线改由"虚拟替身"根本性规避——MVP 不碰任何真实文件）；macOS 构建；自动更新；联网账号；杂交公式；真网格变形。
 
@@ -403,7 +415,7 @@ weather-simulator.ts：城市表（广州/敦煌/吐鲁番/阿塔卡马/伦敦/�
 | R1 | Pixi v7→v8 API 断裂（异步 init、Filter 新构造、Graphics build-then-fill、ESM-first） | 幻觉 API 高发区 | 全部按 v8 文档书写（本档 §2 已锚定）；`await app.init()`；禁 beginFill；构建门必过 tsc |
 | R2 | Vite 8 换血 Rolldown/Oxc（rollupOptions→rolldownOptions、esbuild→oxc、minify 变化） | 配置幻觉 | vite.config.ts 保持最小化（无 rollupOptions 需求）；迁移表已锚定在 §2 |
 | R3 | 透明全屏 WebGL 在 Win 上 alpha 合成开销 | 掉帧 | DPR 上限 2；滤镜只挂 Sprite 不挂 stage；粒子预算（同屏 ≤ 300）；`document.hidden` 时暂停 ticker；powerMonitor 锁屏暂停物理 |
-| R4 | Matter 质量比/约束拉伸抖动 | 绳索不自然 | 质量比 ≤ 35:1；constraintIterations 4 / positionIterations 8；固定步长累加器；绳链 collisionFilter mask=0 |
+| R4 | Matter 质量比/约束拉伸抖动 | 绳索不自然 | 指数化质量 mass_eff = sizeToMass^2 + 绳链 0.5/链；单挂点质量比 ≤ 40:1（重文件 2-3 点挂载）；constraintIterations 4 / positionIterations 8；固定步长累加器；绳链 collisionFilter mask=0 |
 | R5 | setIgnoreMouseEvents 逐帧调用 | 穿透掉帧 | 仅命中态跳变时经 IPC 调用；常态 forward:true |
 | R6 | 多显示器/DPI/工作区变化 | 坐标错位 | 监听 screen 'display-metrics-changed' 重算 bounds；resolution=devicePixelRatio；坐标以工作区左上为原点 |
 | R7 | matter-js 为 CJS + 类型为 @types | import 形态混乱 | 统一 `import Matter from 'matter-js'` 后解构；@types/matter-js 0.20.2 |
