@@ -1,10 +1,13 @@
 /* ==========================================================================
-   《回南天 Cyber Damp》 Design Tokens v1.0
+   《回南天 Cyber Damp》 Design Tokens v1.1
    四层架构：A1-identity / A1-structure / A2 / B-slot / C-extension
    原则：组件只允许引用 var(--token)，禁止硬编码色值（唯一例外 #fff/#000）
-   平台：Windows 桌面透明置顶挂件（Electron + Pixi.js + Matter.js）
+   平台：Windows 桌面透明置顶挂件（Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0）
+   图标：Lucide 1.58.0（唯一来源，data-lucide + createIcons 渲染）
    基底假设：画布全透明，UI 元素悬浮于任意桌面壁纸之上，
            所有面板必须通过 --ink veil 层保证可读性（对比度 >= 4.5:1）
+   v1.1：对齐架构文档 v1.0——新增 --fog-cool（挂雾冷白）、--shroom-oyster-variant
+        （狗尿苔变体）；绳索承重口径 6GB/25GB/刚性
    ========================================================================== */
 
 :root {
@@ -166,6 +169,7 @@
   --shroom-oyster-cap: #8D7B68;   /* 平菇菌盖 */
   --shroom-oyster-gill: #E5DCC9;  /* 菌褶 */
   --shroom-oyster-stem: #D8CDB6;
+  --shroom-oyster-variant: #9C8A5C; /* 狗尿苔变体（N，帽形更尖偏黄褐） */
   --shroom-enoki-body: #EDE3C6;   /* 金针菇菌体 */
   --shroom-enoki-glow: #A8D06B;   /* 二进制金针菇荧光菌丝 */
   --shroom-bolete-cap: #A8552F;   /* 见手青菌盖 */
@@ -176,16 +180,17 @@
   --shroom-shy-pupil: #2A2622;
   --spore: #D6E8B4;               /* 发光孢子 */
 
-  /* 环境与工具材料 */
-  --rope-hmp: #A88B5F;            /* 老式麻绳 */
-  --rope-plastic: #C0453A;        /* 妈妈的红塑料绳 */
-  --rope-steel: #C9CDD3;          /* 304 不锈钢杆 */
+  /* 环境与工具材料（绳索承重口径对齐架构 §6：6GB / 25GB / 刚性） */
+  --rope-hmp: #A88B5F;            /* 老式麻绳（承重 6GB） */
+  --rope-plastic: #C0453A;        /* 妈妈的红塑料绳（承重 25GB） */
+  --rope-steel: #C9CDD3;          /* 304 不锈钢防风晒衣杆（刚性） */
   --clip-wood: #B08A56;           /* 普通木衣夹 */
   --clip-heated: #C65A2E;          /* 恒温发热夹暖光 */
   --fan-body: #4E7B5A;            /* 老式绿头摇头电扇 */
   --box-cacl2: #D8D2C0;           /* 氯化钙吸湿盒颗粒 */
   --box-cacl2-melt: #B7C9CE;      /* 融化积水 */
   --mist: rgba(200, 226, 232, 0.5); /* 加湿器水雾 / 屏幕挂雾 */
+  --fog-cool: #DFE9EA;            /* 挂雾冷白（FogFilter 基准色） */
   --tyndall: rgba(255, 236, 190, 0.35); /* 晴天丁达尔光束 */
   --sweat: rgba(214, 232, 236, 0.75);   /* CPU 出汗汗珠 */
   --slime-trail: rgba(214, 222, 210, 0.6); /* 蜗牛黏液银印 */

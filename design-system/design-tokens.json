@@ -1,16 +1,18 @@
 {
   "$meta": {
     "name": "Cyber Damp Design Tokens",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "project": "回南天 Cyber Damp",
-    "platform": "windows-desktop-overlay (Electron + Pixi.js + Matter.js)",
+    "platform": "windows-desktop-overlay (Electron 44.8.0 + Pixi.js 8.21.0 + Matter.js 0.20.0)",
     "designer": "颜好看",
     "date": "2026-10-17",
+    "alignedWith": "docs/architecture.md v1.0",
     "rules": [
       "组件只引用 var(--token)，禁止硬编码色值（例外 #fff/#000）",
       "每屏强调色 --accent 可见使用 <= 2 处",
-      "图标统一 Lucide SVG + 项目自定义 SVG（同 2px stroke / 24px grid 语言）",
-      "所有面板经 --panel-bg veil 保证任意壁纸可读性（对比度 >= 4.5:1）"
+      "图标统一 Lucide 1.58.0（data-lucide + createIcons），DOM 层 plain CSS 无框架",
+      "所有面板经 --panel-bg veil 保证任意壁纸可读性（对比度 >= 4.5:1）",
+      "滤镜只挂 Pixi Sprite 不挂 stage；同屏粒子 <= 300；DPR <= 2"
     ]
   },
   "color": {
@@ -61,6 +63,7 @@
       "oyster-cap": { "value": "#8D7B68", "type": "color" },
       "oyster-gill": { "value": "#E5DCC9", "type": "color" },
       "oyster-stem": { "value": "#D8CDB6", "type": "color" },
+      "oyster-variant": { "value": "#9C8A5C", "type": "color", "role": "狗尿苔变体" },
       "enoki-body": { "value": "#EDE3C6", "type": "color" },
       "enoki-glow": { "value": "#A8D06B", "type": "color" },
       "bolete-cap": { "value": "#A8552F", "type": "color" },
@@ -72,14 +75,15 @@
       "spore": { "value": "#D6E8B4", "type": "color" }
     },
     "material": {
-      "rope-hmp": { "value": "#A88B5F", "type": "color", "role": "老式麻绳" },
-      "rope-plastic": { "value": "#C0453A", "type": "color", "role": "红塑料绳" },
-      "rope-steel": { "value": "#C9CDD3", "type": "color", "role": "不锈钢杆" },
+      "rope-hmp": { "value": "#A88B5F", "type": "color", "role": "老式麻绳（承重 6GB）" },
+      "rope-plastic": { "value": "#C0453A", "type": "color", "role": "红塑料绳（承重 25GB）" },
+      "rope-steel": { "value": "#C9CDD3", "type": "color", "role": "不锈钢杆（刚性）" },
       "clip-wood": { "value": "#B08A56", "type": "color", "role": "木衣夹" },
       "clip-heated": { "value": "#C65A2E", "type": "color", "role": "恒温发热夹" },
       "fan-body": { "value": "#4E7B5A", "type": "color", "role": "绿头电扇" },
       "box-cacl2": { "value": "#D8D2C0", "type": "color", "role": "吸湿盒颗粒" },
       "box-cacl2-melt": { "value": "#B7C9CE", "type": "color", "role": "赛博积水" },
+      "fog-cool": { "value": "#DFE9EA", "type": "color", "role": "挂雾冷白（FogFilter 基准色）" },
       "coin": { "value": "#C69A3A", "type": "color", "role": "除湿币 in-world" }
     },
     "panel": { "value": "rgba(16,19,15,0.90)", "type": "color", "role": "所有 HUD 面板统一 veil" }
