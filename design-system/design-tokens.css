@@ -1,0 +1,211 @@
+/* ==========================================================================
+   《回南天 Cyber Damp》 Design Tokens v1.0
+   四层架构：A1-identity / A1-structure / A2 / B-slot / C-extension
+   原则：组件只允许引用 var(--token)，禁止硬编码色值（唯一例外 #fff/#000）
+   平台：Windows 桌面透明置顶挂件（Electron + Pixi.js + Matter.js）
+   基底假设：画布全透明，UI 元素悬浮于任意桌面壁纸之上，
+           所有面板必须通过 --ink veil 层保证可读性（对比度 >= 4.5:1）
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------
+   * A1-identity：品牌 DNA（湿墨 + 宣纸 + 陈铜）
+   * ------------------------------------------------------------------ */
+
+  /* 墨（veil / surface 系统）：带青绿 chroma 倾向的深色中性，不用纯黑 */
+  --ink-900: #10130F;   /* veil 底：面板最深层，88-92% 不透明 */
+  --ink-800: #171B17;   /* 面板主体 */
+  --ink-700: #1F241F;   /* 卡片 / 浮层 */
+  --ink-600: #2A2F29;   /* 浮层内嵌层 / surface-warm */
+  --ink-500: #383E38;   /* 强分隔 / 控件底 */
+
+  /* 纸（前景系统）：宣纸白，带暖 chroma */
+  --paper-100: #F2EDE0; /* --fg 主文字 */
+  --paper-200: #DAD4C3; /* --fg-2 次级文字 */
+  --paper-400: #A9A292; /* --muted 副文字 */
+  --paper-500: #7C7768; /* --meta 元数据 / 禁用 */
+
+  /* 边框：hairline first，1px 优先于阴影 */
+  --border: rgba(242, 237, 224, 0.10);
+  --border-soft: rgba(242, 237, 224, 0.06);
+  --border-strong: rgba(242, 237, 224, 0.18);
+
+  /* 强调色：除湿币·陈铜金（每屏可见使用 <= 2 处） */
+  --accent: #C0952F;
+  --accent-on: #1C190C;        /* accent 底上的前景（深墨，非纯黑） */
+  --accent-hover: #D3A947;
+  --accent-active: #9E7A22;
+  --accent-veil: rgba(192, 149, 47, 0.14); /* 选中态底 / 光晕，< 12% */
+
+  /* 字体 */
+  --font-display: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", monospace;
+
+  /* ------------------------------------------------------------------
+   * A1-structure：结构层（字号 / 容器 / 节区）
+   * ------------------------------------------------------------------ */
+  --text-2xs: 11px;  /* 图标角标 / 稀有度字母 */
+  --text-xs: 12px;   /* 辅助说明 / 标签 */
+  --text-sm: 13px;   /* 列表行 / 按钮文字 */
+  --text-base: 14px; /* UI 正文基准 */
+  --text-lg: 16px;   /* 面板标题 / 正文强调 */
+  --text-xl: 20px;   /* 区块标题 */
+  --text-2xl: 24px;  /* 商店 / 控制台大标题 */
+  --text-3xl: 32px;  /* 演出大标题（时光坍缩） */
+
+  --leading-body: 1.6;
+  --leading-tight: 1.25;
+  --tracking-display: -0.01em;   /* 标题负字距 */
+  --tracking-caps: 0.08em;       /* ALL CAPS / 稀有度字母 */
+  --tracking-cjk: 0.01em;        /* 中文小字微开 */
+
+  --container-hud: 280px;        /* HUD 单板最大宽 */
+  --container-shop: 360px;       /* 杂货铺抽屉宽 */
+  --container-console: 560px;    /* 控制台宽 */
+
+  /* ------------------------------------------------------------------
+   * A2：语义色 / 间距 / 圆角 / 层级 / 动效
+   * ------------------------------------------------------------------ */
+
+  /* 语义色：按本产品的材料语言定义（潮湿=水青，霉变=铁锈红，干爽=干草绿） */
+  --success: #7D9B5E;  /* 干爽健康 */
+  --warn: #D9A441;     /* 受潮警示 / 临界 */
+  --danger: #B5462B;   /* 重度霉变 / 焦黑 / 危险操作 */
+  --info: #6FA3B0;     /* 水汽 / 湿度信息 */
+  --success-on: #10130F;
+  --warn-on: #10130F;
+  --danger-on: #F2EDE0;
+  --info-on: #10130F;
+
+  /* 间距：4px 网格 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* 圆角：桌面拟物，面板克制，不超过 14px（禁 AI 式过度圆角） */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* 层级：暗色透明桌面用亮度递进表达层级，阴影只给真浮层 */
+  --elev-flat: none;
+  --elev-ring: inset 0 0 0 1px var(--border);
+  --elev-raised: 0 8px 24px rgba(6, 8, 6, 0.45), 0 1px 0 rgba(242, 237, 224, 0.05) inset;
+
+  /* 焦点 & 动效 */
+  --focus-ring: 0 0 0 3px rgba(192, 149, 47, 0.45);
+  --motion-instant: 80ms;   /* 按下反馈 */
+  --motion-fast: 150ms;     /* hover / 状态切换（收敛值） */
+  --motion-base: 220ms;     /* 面板进入 */
+  --motion-slow: 320ms;     /* 抽屉 / 模态 */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decel: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ------------------------------------------------------------------
+   * B-slot：组件插槽别名
+   * ------------------------------------------------------------------ */
+  --fg: var(--paper-100);
+  --fg-2: var(--paper-200);
+  --muted: var(--paper-400);
+  --meta: var(--paper-500);
+  --surface: var(--ink-800);
+  --surface-warm: var(--ink-600);
+  --bg-veil: var(--ink-900);
+
+  /* 组件级 */
+  --panel-bg: rgba(16, 19, 15, 0.90);          /* HUD / 抽屉 / 控制台统一 veil */
+  --panel-border: var(--border);
+  --panel-radius: var(--radius-md);
+  --panel-grain: url("texture/paper-grain.png"); /* 纸纹噪声，5% 不透明度 */
+
+  --btn-primary-bg: var(--accent);
+  --btn-primary-text: var(--accent-on);
+  --btn-primary-hover: var(--accent-hover);
+  --btn-primary-active: var(--accent-active);
+  --btn-primary-disabled-bg: var(--ink-500);
+  --btn-primary-disabled-text: var(--paper-500);
+  --btn-secondary-bg: transparent;
+  --btn-secondary-text: var(--paper-100);
+  --btn-secondary-border: var(--border-strong);
+  --btn-secondary-hover-bg: rgba(242, 237, 224, 0.06);
+
+  --input-bg: var(--ink-700);
+  --input-border: var(--border);
+  --input-focus-border: var(--accent);
+
+  --tag-bg: rgba(242, 237, 224, 0.08);
+  --tag-text: var(--paper-200);
+
+  /* ------------------------------------------------------------------
+   * C-extension：项目专属（回南天材料语言）
+   * ------------------------------------------------------------------ */
+
+  /* 文件四阶段冷落度（in-world 渲染 + 标签色） */
+  --damp-0-label: #E9E2CF;        /* 新鲜：干宣纸 */
+  --damp-0-label-ink: #5C5546;
+  --damp-1-water: #C7D9DC;        /* 轻度：冷凝水珠 tint */
+  --damp-1-water-hi: #F4FAFB;     /* 水珠高光 */
+  --damp-1-ink-bleed: #6B6252;    /* 墨水晕染 */
+  --damp-2-moss: #6E7F4E;         /* 中度：青苔 */
+  --damp-2-stain: #8A7B5C;        /* 中度：水渍 */
+  --damp-3-moss-deep: #45542F;    /* 重度：深苔 */
+  --damp-3-char: #4A3826;         /* 焦化卷边 */
+  --damp-3-mummy: #C9B98F;        /* 脱水木乃伊化 */
+
+  /* 蘑菇图鉴（MVP 4 种；复杂杂交形态搁置） */
+  --shroom-oyster-cap: #8D7B68;   /* 平菇菌盖 */
+  --shroom-oyster-gill: #E5DCC9;  /* 菌褶 */
+  --shroom-oyster-stem: #D8CDB6;
+  --shroom-enoki-body: #EDE3C6;   /* 金针菇菌体 */
+  --shroom-enoki-glow: #A8D06B;   /* 二进制金针菇荧光菌丝 */
+  --shroom-bolete-cap: #A8552F;   /* 见手青菌盖 */
+  --shroom-bolete-cut: #2E4A6B;   /* 切口变深蓝（致幻彩蛋） */
+  --shroom-bolete-stem: #E8D9B8;
+  --shroom-shy-stem: #8B7BA0;     /* 胆小菇烟紫菌柄（物种色，非 UI 渐变） */
+  --shroom-shy-eye: #F2EDE0;
+  --shroom-shy-pupil: #2A2622;
+  --spore: #D6E8B4;               /* 发光孢子 */
+
+  /* 环境与工具材料 */
+  --rope-hmp: #A88B5F;            /* 老式麻绳 */
+  --rope-plastic: #C0453A;        /* 妈妈的红塑料绳 */
+  --rope-steel: #C9CDD3;          /* 304 不锈钢杆 */
+  --clip-wood: #B08A56;           /* 普通木衣夹 */
+  --clip-heated: #C65A2E;          /* 恒温发热夹暖光 */
+  --fan-body: #4E7B5A;            /* 老式绿头摇头电扇 */
+  --box-cacl2: #D8D2C0;           /* 氯化钙吸湿盒颗粒 */
+  --box-cacl2-melt: #B7C9CE;      /* 融化积水 */
+  --mist: rgba(200, 226, 232, 0.5); /* 加湿器水雾 / 屏幕挂雾 */
+  --tyndall: rgba(255, 236, 190, 0.35); /* 晴天丁达尔光束 */
+  --sweat: rgba(214, 232, 236, 0.75);   /* CPU 出汗汗珠 */
+  --slime-trail: rgba(214, 222, 210, 0.6); /* 蜗牛黏液银印 */
+  --coin: #C69A3A;                /* 除湿币（与 accent 同源， in-world 用） */
+
+  /* 演出版 */
+  --curtain-dim: rgba(10, 14, 12, 0.55); /* 时光坍缩全场压暗 */
+}
+
+/* 主题变体：产品只有暗色 veil 一套（透明桌面基底），
+   但提供 ink 浓度档位适配极端壁纸 */
+:root[data-veil="high"] { --panel-bg: rgba(16, 19, 15, 0.96); }
+:root[data-veil="low"]  { --panel-bg: rgba(16, 19, 15, 0.82); }
+
+/* 动效降级：prefers-reduced-motion 时 UI 动效归零，演出走静态替代 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-instant: 0ms;
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
+}
