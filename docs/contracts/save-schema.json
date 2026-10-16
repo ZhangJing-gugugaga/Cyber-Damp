@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://cyber-damp.local/schemas/save.json",
+  "title": "CyberDampSave",
+  "type": "object",
+  "required": ["schemaVersion", "savedAt", "player", "weather", "files", "ropes", "stats"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "savedAt": { "type": "integer", "minimum": 0 },
+    "player": {
+      "type": "object",
+      "required": ["coins", "owned", "equipped"],
+      "additionalProperties": false,
+      "properties": {
+        "coins": { "type": "integer", "minimum": 0 },
+        "owned": { "type": "array", "items": { "type": "string" } },
+        "equipped": {
+          "type": "object",
+          "required": ["rope", "clip"],
+          "additionalProperties": false,
+          "properties": {
+            "rope": { "type": "string" },
+            "clip": { "type": "string" }
+          }
+        }
+      }
+    },
+    "weather": {
+      "type": "object",
+      "required": ["city", "migratedOn"],
+      "additionalProperties": false,
+      "properties": {
+        "city": { "type": "string", "minLength": 1 },
+        "migratedOn": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "humidity", "mold", "char", "state", "mushroom"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "humidity": { "type": "number", "minimum": 0, "maximum": 1 },
+          "mold": { "type": "number", "minimum": 0, "maximum": 1 },
+          "char": { "type": "number", "minimum": 0, "maximum": 1 },
+          "state": { "enum": ["idle", "hung", "drying", "burnt"] },
+          "mushroom": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "required": ["species", "growth"],
+                "additionalProperties": false,
+                "properties": {
+                  "species": { "enum": ["oyster", "dogpee", "binary-enoki"] },
+                  "growth": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "ropes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "ax", "ay", "bx", "by", "tier", "fileIds"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "ax": { "type": "number" },
+          "ay": { "type": "number" },
+          "bx": { "type": "number" },
+          "by": { "type": "number" },
+          "tier": { "enum": ["rope-1", "rope-2", "rope-3"] },
+          "fileIds": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "required": ["harvested", "earned", "playedMs"],
+      "additionalProperties": false,
+      "properties": {
+        "harvested": { "type": "integer", "minimum": 0 },
+        "earned": { "type": "integer", "minimum": 0 },
+        "playedMs": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}
