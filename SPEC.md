@@ -116,7 +116,9 @@
 - **FileRuntime**：`{ id, humidity: 0..1, mold: 0..1, char: 0..1, stage: 'fresh'|'damp'|'wet'|'moldy', state: 'idle'|'hung'|'drying'|'burnt', mushroom: { species, growth }|null }`
 - **演化状态机**（world/evolution.ts 纯函数可单测）：humidity 趋向 env.humidity×0.9；mold += dt×0.004×humidity；mold>0.6 蘑菇萌生 growth += dt×0.01；heat>0.8 且 humidity<0.3 时 char += dt×0.01；char>0.6 锁定 burnt；hung+wind>0.5 风干 ×1.8
 - **sizeToMass**：`0.4 + log10(max(kb,1)) × 0.8`（仅下垂深度：1KB→0.4 / 1MB→4.8 / 1GB→8.4 / 24GB→9.8；质量比 ≤35:1 防迭代抖动）
-- **绳索崩断（字节判定，硬约束）**：该绳 Σ sizeBytes 超绳型字节上限时移除锚点约束——麻绳 5GB / 红塑料绳 25GB / 304 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）
+- **绳索崩断（字节判定，硬约束）**：该绳 Σ sizeBytes 超绳型字节上限时移除锚点约束——麻绳 5GB / 红塑料绳 25GB / 304 不锈钢杆 ≥100GB（MVP 文件树最大 24GB 等效不限）。GB 统一定义为 1024³ 字节（GiB 语义，与文件系统一致），在 shared/constants.ts 锁定 `GB = 1024**3`
+- **下垂单一来源（防双源真相，硬约束）**：绳索形状 100% 由 Matter 物理解算涌现，sizeToMass 是唯一下垂驱动量。设计文档 sag_px 公式仅作视觉目标/验收参考，**禁止用作渲染输入**；代码中不得存在按文件大小直接计算绳形的分支（QA 以源码审查断言）
+- **80% 预警态（P1 表现层）**：Σ sizeBytes ≥ 0.8 × 绳型字节上限时绳体颤抖 + 断裂粒子 + DOM 警示角标；不改变物理解算与崩断时机；DOM 预警角标必须 `pointer-events: none`（穿透窗口纪律）。崩断字节判定为 P0，预警表现为 P1
 - **虚拟桌面生成器**：mulberry32（seed=日期派生，同日同桌面）；40-60 节点，4 类 ext 加权；sizeBytes 对数均匀 1KB~24GB；mtime 分布 0-400 天保证 ≥8 个 >30 天陈年老文件；初始布局用 PRD §7.2 十六个梗文件名（demo.mp4=2.3GB 演示深 V，低于麻绳 5GB 上限不误触断裂）
 - **存档 schema**：`{ schemaVersion: 1, savedAt, player: { coins, owned, equipped }, weather: { city, migratedOn }, files: [...], ropes: [...], stats }`；tmp+rename 原子写；读失败降级新开局
 
@@ -185,6 +187,8 @@
 | AC-31 | Demo 台(P1) | When 用户按 Ctrl+Shift+D，the system shall 呼出控制台；一键回南天使选中文件 3s 内走完出水→变软→长蘑菇 | P1 |
 | AC-32 | Demo 挂满(P1) | When 用户点击一键挂满，the system shall 容量预检（Σ bytes ≤ 当前绳型字节上限，超出贪心截断），且点击后 5 秒内无崩断事件触发 | P1 |
 | AC-33 | Demo 深V(P1) | While 深 V 演示进行中，the 演示绳 shall 保持绳型固有垂度特性（红塑料绳深下垂；304 钢杆刚性不垂） | P1 |
+| AC-34 | 下垂单一来源(P0) | While 渲染晾衣绳，the 渲染层 shall 直接采样 Matter 绳链刚体坐标，代码中不得存在按文件大小直接计算绳形的分支（源码审查断言） | P0 |
+| AC-35 | 80%预警(P1) | While 该绳 Σ sizeBytes ≥ 0.8 × 绳型字节上限，the 表现层 shall 显示绳体颤抖+断裂粒子+DOM 警示角标（pointer-events:none），且不得改变崩断判定时机 | P1 |
 
 ## 10. 边界与约束
 
