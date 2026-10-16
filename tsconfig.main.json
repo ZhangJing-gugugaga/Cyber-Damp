@@ -3,7 +3,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node",
-    "outDir": "dist/main",
+    "lib": ["ES2022"],
+    "rootDir": "src",
+    "outDir": "dist",
     "noEmit": false,
     "types": ["node"]
   },
