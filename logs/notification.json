@@ -1,0 +1,56 @@
+[
+  {
+    "transcript_path": "",
+    "cwd": "e:\\Desktop\\work\\Cyber Damp",
+    "hook_event_name": "Notification",
+    "message": "auth_success: \u9473\u85c9\u59cf\u74d2\u5a42\u76ac\u7490\uff44\u6362\u74d2\u5a42\u76ac \u91c6\udc88 \u91c5\udcbc \u91c8\udcbd \u91cb\udcbf \u91c6\udc88",
+    "notification_type": "auth_success",
+    "title": "CodeBuddy Code",
+    "permission_mode": "default",
+    "client": "WorkBuddy",
+    "version": "5.8.3",
+    "model": "step-5-preview"
+  },
+  {
+    "transcript_path": "",
+    "cwd": "e:\\Desktop\\work\\Cyber Damp",
+    "hook_event_name": "Notification",
+    "message": "auth_success: \u9473\u85c9\u59cf\u74d2\u5a42\u76ac\u7490\uff44\u6362\u74d2\u5a42\u76ac \u91c6\udc88 \u91c5\udcbc \u91c8\udcbd \u91cb\udcbf \u91c6\udc88",
+    "notification_type": "auth_success",
+    "title": "CodeBuddy Code",
+    "permission_mode": "default",
+    "client": "WorkBuddy",
+    "version": "5.8.3",
+    "model": "step-5-preview"
+  },
+  {
+    "session_id": "e80e5922-9ec3-4d2a-9704-0cf8c61ca28b",
+    "transcript_path": "C:\\Users\\laotie_nb666\\.workbuddy\\projects\\e-Desktop-work-Cyber Damp\\e80e5922-9ec3-4d2a-9704-0cf8c61ca28b.jsonl",
+    "cwd": "e:\\Desktop\\work\\Cyber Damp",
+    "hook_event_name": "Notification",
+    "message": "needs your permission to use AskUserQuestion",
+    "notification_type": "permission_prompt",
+    "title": "CodeBuddy Code",
+    "agent_type": "cli",
+    "permission_mode": "default",
+    "client": "WorkBuddy",
+    "version": "5.8.3",
+    "generation_id": "01a14600d3b47619a29916bb95966d5e",
+    "model": "step-5-preview"
+  },
+  {
+    "session_id": "e80e5922-9ec3-4d2a-9704-0cf8c61ca28b",
+    "transcript_path": "C:\\Users\\laotie_nb666\\.workbuddy\\projects\\e-Desktop-work-Cyber Damp\\e80e5922-9ec3-4d2a-9704-0cf8c61ca28b.jsonl",
+    "cwd": "e:\\Desktop\\work\\Cyber Damp",
+    "hook_event_name": "Notification",
+    "message": "auth_success: \u9473\u85c9\u59cf\u74d2\u5a42\u76ac\u7490\uff44\u6362\u74d2\u5a42\u76ac \u91c6\udc88 \u91c5\udcbc \u91c8\udcbd \u91cb\udcbf \u91c6\udc88",
+    "notification_type": "auth_success",
+    "title": "CodeBuddy Code",
+    "agent_type": "cli",
+    "permission_mode": "default",
+    "client": "WorkBuddy",
+    "version": "5.8.3",
+    "generation_id": "01a14600d3b47619a29916bb95966d5e",
+    "model": "step-5-preview"
+  }
+]
