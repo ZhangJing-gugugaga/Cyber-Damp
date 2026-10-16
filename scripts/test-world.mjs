@@ -70,6 +70,11 @@ test('pin 集：16 个锚文件、≥8 个陈年老文件、demo.mp4 钉 2.3GB',
   const demo = nodes.find((n) => n.name === 'demo.mp4');
   assert.ok(demo, 'demo.mp4 必须在 pin 集');
   assert.equal(demo.sizeBytes, 2.3 * GB, 'demo.mp4 应钉 2.3GB');
+  // 架构师锁定：≥1 个 24GB 级锚文件（AC-37 下垂/Demo 预检/钢杆价值三锚点依赖）
+  const szip = nodes.find((n) => n.name === '学习资料.7z');
+  assert.equal(szip.sizeBytes, 24 * GB, '学习资料.7z 应钉 24GB');
+  // 字节预检必要性自证：demo.mp4 + 学习资料.7z = 26.3GB > 麻绳 5GB（不预检必断）
+  assert.ok(demo.sizeBytes + szip.sizeBytes > 5 * GB, '两个大文件之和应超麻绳上限（Demo 预检必要性）');
   const names = nodes.map((n) => n.name);
   for (const expect of ['毕业论文_最终版_不改了_v3.docx', '新建文件夹 (2)', '学习资料.7z', 'main.py', '表情包.gif', '报销单.xlsx']) {
     assert.ok(names.includes(expect), `pin 集缺 ${expect}`);

@@ -10,9 +10,11 @@ export const GB = 1024 ** 3;
 const EXT_TABLE: Record<string, 'doc-code' | 'image-video' | 'audio' | 'archive'> = {
   // 文档与代码类：受潮宣纸洇染，晾晒滴黑色标点/字母
   docx: 'doc-code', pdf: 'doc-code', txt: 'doc-code', md: 'doc-code',
+  xlsx: 'doc-code', // PRD pin 集含报销单.xlsx
   py: 'doc-code', c: 'doc-code', js: 'doc-code', exe: 'doc-code',
   // 图片与视频类：褪色 + 油彩水膜
-  jpg: 'image-video', png: 'image-video', mp4: 'image-video',
+  jpg: 'image-video', png: 'image-video', gif: 'image-video', // PRD pin 集含表情包.gif
+  mp4: 'image-video',
   avi: 'image-video', mov: 'image-video',
   // 音频类：底部蓄水鼓袋
   mp3: 'audio', wav: 'audio', flac: 'audio',

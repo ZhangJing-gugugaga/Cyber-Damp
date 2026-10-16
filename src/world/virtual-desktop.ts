@@ -21,10 +21,11 @@ function mulberry32(seed: number): () => number {
 }
 
 /** pin 集条目：[文件名, 冷落天数, sizeBytes|null] */
+/** 大文件锚点（架构师锁定）：学习资料.7z = 24GB——AC-37 下垂验收/Demo 容量预检必要性/钢杆相对价值三锚点依赖 */
 const PIN_SET: Array<[string, number, number | null]> = [
   ['毕业论文_最终版_不改了_v3.docx', 62, null],
   ['新建文件夹 (2)', 45, null],
-  ['学习资料.7z', 120, 1.2 * GB],
+  ['学习资料.7z', 120, 24 * GB],
   ['甲方需求_确认版.pdf', 31, null],
   ['IMG_20250713_183642.jpg', 12, null],
   ['demo.mp4', 90, 2.3 * GB],
