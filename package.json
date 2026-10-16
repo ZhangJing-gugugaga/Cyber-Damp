@@ -1,0 +1,44 @@
+{
+  "name": "cyber-damp",
+  "version": "0.1.0",
+  "description": "回南天 Cyber Damp - 桌面文件受潮发霉/拉绳晾晒/蘑菇养成的数字家务模拟器 MVP",
+  "main": "dist/main/index.js",
+  "author": "ZhangJing-gugugaga",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:renderer && npm run build:main",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.main.json",
+    "typecheck": "tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.main.json --noEmit",
+    "start": "electron .",
+    "dist:win": "npm run build && electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "44.8.0",
+    "electron-builder": "26.15.3",
+    "typescript": "5.9.3",
+    "vite": "8.3.4",
+    "@types/node": "24.19.2",
+    "@types/matter-js": "0.20.2"
+  },
+  "dependencies": {
+    "matter-js": "0.20.0",
+    "pixi.js": "8.21.0",
+    "lucide": "1.58.0"
+  },
+  "build": {
+    "appId": "com.moonzj.cyberdamp",
+    "productName": "Cyber Damp",
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "directories": {
+      "output": "release"
+    }
+  }
+}
