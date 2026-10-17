@@ -179,6 +179,7 @@ export class PointerController {
     // 手工具：湿文件按压 → 先按拧干手势处理（画圈优先，直线位移转拖拽）
     if (fileId) {
       const rt = this.deps.runtime.byId.get(fileId)!.runtime;
+      if (rt.state === 'hung') return; // 已挂文件不可拖走（摘取走 P1 滑落）
       if (rt.humidity > 0.3 && rt.state !== 'burnt') {
         this.wring.start(x, y);
         this.wringId = fileId;

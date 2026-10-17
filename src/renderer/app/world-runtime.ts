@@ -172,18 +172,25 @@ export class WorldRuntime {
     return this.coins - before;
   }
 
+  /** 本地时区 YYYY-MM-DD（与 dateToDayIndex 同口径，存档 weather.migratedOn 契约格式） */
+  private localDate(): string {
+    const d = new Date(this.now);
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
   /** 迁徙限制：1 次/日（AC-03） */
   migrate(cityId: string): boolean {
-    const today = new Date(this.now).toISOString().slice(0, 10);
-    if (this.migratedOn === today || !CITIES.some((c) => c.id === cityId)) return false;
+    if (this.migratedOn === this.localDate() || !CITIES.some((c) => c.id === cityId)) return false;
     this.city = cityId;
-    this.migratedOn = today;
+    this.migratedOn = this.localDate();
     this.emitChange();
     return true;
   }
 
   canMigrate(): boolean {
-    return this.migratedOn !== new Date(this.now).toISOString().slice(0, 10);
+    return this.migratedOn !== this.localDate();
   }
 
   nextCity(): string {
