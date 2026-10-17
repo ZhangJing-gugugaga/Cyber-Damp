@@ -9,7 +9,7 @@ export interface SpeciesDef {
   id: MushroomSpecies;
   name: string;
   /** 稀有度字母（角标用） */
-  rarity: 'N' | 'R';
+  rarity: 'N' | 'R' | 'SR' | 'SSR';
   /** 杂货铺收购价（币） */
   price: number;
   /** 允许生长的大类 */
@@ -31,13 +31,22 @@ export const SPECIES: Record<MushroomSpecies, SpeciesDef> = {
     price: 30,
     allowedCategories: ['doc-code'],
   },
+  shy: {
+    id: 'shy',
+    name: '社恐胆小菇',
+    rarity: 'SSR',
+    price: 400,
+    allowedCategories: ['archive'],
+  },
 };
 
 /**
  * 按大类抽菌种（rand 0..1）：
- * 代码类有 40% 概率出金针菇，否则平菇；其他大类只有平菇。
+ * 代码类 40% 出金针菇；压缩包类 15% 出胆小菇（SSR 稀有，AC-30）；
+ * 其他一律平菇。
  */
 export function pickSpecies(category: ExtCategory, rand: number): MushroomSpecies {
   if (category === 'doc-code' && rand < 0.4) return 'enoki';
+  if (category === 'archive' && rand >= 0.85) return 'shy';
   return 'oyster';
 }

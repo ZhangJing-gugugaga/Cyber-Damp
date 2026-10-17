@@ -21,12 +21,14 @@ export interface HangResult {
 /**
  * 把文件刚体夹到绳上（就近绳链 + 夹口偏移）。
  * 重文件按质量计算夹子数：mass_eff>10 时 2-3 个约束分布到相邻链点。
+ * @param clipStiffness 夹子约束刚度（钢杆 1.0 防滑槽，柔绳 0.9）
  */
 export function hangFile(
   world: Matter.World,
   rope: Rope,
   fileBody: Matter.Body,
   mass: number,
+  clipStiffness = 0.9,
   offsetY = -20,
 ): HangResult {
   // 就近绳链：按文件 x 坐标找最近链点
@@ -51,7 +53,7 @@ export function hangFile(
         bodyA: fileBody,
         pointA: { x: 0, y: offsetY },
         bodyB: link,
-        stiffness: 0.9,
+        stiffness: clipStiffness,
         damping: 0.1,
         length: 4,
         label: 'clip',

@@ -38,17 +38,48 @@ function drawEnoki(g: Graphics, growth: number, tSec: number): void {
     .closePath().fill({ color: SHROOM.enokiBody });
 }
 
+/** 胆小菇（AC-30）：修长烟紫菌柄 + 菌盖下拟真小眼 */
+function drawShy(g: Graphics, growth: number, tSec: number): void {
+  const s = 0.3 + growth * 0.7;
+  const stemH = 22 * s;
+  // 修长菌柄（烟紫，低饱和）
+  g.roundRect(-2.2 * s, -stemH, 4.4 * s, stemH, 2 * s).fill({ color: SHROOM.shyStem });
+  // 小菌盖（藏眼位）
+  g.ellipse(0, -stemH, 8 * s, 4 * s).fill({ color: SHROOM.shyStem });
+  // 拟真小眼（会眨：每 4s 闭 0.15s）
+  const blink = tSec % 4 > 3.85 ? 0.15 : 1;
+  g.ellipse(1.5 * s, -stemH - 1 * s, 2.2 * s, 2.6 * s * blink).fill({ color: SHROOM.shyEye });
+  g.circle(2.2 * s, -stemH - 1 * s, 0.9 * s * blink).fill({ color: SHROOM.shyPupil });
+}
+
 export class MushroomView {
   readonly container = new Container();
   private readonly g = new Graphics();
+  /** 胆小菇缩头进度 0..1（1=缩回） */
+  private retract = 0;
+  private lastT = 0;
 
   constructor(readonly species: MushroomSpecies) {
     this.container.addChild(this.g);
   }
 
-  /** growth 0..1 破土生长；tSec 用于呼吸/光晕 */
-  update(growth: number, tSec: number): void {
+  /**
+   * growth 0..1 破土生长；tSec 用于呼吸/光晕/眨眼；
+   * pointer 传入时胆小菇执行 120px 缩头（AC-30：0.2s 内缩回，移远恢复）
+   */
+  update(growth: number, tSec: number, pointer?: { x: number; y: number }): void {
+    const dt = Math.max(0, Math.min(0.1, tSec - this.lastT));
+    this.lastT = tSec;
     this.g.clear();
+
+    if (this.species === 'shy' && pointer) {
+      const d = Math.hypot(pointer.x - this.container.position.x, pointer.y - this.container.position.y);
+      const target = d < 120 ? 1 : 0;
+      const k = Math.min(1, dt / 0.2); // 0.2s 内完成
+      this.retract += (target - this.retract) * k;
+      this.container.scale.set(Math.max(0.1, 1 - this.retract * 0.9));
+    }
+
     // 土壤隆起（growth<0.3：只露土堆）
     if (growth < 0.3) {
       const k = growth / 0.3;
@@ -56,6 +87,7 @@ export class MushroomView {
     } else {
       this.g.position.y = -(growth - 0.3) * 6;
       if (this.species === 'enoki') drawEnoki(this.g, growth, tSec);
+      else if (this.species === 'shy') drawShy(this.g, growth, tSec);
       else drawOyster(this.g, growth);
       // 成熟后轻微晃动（可采摘信号）
       if (growth >= 1) this.g.rotation = Math.sin(tSec * 1.2) * 0.05;

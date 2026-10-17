@@ -56,6 +56,11 @@ export class PointerController {
     window.addEventListener('pointerup', (e) => this.onUp(e));
   }
 
+  /** 最近指针位置（胆小菇缩头判定等视图消费） */
+  get lastPos(): { x: number; y: number } {
+    return { x: this.lastX, y: this.lastY };
+  }
+
   private fileAt(x: number, y: number): FileSprite | null {
     for (const sprite of this.deps.sprites.values()) {
       const p = sprite.container.position;

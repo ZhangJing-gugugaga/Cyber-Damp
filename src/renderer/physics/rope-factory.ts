@@ -23,6 +23,8 @@ export interface Rope {
   by: number;
   /** 锚点约束（崩断时移除这两个即整绳滑脱） */
   anchors: Matter.Constraint[];
+  /** 刚性杆（rope-3：链约束 stiffness 1.0，笔直不垂——AC-33 前置） */
+  rigid: boolean;
 }
 
 export function createRope(
@@ -31,20 +33,27 @@ export function createRope(
   ay: number,
   bx: number,
   by: number,
+  opts: { rigid?: boolean } = {},
 ): Rope {
+  const rigid = opts.rigid ?? false;
   const seg = Math.hypot(bx - ax, by - ay) / (LINK_COUNT - 1);
   const links = Array.from({ length: LINK_COUNT }, (_, i) => {
     const t = i / (LINK_COUNT - 1);
     return Bodies.circle(ax + (bx - ax) * t, ay + (by - ay) * t, 3, {
       mass: LINK_MASS,
-      frictionAir: 0.03,
+      frictionAir: rigid ? 0.08 : 0.03, // 刚性杆加大空气阻尼抑制摆动
       collisionFilter: { category: CAT.ROPE, mask: 0 }, // 绳链互不碰撞也不撞文件
     });
   });
 
   const rope = Composite.create({ label: 'rope' });
   Composite.add(rope, links);
-  Composites.chain(rope, 0, 0, 0, 0, { stiffness: 0.55, damping: 0.15, length: seg });
+  // 柔绳：stiffness 0.55 悬链涌现；钢杆：stiffness 1.0 刚性距离约束（挂 24GB 不下垂）
+  Composites.chain(rope, 0, 0, 0, 0, {
+    stiffness: rigid ? 1.0 : 0.55,
+    damping: rigid ? 0.6 : 0.15,
+    length: seg,
+  });
 
   // 两端点锚定到世界坐标（bodyB 缺省 = 世界锚点）
   const anchors = [
@@ -54,7 +63,7 @@ export function createRope(
   Composite.add(rope, anchors);
 
   Composite.add(world, rope);
-  return { composite: rope, links, ax, ay, bx, by, anchors };
+  return { composite: rope, links, ax, ay, bx, by, anchors, rigid };
 }
 
 /** 崩断：移除两端锚点约束，整绳滑脱、文件自由落体 */

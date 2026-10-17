@@ -9,8 +9,8 @@ export type NeglectStage = 'fresh' | 'damp' | 'wet' | 'moldy';
 /** 动作态 */
 export type FileActionState = 'idle' | 'hung' | 'drying' | 'burnt';
 
-/** MVP 菌种：平菇 N + 二进制金针菇 R（杂交形态搁置） */
-export type MushroomSpecies = 'oyster' | 'enoki';
+/** MVP 菌种：平菇 N + 二进制金针菇 R + 社恐胆小菇 SSR（杂交形态搁置） */
+export type MushroomSpecies = 'oyster' | 'enoki' | 'shy';
 
 export interface FileRuntime {
   id: string;

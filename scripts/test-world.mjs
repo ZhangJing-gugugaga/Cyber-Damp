@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { stepEvolution, deriveStage } from '../dist/test/world/evolution.js';
 import { generateDesktop, countMoldy } from '../dist/test/world/virtual-desktop.js';
-import { pickSpecies } from '../dist/test/world/mushroom-species.js';
+import { pickSpecies, SPECIES } from '../dist/test/world/mushroom-species.js';
 import { simulateDay } from '../dist/test/world/weather-simulator.js';
 import { sellMushroom } from '../dist/test/world/economy.js';
 import { purchase } from '../dist/test/world/shop-catalog.js';
@@ -92,12 +92,21 @@ test('确定性：同日同桌面（mtime 与 sizeBytes 可复现）', () => {
   assert.deepEqual(t1.map((n) => [n.name, n.sizeBytes, n.mtime]), t2.map((n) => [n.name, n.sizeBytes, n.mtime]));
 });
 
-test('pickSpecies：代码类 40% 金针菇，其他类只有平菇', () => {
+test('pickSpecies：代码类 40% 金针菇，压缩包类 15% 胆小菇（AC-30），其他类只有平菇', () => {
   assert.equal(pickSpecies('doc-code', 0.1), 'enoki');
   assert.equal(pickSpecies('doc-code', 0.9), 'oyster');
   assert.equal(pickSpecies('image-video', 0.1), 'oyster');
   assert.equal(pickSpecies('audio', 0.1), 'oyster');
   assert.equal(pickSpecies('archive', 0.1), 'oyster');
+  assert.equal(pickSpecies('archive', 0.85), 'shy');  // ≥0.85 → SSR 胆小菇
+  assert.equal(pickSpecies('archive', 0.84), 'oyster'); // 边界外仍平菇
+});
+
+test('胆小菇 SSR 定价与售卖（AC-30/AC-20）', () => {
+  assert.equal(SPECIES.shy.rarity, 'SSR');
+  assert.equal(SPECIES.shy.price, 400);
+  const res = sellMushroom([{ species: 'shy', growth: 1 }], 0);
+  assert.equal(res.coins, 400);
 });
 
 test('天气模拟确定性与城市差异', () => {

@@ -219,7 +219,7 @@ export async function createGame(app: Application): Promise<void> {
         if (view && m) {
           const sp = sprites.get(ent.node.id)!.container.position;
           view.container.position.set(sp.x, sp.y - FILE_ICON_H * 0.72);
-          view.update(m.growth, tSec);
+          view.update(m.growth, tSec, pointer.lastPos);
         }
       }
 

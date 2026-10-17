@@ -41,7 +41,8 @@ export class RopeManager {
 
   spawn(ax: number, ay: number, bx: number, by: number, tier: string): RopeEntry | null {
     if (!this.canSpawn()) return null;
-    const rope = createRope(this.world, ax, ay, bx, by);
+    const rigid = tier === 'rope-3'; // 304 不锈钢杆：刚性笔直不垂（AC-33 前置）
+    const rope = createRope(this.world, ax, ay, bx, by, { rigid });
     const entry: RopeEntry = { rope, tier, bodies: [], broken: false };
     this.entries.push(entry);
     return entry;
@@ -56,7 +57,8 @@ export class RopeManager {
     const body = createFileBody(pos.x, pos.y + FILE_ICON_H * 0.4, FILE_ICON_W, FILE_ICON_H * 0.55, node.sizeBytes, node.id);
     applyMass(body, massEff(node.sizeBytes));
     Matter.Composite.add(this.world, body);
-    hangFile(this.world, entry.rope, body, massEff(node.sizeBytes));
+    // 钢杆防滑槽：夹子刚度 1.0（文件不滑向最低点挤团）；柔绳 0.9
+    hangFile(this.world, entry.rope, body, massEff(node.sizeBytes), entry.rope.rigid ? 1.0 : 0.9);
     entry.bodies.push(body);
     this.bodyByFile.set(node.id, body);
     return true;

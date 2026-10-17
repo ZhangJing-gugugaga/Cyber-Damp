@@ -49,6 +49,9 @@ export const SHROOM = {
   enokiBody: 0xEDE3C6,
   enokiGlow: 0xA8D06B,
   spore: 0xD6E8B4,
+  shyStem: 0x8B7BA0,   // --shroom-shy-stem（物种设定色，非 UI 渐变）
+  shyEye: 0xF2EDE0,    // --shroom-shy-eye
+  shyPupil: 0x2A2622,  // --shroom-shy-pupil
 };
 
 /** 环境与工具（--mist/--sweat/--coin/--slime-trail） */
