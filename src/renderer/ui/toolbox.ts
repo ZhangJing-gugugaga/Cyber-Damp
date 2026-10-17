@@ -18,8 +18,8 @@ const TOOLS: ToolDef[] = [
   { id: 'hand', lucide: 'hand', label: '手：拖拽晾晒 / 画圈拧干' },
   { id: 'scissors', lucide: 'scissors', label: '剪刀：采摘成熟蘑菇' },
   { id: 'spray', lucide: 'spray-can', label: '保湿喷雾：焦化恢复（消耗品）' },
-  { id: 'hand', lucide: 'wind', label: '手持吹风机（P1 规划中）', disabled: true },
-  { id: 'hand', lucide: 'eraser', label: '橡胶刮水器（P1 规划中）', disabled: true },
+  { id: 'heat', lucide: 'wind', label: '手持吹风机：按住吹干，过热会焦化' },
+  { id: 'squeegee', lucide: 'eraser', label: '橡胶刮水器：拖动刮去屏幕雾气' },
 ];
 
 export interface Toolbox {

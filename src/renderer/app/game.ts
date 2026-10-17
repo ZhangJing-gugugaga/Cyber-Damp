@@ -24,6 +24,7 @@ import { FanView } from '../view/fan-view';
 import { FILE_ICON_H } from '../view/token-colors';
 import { PointerController } from '../input/pointer-controller';
 import { debrisBurst } from '../input/fx-burst';
+import { applyHeatFx, squeegeeFx } from './tool-fx';
 import { mountUi } from '../ui/ui-root';
 import { Sfx } from '../audio/sfx';
 import { SaveController } from '../save/save-controller';
@@ -145,6 +146,7 @@ export async function createGame(app: Application): Promise<void> {
     onPick: (id) => actions.pickMushroom(id),
     onHang: () => undefined,
     consumeClick: (x, y) => snails.poke(x, y),
+    onSqueegee: (dist, x, y) => squeegeeFx(atmosphere, pool, dist, x, y),
     spawnRope: (ax, ay, bx, by) => {
       const entry = ropes.spawn(ax, ay, bx, by, runtime.equipped.rope);
       return entry ? addRopeEntry(entry) : null;
@@ -184,6 +186,7 @@ export async function createGame(app: Application): Promise<void> {
   let fan: FanView | null = null;
   if (runtime.fanPlaced) fan = atmosphere.placeFan();
   let lastCondition = runtime.dayWeather().condition;
+  const overheatWarned = new Set<string>(); // 吹风机过热警示一次
 
   startGameLoop({
     app,
@@ -192,6 +195,10 @@ export async function createGame(app: Application): Promise<void> {
       tSec += dtSec;
       opening?.update(dtSec);
       runtime.tick(dtSec);
+
+      // 吹风机按住施热（P1）：局部烘干 + 焦化 + 过热警示
+      const hid = pointer.heatTargetId;
+      if (hid) applyHeatFx(runtime, sprites, pool, (t) => ui.toast.tip(t), overheatWarned, hid, dtSec);
 
       // 崩断判定（字节累计）→ 表现层反馈
       ropes.checkBreak((entry) => {

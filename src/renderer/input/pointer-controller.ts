@@ -13,7 +13,7 @@ import { CircleWring, FULL_TURN, isClick } from './gestures';
 import { splashBurst } from './fx-burst';
 import { FILE_ICON_W, FILE_ICON_H } from '../view/token-colors';
 
-export type Tool = 'hand' | 'scissors' | 'spray';
+export type Tool = 'hand' | 'scissors' | 'spray' | 'heat' | 'squeegee';
 
 export interface PointerDeps {
   runtime: WorldRuntime;
@@ -34,6 +34,8 @@ export interface PointerDeps {
   ropePreview(ax: number, ay: number, bx: number, by: number | null): void;
   /** 世界内额外点击消费（蜗牛戳击等），命中返回 true 短路后续手势 */
   consumeClick?(x: number, y: number): boolean;
+  /** 刮水器拖动（P1）：dist=本次位移 px，(x,y) 为当前位置 */
+  onSqueegee?(dist: number, x: number, y: number): void;
 }
 
 const EDGE_ZONE = 24; // 左右缘拉绳吸附区
@@ -49,6 +51,10 @@ export class PointerController {
   private downTime = 0;
   private lastX = 0;
   private lastY = 0;
+  /** 吹风机按住目标（game tick 每帧施热） */
+  private heatTarget: string | null = null;
+  private squeegeeing = false;
+  private sqLast = { x: 0, y: 0 };
 
   constructor(private deps: PointerDeps) {
     window.addEventListener('pointermove', (e) => this.onMove(e));
@@ -59,6 +65,11 @@ export class PointerController {
   /** 最近指针位置（胆小菇缩头判定等视图消费） */
   get lastPos(): { x: number; y: number } {
     return { x: this.lastX, y: this.lastY };
+  }
+
+  /** 吹风机当前按住的文件 id（未按住为 null） */
+  get heatTargetId(): string | null {
+    return this.heatTarget;
   }
 
   private fileAt(x: number, y: number): FileSprite | null {
@@ -124,6 +135,15 @@ export class PointerController {
       return;
     }
 
+    // 刮水器拖动（P1）：擦雾 + 水痕
+    if (this.squeegeeing) {
+      const dist = Math.hypot(x - this.sqLast.x, y - this.sqLast.y);
+      this.sqLast = { x, y };
+      if (dist > 1) this.deps.onSqueegee?.(dist, x, y);
+      this.clickThrough.update(true);
+      return;
+    }
+
     // 拧干画圈（按住的湿文件）
     if (this.wring.active && this.wringId) {
       const acc = this.wring.feed(x, y);
@@ -185,6 +205,16 @@ export class PointerController {
       }
       return;
     }
+    if (tool === 'heat') {
+      // 吹风机：按住施热（game tick 每帧 applyHeat；焦化由演化域产出）
+      if (fileId) this.heatTarget = fileId;
+      return;
+    }
+    if (tool === 'squeegee') {
+      this.squeegeeing = true;
+      this.sqLast = { x, y };
+      return;
+    }
 
     // 手工具：湿文件按压 → 先按拧干手势处理（画圈优先，直线位移转拖拽）
     if (fileId) {
@@ -221,6 +251,8 @@ export class PointerController {
 
   private onUp(e: PointerEvent): void {
     if (this.deps.runtime.locked) return;
+    this.heatTarget = null; // 吹风机松手停热
+    this.squeegeeing = false;
     const x = e.clientX;
     const y = e.clientY;
 

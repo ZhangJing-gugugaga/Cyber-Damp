@@ -230,6 +230,22 @@ export class WorldRuntime {
     return true;
   }
 
+  /**
+   * 吹风机按住施热（P1 局部热源，架构 §4.3 吹风机热风语义）：
+   * 湿度快速下降；humidity<0.3 后 char += dt×0.01（与演化同速率），>0.6 锁定 burnt。
+   * 局部实现不走全局 env.heat（避免误伤无关文件的焦化判定）。
+   */
+  applyHeat(id: string, dtSec: number): void {
+    const ent = this.byId.get(id);
+    if (!ent || ent.runtime.state === 'burnt') return;
+    const rt = ent.runtime;
+    rt.humidity = clamp01(rt.humidity - dtSec * 0.25);
+    if (rt.humidity < 0.3) {
+      rt.char = clamp01(rt.char + dtSec * 0.01);
+      if (rt.char > 0.6) rt.state = 'burnt';
+    }
+  }
+
   markState(id: string, state: 'idle' | 'hung' | 'drying'): void {
     const ent = this.byId.get(id);
     if (ent && ent.runtime.state !== 'burnt') ent.runtime.state = state;

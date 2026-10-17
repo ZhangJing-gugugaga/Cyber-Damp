@@ -22,6 +22,8 @@ export class Atmosphere {
   private sweatAcc = 0;
   /** 开场演出强制雾强度覆盖（0..1，演出结束归 -1 交还天气驱动） */
   introFog = -1;
+  /** 刮水器擦除系数（1=完整雾；刮动下降，随时间缓恢复） */
+  private fogOverride = 1;
 
   constructor(private app: Application, private layers: WorldLayers) {
     // 全屏雾 Sprite：Texture.WHITE 拉伸（滤镜只挂单个 Sprite——R3 纪律）
@@ -42,11 +44,17 @@ export class Atmosphere {
     return fan;
   }
 
+  /** 刮水器：拖动擦除雾（P1）。dist=位移 px；回南天水汽会慢慢爬回来 */
+  wipe(dist: number): void {
+    this.fogOverride = Math.max(0, this.fogOverride - dist * 0.0006);
+  }
+
   update(rt: WorldRuntime, dtSec: number, tSec: number, pool: ParticlePool, fan: FanView | null): void {
-    // 挂雾强度：introFog 覆盖 > 天气湿度映射
+    // 挂雾强度：introFog 覆盖 > 天气湿度映射 × 刮水器擦除系数；擦除后缓慢恢复
+    this.fogOverride = Math.min(1, this.fogOverride + dtSec * 0.03);
     const day = rt.dayWeather();
     const weatherFog = Math.max(0, Math.min(1, (day.humidity - FOG_ONSET) / (1 - FOG_ONSET)));
-    const fog = this.introFog >= 0 ? this.introFog : weatherFog;
+    const fog = (this.introFog >= 0 ? this.introFog : weatherFog) * this.fogOverride;
     this.fogFilter.setFog(fog, tSec);
     this.fogSprite.visible = fog > 0.01;
 
