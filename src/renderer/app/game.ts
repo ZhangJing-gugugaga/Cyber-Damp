@@ -33,7 +33,6 @@ import { loadSave } from './save-bridge';
 import type { SaveData } from '../../shared/types/save';
 
 const AUTOSAVE_SEC = 30;
-
 export async function createGame(app: Application): Promise<void> {
   // 1. 存档加载（失败/损坏走新开局——契约纪律 3）
   const loaded = await loadSave();
