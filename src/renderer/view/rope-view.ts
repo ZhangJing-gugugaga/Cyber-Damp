@@ -5,7 +5,7 @@
  */
 import { Graphics } from 'pixi.js';
 import type { Rope } from '../physics/rope-factory';
-import { ROPE_COLOR, ROPE_WIDTH } from './token-colors';
+import { ROPE_COLOR, ROPE_WIDTH, ENV_COLOR } from './token-colors';
 
 export function drawRope(g: Graphics, rope: Rope, tier: string): void {
   g.clear();
@@ -36,7 +36,7 @@ export function drawRopeWarn(g: Graphics, rope: Rope, tier: string, phase: numbe
   const links = rope.links;
   if (links.length === 0) return;
   const shake = Math.sin(phase * 24) * 1.2;
-  const color = 0xD9A441; // --warn
+  const color = ENV_COLOR.warn; // --warn（token 映射，禁硬编码）
   g.moveTo(links[0].position.x + shake, links[0].position.y);
   for (let i = 1; i < links.length; i++) {
     g.lineTo(links[i].position.x + shake, links[i].position.y);

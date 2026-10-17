@@ -84,7 +84,10 @@ export function bodySizeBytes(body: Matter.Body): number {
   return typeof v === 'number' ? v : 0;
 }
 
-/** 应用指数化质量到文件刚体（AC-37 唯一入口，禁直接 setMass 原值） */
-export function applyMass(body: Matter.Body, sizeBytes: number, mass: number): void {
+/**
+ * 应用指数化质量到文件刚体（AC-37 唯一入口）。
+ * mass 必须来自 weight.ts 的 massEff（sizeToMass^p），禁直接传 sizeToMass 原值。
+ */
+export function applyMass(body: Matter.Body, mass: number): void {
   Body.setMass(body, mass);
 }
