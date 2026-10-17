@@ -25,7 +25,9 @@ export interface ShopPanel {
 export function createShopPanel(mount: HTMLElement, runtime: WorldRuntime, hooks: {
   onSell(): void;
   onBuy(itemId: string): void;
+  onBuyBox(qty: number): void;
 }): ShopPanel {
+  let boxQty = 1; // 吸湿盒 stepper（1..9，上限 9）
   const el = document.createElement('aside');
   el.className = 'shop-drawer';
   el.setAttribute('role', 'dialog');
@@ -77,6 +79,62 @@ export function createShopPanel(mount: HTMLElement, runtime: WorldRuntime, hooks
       for (const item of items) {
         const card = document.createElement('article');
         card.className = 'shop-card';
+
+        // 吸湿盒：qty-stepper（1..9）+ 批量购买（P1）
+        if (item.id === 'box-1') {
+          const info = document.createElement('div');
+          info.className = 'shop-card__info';
+          const name = document.createElement('span');
+          name.className = 'shop-card__name';
+          name.textContent = item.name;
+          const desc = document.createElement('span');
+          desc.className = 'shop-card__desc';
+          desc.textContent = item.desc;
+          info.append(name, desc);
+          card.appendChild(info);
+
+          const stepper = document.createElement('div');
+          stepper.className = 'qty-stepper';
+          const minus = document.createElement('button');
+          minus.type = 'button';
+          minus.textContent = '−';
+          minus.setAttribute('aria-label', '减少数量');
+          const qty = document.createElement('span');
+          qty.className = 'qty-stepper__value';
+          qty.textContent = String(boxQty);
+          const plus = document.createElement('button');
+          plus.type = 'button';
+          plus.textContent = '＋';
+          plus.setAttribute('aria-label', '增加数量');
+          minus.addEventListener('click', () => {
+            boxQty = Math.max(1, boxQty - 1);
+            qty.textContent = String(boxQty);
+            buy.textContent = `购 ${boxQty} 盒（${item.price * boxQty} 币）`;
+          });
+          plus.addEventListener('click', () => {
+            boxQty = Math.min(9, boxQty + 1);
+            qty.textContent = String(boxQty);
+            buy.textContent = `购 ${boxQty} 盒（${item.price * boxQty} 币）`;
+          });
+          stepper.append(minus, qty, plus);
+          card.appendChild(stepper);
+
+          const buy = document.createElement('button');
+          buy.type = 'button';
+          buy.className = 'buy-btn';
+          if (runtime.coins < item.price) {
+            buy.textContent = `还差 ${item.price - runtime.coins} 币`;
+            buy.disabled = true;
+          } else {
+            buy.textContent = `购 ${boxQty} 盒（${item.price * boxQty} 币）`;
+            buy.classList.add('buy-btn--primary');
+            buy.addEventListener('click', () => hooks.onBuyBox(boxQty));
+          }
+          card.appendChild(buy);
+          body.appendChild(card);
+          continue;
+        }
+
         const owned = runtime.owned.includes(item.id) && item.category !== 'consumable';
         const equipped = owned && (item.category === 'rope' ? runtime.equipped.rope === item.id : runtime.equipped.clip === item.id);
         const afford = runtime.coins >= item.price;

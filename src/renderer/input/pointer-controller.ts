@@ -1,8 +1,8 @@
 /**
  * 指针控制器（input 层）：穿透命中 / 拖文件挂绳 / 拧干画圈 / 剪刀采摘 / 喷雾 / 边缘拉绳
  * 手势语义：按住湿文件画圈=拧干（AC-14）；直线位移=拖拽；抬起近绳=挂载（模块三）
+ * （世界命中测试纯函数见 hit-tests.ts）
  */
-import Matter from 'matter-js';
 import type { WorldRuntime } from '../app/world-runtime';
 import type { RopeManager, RopeEntry } from '../app/rope-manager';
 import type { FileSprite } from '../view/file-sprite';
@@ -11,7 +11,7 @@ import type { Sfx } from '../audio/sfx';
 import { ClickThrough } from './click-through';
 import { CircleWring, FULL_TURN, isClick } from './gestures';
 import { splashBurst } from './fx-burst';
-import { FILE_ICON_W, FILE_ICON_H } from '../view/token-colors';
+import { fileAt, nearestRopePoint, mushroomAt } from './hit-tests';
 
 export type Tool = 'hand' | 'scissors' | 'spray' | 'heat' | 'squeegee';
 
@@ -36,10 +36,13 @@ export interface PointerDeps {
   consumeClick?(x: number, y: number): boolean;
   /** 刮水器拖动（P1）：dist=本次位移 px，(x,y) 为当前位置 */
   onSqueegee?(dist: number, x: number, y: number): void;
+  /** 吸湿盒拖拽（P1）：命中/移动/松手（dropAt 判定倒水角） */
+  boxHit?(x: number, y: number): string | null;
+  boxMove?(id: string, x: number, y: number): void;
+  boxDrop?(id: string, x: number, y: number): 'emptied' | 'kept';
 }
 
 const EDGE_ZONE = 24; // 左右缘拉绳吸附区
-const SNAP_DIST = 90; // 松手落绳判定距离
 
 export class PointerController {
   readonly clickThrough = new ClickThrough();
@@ -55,6 +58,7 @@ export class PointerController {
   private heatTarget: string | null = null;
   private squeegeeing = false;
   private sqLast = { x: 0, y: 0 };
+  private boxDrag: string | null = null;
 
   constructor(private deps: PointerDeps) {
     window.addEventListener('pointermove', (e) => this.onMove(e));
@@ -70,39 +74,6 @@ export class PointerController {
   /** 吹风机当前按住的文件 id（未按住为 null） */
   get heatTargetId(): string | null {
     return this.heatTarget;
-  }
-  private fileAt(x: number, y: number): FileSprite | null {
-    for (const sprite of this.deps.sprites.values()) {
-      const p = sprite.container.position;
-      if (Math.abs(x - p.x) <= FILE_ICON_W / 2 + 8 && y >= p.y - FILE_ICON_H * 0.75 && y <= p.y + FILE_ICON_H * 0.3) {
-        return sprite;
-      }
-    }
-    return null;
-  }
-
-  private nearestRopePoint(x: number, y: number): { entry: RopeEntry; x: number; y: number } | null {
-    let best: { entry: RopeEntry; x: number; y: number; d: number } | null = null;
-    for (const entry of this.deps.ropes.entries) {
-      if (entry.broken) continue;
-      for (const link of entry.rope.links) {
-        const d = Math.hypot(link.position.x - x, link.position.y - y);
-        if (!best || d < best.d) best = { entry, x: link.position.x, y: link.position.y, d };
-      }
-    }
-    return best && best.d <= SNAP_DIST ? best : null;
-  }
-
-  private mushroomAt(x: number, y: number): string | null {
-    for (const [id, sprite] of this.deps.sprites) {
-      const rt = this.deps.runtime.byId.get(id)?.runtime;
-      if (!rt?.mushroom) continue;
-      const p = sprite.container.position;
-      const mx = p.x;
-      const my = p.y - FILE_ICON_H * 0.75;
-      if (Math.hypot(x - mx, y - my) <= 28) return id;
-    }
-    return null;
   }
 
   private onMove(e: PointerEvent): void {
@@ -130,6 +101,13 @@ export class PointerController {
     // 边缘拉绳预览
     if (this.ropeDraw) {
       this.deps.ropePreview(this.ropeDraw.ax, this.ropeDraw.ay, x, y);
+      this.clickThrough.update(true);
+      return;
+    }
+
+    // 吸湿盒拖拽（手工具优先命中盒）
+    if (this.boxDrag) {
+      this.deps.boxMove?.(this.boxDrag, x, y);
       this.clickThrough.update(true);
       return;
     }
@@ -171,9 +149,9 @@ export class PointerController {
     // 命中测试 → 穿透跳变（AC-26）
     const hit =
       this.deps.domHit(x, y) ||
-      !!this.fileAt(x, y) ||
-      !!this.mushroomAt(x, y) ||
-      !!this.nearestRopePoint(x, y) ||
+      !!fileAt(this.deps.sprites, x, y) ||
+      !!mushroomAt(this.deps.sprites, this.deps.runtime, x, y) ||
+      !!nearestRopePoint(this.deps.ropes, x, y) ||
       (x <= EDGE_ZONE && this.deps.ropes.canSpawn()) ||
       (x >= window.innerWidth - EDGE_ZONE && this.deps.ropes.canSpawn());
     this.clickThrough.update(hit, this.deps.runtime.locked);
@@ -190,10 +168,10 @@ export class PointerController {
     if (this.deps.consumeClick?.(x, y)) return;
 
     const tool = this.deps.getTool();
-    const fileId = this.fileAt(x, y)?.node.id ?? null;
+    const fileId = fileAt(this.deps.sprites, x, y)?.node.id ?? null;
 
     if (tool === 'scissors') {
-      const mid = this.mushroomAt(x, y);
+      const mid = mushroomAt(this.deps.sprites, this.deps.runtime, x, y);
       if (mid) this.deps.onPick(mid);
       return;
     }
@@ -215,7 +193,15 @@ export class PointerController {
       return;
     }
 
-    // 手工具：湿文件按压 → 先按拧干手势处理（画圈优先，直线位移转拖拽）
+    // 手工具：吸湿盒拖拽 > 湿文件拧干 > 拖文件 > 边缘拉绳
+    if (tool === 'hand') {
+      const bid = this.deps.boxHit?.(x, y);
+      if (bid) {
+        this.boxDrag = bid;
+        this.deps.boxMove?.(bid, x, y);
+        return;
+      }
+    }
     if (fileId) {
       const rt = this.deps.runtime.byId.get(fileId)!.runtime;
       if (rt.state === 'hung') return; // 已挂文件不可拖走（摘取走 P1 滑落）
@@ -252,6 +238,12 @@ export class PointerController {
     if (this.deps.runtime.locked) return;
     this.heatTarget = null; // 吹风机松手停热
     this.squeegeeing = false;
+    if (this.boxDrag) {
+      const bid = this.boxDrag;
+      this.boxDrag = null;
+      this.deps.boxDrop?.(bid, e.clientX, e.clientY);
+      return;
+    }
     const x = e.clientX;
     const y = e.clientY;
 
@@ -283,7 +275,7 @@ export class PointerController {
       const { id, moved } = this.drag;
       this.drag = null;
       if (!moved) return;
-      const near = this.nearestRopePoint(x, y);
+      const near = nearestRopePoint(this.deps.ropes, x, y);
       if (near) {
         const sprite = this.deps.sprites.get(id);
         const node = sprite?.node;

@@ -1,19 +1,17 @@
 /**
  * 游戏运行时（app 装配层，无 pixi/matter import——只依赖 world/ 与 shared/，可测）
- * 聚合：文件实体 / 演化推进 / 天气环境 / 经济 / 购买 / Demo 动作 / 存档快照
- * 绳索物理不在此层（RopeManager 负责），存档时由外部传入 ropes 快照
+ * 核心：实体表 / 演化 tick / 环境输入 / 存档快照；
+ * 玩家动作（拧干/采摘/购买/施热等）委托 world-actions.ts（单文件 ≤300 行纪律）
  */
 import { FileEntity } from '../../world/file-entity';
 import { stepEvolution } from '../../world/evolution';
 import type { Env } from '../../world/evolution';
-import { sellMushroom } from '../../world/economy';
-import type { InventoryItem } from '../../world/economy';
-import { purchase, getItem } from '../../world/shop-catalog';
-import type { PurchaseResult } from '../../world/shop-catalog';
 import { CITIES, simulateDay, humidityMultiplier, isSunny, dateToDayIndex } from '../../world/weather-simulator';
-import { pickSpecies } from '../../world/mushroom-species';
 import { generateDesktop } from '../../world/virtual-desktop';
 import type { SaveData, RopeSave } from '../../shared/types/save';
+import { clamp01 } from './clamp';
+import * as act from './world-actions';
+import type { InventoryItem, PurchaseResult } from './world-actions';
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -25,8 +23,6 @@ function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 export class WorldRuntime {
   readonly entities: FileEntity[] = [];
@@ -54,6 +50,11 @@ export class WorldRuntime {
   private rnd = mulberry32(20261017);
   /** Demo 一键回南天：3s 扫描进度（<1 进行中） */
   private sweepT = 1;
+  /** 吸湿盒当前吸湿强度（BoxController 每帧回写） */
+  private boxAbsorb = 0;
+  /** 泼洒暴涨：amount 强度 / surgeT 剩余秒 */
+  private surgeAmount = 0;
+  private surgeT = 0;
 
   get now(): number {
     return this.startNow + this.timeSec * 1000;
@@ -102,12 +103,14 @@ export class WorldRuntime {
     return simulateDay(this.city, dateToDayIndex(new Date(this.now)));
   }
 
-  /** 环境输入（架构 §5.5：雨/暴 ×2；CPU 出汗 +0.3；加湿器 +0.15；电扇/晴天风干） */
+  /** 环境输入（架构 §5.5：雨/暴 ×2；CPU 出汗 +0.3；加湿器 +0.15；吸湿盒 -0.05/只；电扇/晴天风干） */
   env(): Env {
     const day = this.dayWeather();
     let humidity = day.humidity * humidityMultiplier(day.condition);
     if (this.sweating) humidity += 0.3;
     if (this.humidifierOn) humidity += 0.15;
+    humidity -= this.boxAbsorb;
+    if (this.surgeT > 0) humidity += this.surgeAmount; // 泼洒暴涨
     let wind = isSunny(day.condition) ? 0.45 : 0.15;
     if (this.fanPlaced) wind = Math.max(wind, 0.7);
     return { humidity: clamp01(humidity), heat: 0, wind };
@@ -118,12 +121,11 @@ export class WorldRuntime {
     this.timeSec += dtSec;
     if (this.cpu > 0.8) this.cpuHighSec += dtSec;
     else this.cpuHighSec = 0;
+    if (this.surgeT > 0) this.surgeT -= dtSec;
     this.stats.playedMs += dtSec * 1000;
 
     // Demo 一键回南天：3s 扫描（AC-31：3s 内走完出水→变软→长蘑菇）
-    if (this.sweepT < 1) {
-      this.sweepT = Math.min(1, this.sweepT + dtSec / 3);
-    }
+    if (this.sweepT < 1) this.sweepT = Math.min(1, this.sweepT + dtSec / 3);
     const env = this.env();
     const now = this.now;
     for (const ent of this.entities) {
@@ -139,139 +141,64 @@ export class WorldRuntime {
     r.mold = Math.max(r.mold, 0.65 * this.sweepT);
   }
 
-  /** 拧干（AC-14）：湿度 >0.3 时 ×0.5 */
+  // ---- 玩家动作（实现见 world-actions.ts，此处薄委托保持调用面稳定）----
+
   wring(id: string): boolean {
-    const ent = this.byId.get(id);
-    if (!ent || ent.runtime.humidity <= 0.3) return false;
-    ent.runtime.humidity = clamp01(ent.runtime.humidity * 0.5);
-    this.emitChange();
-    return true;
+    return act.wring(this, id);
   }
-
-  /** 采摘成熟蘑菇入库存（AC-15/AC-19） */
   pickMushroom(id: string): InventoryItem | null {
-    const ent = this.byId.get(id);
-    const m = ent?.runtime.mushroom;
-    if (!ent || !m || m.growth < 1) return null;
-    ent.runtime.mushroom = null;
-    const item = { species: m.species, growth: m.growth };
-    this.inventory.push(item);
-    this.stats.harvested += 1;
-    this.emitChange();
-    return item;
+    return act.pickMushroom(this, id);
   }
-
-  /** 售卖库存中全部成熟蘑菇（AC-20），返回入账币数 */
   sellInventory(): number {
-    const before = this.coins;
-    const res = sellMushroom(this.inventory, this.coins);
-    this.coins = res.coins;
-    this.inventory = res.remaining;
-    this.stats.earned += this.coins - before;
-    this.emitChange();
-    return this.coins - before;
+    return act.sellInventory(this);
   }
-
-  /** 本地时区 YYYY-MM-DD（与 dateToDayIndex 同口径，存档 weather.migratedOn 契约格式） */
-  private localDate(): string {
-    const d = new Date(this.now);
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${m}-${day}`;
-  }
-
-  /** 迁徙限制：1 次/日（AC-03） */
   migrate(cityId: string): boolean {
-    if (this.migratedOn === this.localDate() || !CITIES.some((c) => c.id === cityId)) return false;
-    this.city = cityId;
-    this.migratedOn = this.localDate();
-    this.emitChange();
-    return true;
+    return act.migrate(this, cityId);
   }
-
   canMigrate(): boolean {
-    return this.migratedOn !== this.localDate();
+    return act.canMigrate(this);
   }
-
   nextCity(): string {
-    const i = CITIES.findIndex((c) => c.id === this.city);
-    return CITIES[(i + 1) % CITIES.length].id;
+    return act.nextCity(this);
   }
-
-  /** 购买（AC-21/22/23）：绳索购买即装备并即时生效 */
   tryPurchase(itemId: string): PurchaseResult {
-    const item = getItem(itemId);
-    if (!item) return { ok: false, reason: 'not-found' };
-    const consumable = item.category === 'consumable';
-    if (!consumable && this.owned.includes(itemId)) return { ok: false, reason: 'owned' };
-    const res = purchase(this.coins, itemId, consumable ? [] : this.owned);
-    if (!res.ok || res.coins === undefined) return res;
-    this.coins = res.coins;
-    if (!consumable) this.owned.push(itemId);
-    if (item.category === 'rope') this.equipped.rope = itemId;
-    if (itemId === 'clip-2') this.equipped.clip = itemId;
-    if (itemId === 'fan-1') this.fanPlaced = true; // AC-23：放置即摇头
-    if (itemId === 'humidifier-1') this.humidifierOn = true;
-    if (itemId === 'spray-1') this.sprayCharges += 1;
-    this.emitChange();
-    return res;
+    return act.tryPurchase(this, itemId);
   }
-
-  /** 保湿喷雾：焦化恢复 + 湿度 +0.3（架构 §4.3） */
   useSpray(id: string): boolean {
-    if (this.sprayCharges <= 0) return false;
-    const ent = this.byId.get(id);
-    if (!ent) return false;
-    this.sprayCharges -= 1;
-    ent.runtime.char = 0;
-    if (ent.runtime.state === 'burnt') ent.runtime.state = 'idle';
-    ent.runtime.humidity = clamp01(ent.runtime.humidity + 0.3);
-    this.emitChange();
-    return true;
+    return act.useSpray(this, id);
   }
-
-  /**
-   * 吹风机按住施热（P1 局部热源，架构 §4.3 吹风机热风语义）：
-   * 湿度快速下降；humidity<0.3 后 char += dt×0.01（与演化同速率），>0.6 锁定 burnt。
-   * 局部实现不走全局 env.heat（避免误伤无关文件的焦化判定）。
-   */
   applyHeat(id: string, dtSec: number): void {
-    const ent = this.byId.get(id);
-    if (!ent || ent.runtime.state === 'burnt') return;
-    const rt = ent.runtime;
-    rt.humidity = clamp01(rt.humidity - dtSec * 0.25);
-    if (rt.humidity < 0.3) {
-      rt.char = clamp01(rt.char + dtSec * 0.01);
-      if (rt.char > 0.6) rt.state = 'burnt';
-    }
+    act.applyHeat(this, id, dtSec);
   }
-
-  markState(id: string, state: 'idle' | 'hung' | 'drying'): void {
-    const ent = this.byId.get(id);
-    if (ent && ent.runtime.state !== 'burnt') ent.runtime.state = state;
-  }
-
-  /** 蜗牛食苔免费清洁（AC-29）：mold -= amt，静默不触发存档防抖（连续过程由周期兜底落盘） */
   reduceMold(id: string, amt: number): void {
-    const ent = this.byId.get(id);
-    if (!ent) return;
-    ent.runtime.mold = Math.max(0, ent.runtime.mold - amt);
+    act.reduceMold(this, id, amt);
+  }
+  markState(id: string, state: 'idle' | 'hung' | 'drying'): void {
+    act.markState(this, id, state);
+  }
+  cultivateOne(): boolean {
+    return act.cultivateOne(this, this.rnd());
+  }
+  chargeCoins(n: number): boolean {
+    return act.chargeCoins(this, n);
+  }
+
+  // ---- 环境调节与 Demo ----
+
+  /** BoxController 回写吸湿强度 */
+  setBoxAbsorb(rate: number): void {
+    this.boxAbsorb = rate;
+  }
+
+  /** 泼洒暴涨（吸湿盒被砸）：amount 强度持续 dur 秒 */
+  triggerSurge(amount: number, dur: number): void {
+    this.surgeAmount = amount;
+    this.surgeT = dur;
   }
 
   /** Demo 一键回南天 */
   startRainSweep(): void {
     this.sweepT = 0;
-  }
-
-  /** Demo 一键培育：随机一个文件立即出成熟蘑菇 */
-  cultivateOne(): boolean {
-    const candidates = this.entities.filter((e) => e.runtime.state !== 'burnt');
-    if (candidates.length === 0) return false;
-    const ent = candidates[Math.floor(this.rnd() * candidates.length)];
-    ent.runtime.mold = Math.max(ent.runtime.mold, 0.65);
-    ent.runtime.mushroom = { species: pickSpecies(ent.node.category, this.rnd()), growth: 1 };
-    this.emitChange();
-    return true;
   }
 
   /** 演出用：受潮斜坡目标（opening 模块每帧插值调用） */
@@ -303,9 +230,5 @@ export class WorldRuntime {
       ropes,
       stats: { ...this.stats },
     };
-  }
-
-  private emitChange(): void {
-    this.onChange?.();
   }
 }

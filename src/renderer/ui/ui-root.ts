@@ -13,6 +13,8 @@ import { createToolbox } from './toolbox';
 import type { Toolbox } from './toolbox';
 import { createDemoConsole } from './demo-console';
 import type { DemoConsole, DemoActions } from './demo-console';
+import { createSettingsPanel } from './settings-panel';
+import type { SettingsPanel } from './settings-panel';
 import { createToastHost } from './toast';
 import type { ToastHost } from './toast';
 import { icon, renderIcons } from './icons';
@@ -23,6 +25,7 @@ export interface UiRoot {
   shop: ShopPanel;
   toolbox: Toolbox;
   console: DemoConsole;
+  settings: SettingsPanel;
   toast: ToastHost;
   getTool(): Tool;
   refresh(): void;
@@ -34,6 +37,8 @@ export function mountUi(
   hooks: {
     onSell(): void;
     onBuy(itemId: string): void;
+    onBuyBox(qty: number): void;
+    sfx: { setEnabled(on: boolean): void };
     demo: DemoActions;
   },
 ): UiRoot {
@@ -65,13 +70,16 @@ export function mountUi(
   const weather = createWeatherSign(mount, runtime);
   const toolbox = createToolbox(mount, runtime);
   const toast = createToastHost(mount);
-  const shop = createShopPanel(mount, runtime, hooks);
+  const shop = createShopPanel(mount, runtime, {
+    onSell: hooks.onSell,
+    onBuy: hooks.onBuy,
+    onBuyBox: hooks.onBuyBox,
+  });
   const demo = createDemoConsole(mount, runtime, hooks.demo);
+  const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on) });
 
   shopBtn.addEventListener('click', () => shop.toggle());
-  settingsBtn.addEventListener('click', () => {
-    toast.tip('设置面板在路线图上排队中；当前版本只有一档 veil，够用。');
-  });
+  settingsBtn.addEventListener('click', () => settings.toggle());
 
   // Demo 控制台快捷键（AC-31）
   window.addEventListener('keydown', (e) => {
@@ -102,6 +110,7 @@ export function mountUi(
     shop,
     toolbox,
     console: demo,
+    settings,
     toast,
     getTool: () => toolbox.getTool(),
     refresh,

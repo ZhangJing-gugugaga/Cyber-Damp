@@ -474,6 +474,123 @@
   pointer-events: none;
 }
 
+/* ---------- 设置面板（轻量模态） ---------- */
+.settings-panel {
+  position: fixed;
+  top: 72px;
+  right: var(--space-4);
+  width: 280px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-raised);
+  z-index: 300;
+  pointer-events: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.settings-panel__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  pointer-events: none;
+}
+.settings-panel__label {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  pointer-events: none;
+}
+.settings-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.veil-seg {
+  display: flex;
+  gap: var(--space-1);
+}
+.veil-seg-option,
+.sfx-toggle {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  background: transparent;
+  color: var(--fg-2);
+  border: 1px solid var(--btn-secondary-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard);
+}
+.veil-seg-option:hover,
+.sfx-toggle:hover { background: var(--btn-secondary-hover-bg); }
+.veil-seg-option:focus-visible,
+.sfx-toggle:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.veil-seg-option--active {
+  border-color: var(--accent);
+  background: var(--accent-veil);
+  color: var(--fg);
+}
+
+/* ---------- 吸湿盒 qty-stepper（上限 9） ---------- */
+.qty-stepper {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+.qty-stepper button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--btn-secondary-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+.qty-stepper button:hover { background: var(--btn-secondary-hover-bg); }
+.qty-stepper button:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.qty-stepper__value {
+  min-width: 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
+
+/* ---------- 倒水角（吸湿盒回收区，decor 禁事件） ---------- */
+.recycle-zone {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-16);
+  width: 96px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--text-2xs);
+  color: var(--muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+}
+
 /* ---------- 动效降级 ---------- */
 @media (prefers-reduced-motion: reduce) {
   .tip-bubble,

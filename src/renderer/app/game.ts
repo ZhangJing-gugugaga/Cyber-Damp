@@ -13,6 +13,7 @@ import type { RopeEntry } from './rope-manager';
 import { Atmosphere } from './atmosphere';
 import { Opening } from './opening';
 import { SnailController } from './snail-controller';
+import { BoxController } from './box-controller';
 import { createGameActions } from './game-actions';
 import type { GameActions } from './game-actions';
 import { WorldLayers } from '../view/layers';
@@ -106,10 +107,24 @@ export async function createGame(app: Application): Promise<void> {
     getTool: () => ui.getTool(),
   });
 
-  // 7. UI 装配
+  // 7. UI 装配（含吸湿盒控制器：回收角 decor 挂 ui 层）
+  const boxes = new BoxController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }), document.getElementById('ui-root') ?? document.body);
   const ui = mountUi(document.getElementById('ui-root') ?? document.body, runtime, {
     onSell: actions.onSell,
     onBuy: actions.onBuy,
+    onBuyBox: (qty) => {
+      const placed = boxes.place(qty);
+      if (placed === 0) {
+        ui.toast.tip('墙角放不下了（最多 4 只），倒掉一只满盒再来。');
+        return;
+      }
+      const cost = placed * boxes.price;
+      if (runtime.chargeCoins(cost)) {
+        sfx.coin();
+        ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满了记得来倒。`);
+      }
+    },
+    sfx,
     demo: actions.demo,
   });
   // onChange 已被 UI 刷新占用：包一层串上存档防抖
@@ -147,6 +162,16 @@ export async function createGame(app: Application): Promise<void> {
     onHang: () => undefined,
     consumeClick: (x, y) => snails.poke(x, y),
     onSqueegee: (dist, x, y) => squeegeeFx(atmosphere, pool, dist, x, y),
+    boxHit: (x, y) => boxes.hit(x, y),
+    boxMove: (id, x, y) => boxes.moveTo(id, x, y),
+    boxDrop: (id, x, y) => {
+      const res = boxes.dropAt(id, x, y);
+      if (res === 'emptied') {
+        sfx.splash();
+        ui.toast.tip('积水倒进了下水道，盒里颗粒又能接着干了。');
+      }
+      return res;
+    },
     spawnRope: (ax, ay, bx, by) => {
       const entry = ropes.spawn(ax, ay, bx, by, runtime.equipped.rope);
       return entry ? addRopeEntry(entry) : null;
@@ -200,12 +225,18 @@ export async function createGame(app: Application): Promise<void> {
       const hid = pointer.heatTargetId;
       if (hid) applyHeatFx(runtime, sprites, pool, (t) => ui.toast.tip(t), overheatWarned, hid, dtSec);
 
-      // 崩断判定（字节累计）→ 表现层反馈
+      // 崩断判定（字节累计）→ 表现层反馈（含砸中吸湿盒泼洒）
       ropes.checkBreak((entry) => {
         sfx.crack();
         const link = entry.rope.links[Math.floor(entry.rope.links.length / 2)];
         debrisBurst(pool, link.position.x, link.position.y);
         ui.toast.tip('啪嗒——晾衣绳崩断了，文件摔在任务栏上弹了两下。', { warn: true });
+        const hitBox = boxes.splashNear(link.position.x);
+        if (hitBox) {
+          runtime.triggerSurge(0.35, 8);
+          sfx.splash();
+          ui.toast.tip('崩落的文件砸翻了吸湿盒——半屏都在淌水，湿度暴涨！', { warn: true });
+        }
       });
 
       // 视图同步：绳上/坠落文件跟随刚体
@@ -249,6 +280,8 @@ export async function createGame(app: Application): Promise<void> {
       pool.update(dtSec);
       atmosphere.update(runtime, dtSec, tSec, pool, fan);
       snails.update(runtime, ropes, dtSec, tSec);
+      runtime.setBoxAbsorb(boxes.absorbRate);
+      boxes.update(dtSec, runtime.env().humidity, tSec);
 
       // 雨声氛围随天气
       const cond = runtime.dayWeather().condition;

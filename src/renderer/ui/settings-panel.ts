@@ -1,0 +1,98 @@
+/**
+ * 设置面板（ui 层，轻量模态）：veil 档位（壁纸适配）+ 音效开关（DESIGN §7 MVP 范围）
+ * AC-36：根容器 auto（模态表面）/ 档位与开关 auto
+ */
+import { icon, renderIcons } from './icons';
+
+export interface SettingsPanel {
+  el: HTMLElement;
+  toggle(): void;
+  close(): void;
+}
+
+export function createSettingsPanel(mount: HTMLElement, hooks: { onSfxToggle(on: boolean): void }): SettingsPanel {
+  const el = document.createElement('aside');
+  el.className = 'settings-panel';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', '设置');
+  el.style.display = 'none';
+
+  const title = document.createElement('h2');
+  title.className = 'settings-panel__title';
+  title.textContent = '设置';
+  el.appendChild(title);
+
+  // veil 档位（DESIGN §2.1：极端壁纸适配）
+  const veilLabel = document.createElement('p');
+  veilLabel.className = 'settings-panel__label';
+  veilLabel.textContent = '面板浓度（按桌面壁纸深浅选）';
+  el.appendChild(veilLabel);
+
+  const veilGroup = document.createElement('div');
+  veilGroup.className = 'veil-seg';
+  veilGroup.setAttribute('role', 'radiogroup');
+  veilGroup.setAttribute('aria-label', 'veil 档位');
+  const VEILS: Array<{ value: string; label: string }> = [
+    { value: '', label: '标准' },
+    { value: 'low', label: '低浓' },
+    { value: 'high', label: '高浓' },
+  ];
+  for (const v of VEILS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'veil-seg-option';
+    btn.textContent = v.label;
+    btn.dataset.veil = v.value;
+    btn.setAttribute('role', 'radio');
+    btn.addEventListener('click', () => {
+      document.documentElement.dataset.veil = v.value;
+      syncVeil();
+    });
+    veilGroup.appendChild(btn);
+  }
+  el.appendChild(veilGroup);
+
+  // 音效开关
+  const sfxRow = document.createElement('div');
+  sfxRow.className = 'settings-panel__row';
+  const sfxLabel = document.createElement('span');
+  sfxLabel.textContent = '音效（程序合成雨声与脆响）';
+  const sfxBtn = document.createElement('button');
+  sfxBtn.type = 'button';
+  sfxBtn.className = 'sfx-toggle';
+  sfxBtn.setAttribute('role', 'switch');
+  sfxBtn.setAttribute('aria-checked', 'true');
+  sfxBtn.innerHTML = `${icon('settings', 16)}<span>开</span>`;
+  let sfxOn = true;
+  sfxBtn.addEventListener('click', () => {
+    sfxOn = !sfxOn;
+    sfxBtn.setAttribute('aria-checked', String(sfxOn));
+    sfxBtn.querySelector('span')!.textContent = sfxOn ? '开' : '关';
+    hooks.onSfxToggle(sfxOn);
+  });
+  sfxRow.append(sfxLabel, sfxBtn);
+  el.appendChild(sfxRow);
+
+  function syncVeil(): void {
+    const cur = document.documentElement.dataset.veil ?? '';
+    for (const btn of veilGroup.querySelectorAll('.veil-seg-option')) {
+      btn.classList.toggle('veil-seg-option--active', (btn as HTMLElement).dataset.veil === cur);
+    }
+  }
+
+  function toggle(): void {
+    if (el.style.display === 'none') {
+      syncVeil();
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  function close(): void {
+    el.style.display = 'none';
+  }
+
+  mount.appendChild(el);
+  renderIcons();
+  return { el, toggle, close };
+}

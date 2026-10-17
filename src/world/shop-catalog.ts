@@ -7,7 +7,8 @@ import { GB } from '../shared/constants';
 export type ItemId =
   | 'rope-1' | 'rope-2' | 'rope-3'
   | 'clip-1' | 'clip-2'
-  | 'fan-1' | 'humidifier-1' | 'spray-1';
+  | 'fan-1' | 'humidifier-1' | 'spray-1'
+  | 'box-1';
 
 export interface ShopItem {
   id: ItemId;
@@ -31,6 +32,7 @@ export const ITEMS: ShopItem[] = [
   { id: 'fan-1', name: '老式绿头摇头电扇', price: 250, category: 'appliance', desc: '自动左右摇头吹风，整排绳上图标随风向起伏' },
   { id: 'humidifier-1', name: '超声波赛博加湿器', price: 500, category: 'appliance', desc: '逆向致富神器。局部高湿温室催熟蘑菇' },
   { id: 'spray-1', name: '保湿喷雾', price: 20, category: 'consumable', desc: '焦化文件恢复原状（消耗品）' },
+  { id: 'box-1', name: '氯化钙吸湿盒', price: 30, category: 'consumable', desc: '墙角静默吸湿。积水涨满要手动倒，碰倒了泼你半屏（可叠购 9 盒）' },
 ];
 
 export function getItem(id: string): ShopItem | undefined {
