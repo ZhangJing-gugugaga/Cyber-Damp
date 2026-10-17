@@ -21,6 +21,12 @@ function clamp01(v: number): number {
 }
 
 /**
+ * 绳上晾晒趋向系数 /s（指数模型下湿度 0.8 → 每分钟约降 0.12 ≈ 12%/min，
+ * 落在 PRD AC-13「每分钟 5%-15%」中档；受潮趋向保持 0.2 不变——受潮是快过程）
+ */
+export const DRY_RATE = 0.0034;
+
+/**
  * 推进单个文件一帧的演化。
  * @param rt 运行时状态（原地修改）
  * @param env 环境输入
@@ -37,10 +43,10 @@ export function stepEvolution(
 ): void {
   if (rt.state === 'burnt') return; // 焦化锁定，需保湿喷雾重置
 
-  // 湿度趋向目标；绳上晾晒趋向干爽，大风加速
+  // 湿度趋向目标；绳上晾晒趋向干爽（AC-13 速率），大风加速
   const hung = rt.state === 'hung';
   const target = hung ? 0.15 : env.humidity * 0.9;
-  let rate = dtSec * 0.2;
+  let rate = dtSec * (hung ? DRY_RATE : 0.2);
   if (hung && env.wind > 0.5) rate *= 1.8;
   const delta = target - rt.humidity;
   rt.humidity = clamp01(rt.humidity + delta * Math.min(rate, 1));

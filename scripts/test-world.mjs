@@ -26,12 +26,13 @@ test('高湿环境湿度上升', () => {
 test('绳上晾晒趋向干爽且大风加速', () => {
   const calm = mkRuntime({ state: 'hung', humidity: 0.8 });
   const windy = mkRuntime({ state: 'hung', humidity: 0.8 });
-  for (let i = 0; i < 50; i++) {
+  // AC-13 慢干速率（DRY_RATE=0.0034）：600 帧 = 60s 游戏时间，calm 约降 12%/min 中档
+  for (let i = 0; i < 600; i++) {
     stepEvolution(calm, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
     stepEvolution(windy, { humidity: 0.9, heat: 0, wind: 1 }, 0.1, 'doc-code', 0.99);
   }
   assert.ok(windy.humidity < calm.humidity, `大风应更干：windy ${windy.humidity.toFixed(3)} < calm ${calm.humidity.toFixed(3)}`);
-  assert.ok(windy.humidity < 0.4);
+  assert.ok(calm.humidity > 0.6, `无风应缓慢干爽（>0.6）：实算 ${calm.humidity.toFixed(3)}`);
 });
 
 test('mold>0.6 萌生蘑菇并生长至可采摘', () => {
