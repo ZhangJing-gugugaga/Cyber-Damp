@@ -92,6 +92,15 @@ test('确定性：同日同桌面（mtime 与 sizeBytes 可复现）', () => {
   assert.deepEqual(t1.map((n) => [n.name, n.sizeBytes, n.mtime]), t2.map((n) => [n.name, n.sizeBytes, n.mtime]));
 });
 
+test('Windows 适配：1536×864 工作区所有文件不出界（DIP 自适应）', () => {
+  const nodes = generateDesktop(1_700_000_000_000, 1536, 864);
+  assert.equal(nodes.length, 16);
+  for (const n of nodes) {
+    assert.ok(n.x > 140 && n.x < 1536 - 140, `${n.name} x=${n.x} 应在左右避让区外`);
+    assert.ok(n.y + 100 < 864, `${n.name} y=${n.y} 应在工作区内（含标签高度）`);
+  }
+});
+
 test('pickSpecies：代码类 40% 金针菇，压缩包类 15% 胆小菇（AC-30），其他类只有平菇', () => {
   assert.equal(pickSpecies('doc-code', 0.1), 'enoki');
   assert.equal(pickSpecies('doc-code', 0.9), 'oyster');
@@ -133,15 +142,62 @@ test('购买：扣币/余额不足/已拥有', () => {
   assert.equal(purchase(200, 'rope-2', ['rope-2']).reason, 'owned');
 });
 
-test('存档校验：坏数据 null，好数据通过', () => {
-  assert.equal(validateSave(null), null);
-  assert.equal(validateSave({ schemaVersion: 2 }), null);
-  const good = {
+function goodSave() {
+  return {
     schemaVersion: 1, savedAt: 1,
     player: { coins: 5, owned: ['rope-1'], equipped: { rope: 'rope-1', clip: 'clip-1' } },
     weather: { city: 'guangzhou', migratedOn: '2026-10-17' },
     files: [{ id: 'f-001', humidity: 0.5, mold: 0.1, char: 0, state: 'idle', mushroom: null }],
     ropes: [], stats: { harvested: 0, earned: 0, playedMs: 0 },
   };
-  assert.ok(validateSave(good), '合法存档应通过');
+}
+
+test('存档校验：坏数据 null，好数据通过', () => {
+  assert.equal(validateSave(null), null);
+  assert.equal(validateSave({ schemaVersion: 2 }), null);
+  assert.ok(validateSave(goodSave()), '合法存档应通过');
+});
+
+test('存档校验拒绝 NaN 绳坐标/未知绳型/非法状态/NaN 蘑菇（AC-24/27）', () => {
+  const badRope = { ...goodSave(), ropes: [{ id: 'r-1', ax: NaN, ay: 1, bx: 2, by: 3, tier: 'rope-1', fileIds: [] }] };
+  assert.equal(validateSave(badRope), null, 'NaN 锚点会污染 Matter，必须拒绝');
+
+  const badTier = { ...goodSave(), ropes: [{ id: 'r-1', ax: 0, ay: 1, bx: 2, by: 3, tier: 'rope-x', fileIds: [] }] };
+  assert.equal(validateSave(badTier), null, '未知绳型必须拒绝');
+
+  const badState = { ...goodSave(), files: [{ ...goodSave().files[0], state: 'zombie' }] };
+  assert.equal(validateSave(badState), null, '非法状态必须拒绝');
+
+  const badGrowth = { ...goodSave(), files: [{ ...goodSave().files[0], mushroom: { species: 'oyster', growth: NaN } }] };
+  assert.equal(validateSave(badGrowth), null, 'NaN 生长值必须拒绝');
+
+  const withRope = {
+    ...goodSave(),
+    ropes: [{ id: 'r-1', ax: 10, ay: 20, bx: 300, by: 200, tier: 'rope-2', fileIds: ['f-001'] }],
+  };
+  assert.ok(validateSave(withRope), '合法绳条目应通过');
+});
+
+test('NaN 输入不穿透演化（AC-27 存档防线）', () => {
+  const rt = mkRuntime({ humidity: NaN });
+  stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
+  assert.ok(Number.isFinite(rt.humidity), '湿度必须为有限数');
+  assert.ok(Number.isFinite(rt.mold), '霉变必须为有限数');
+});
+
+test('AC-16 晴天风干速率约为高湿 2 倍', () => {
+  const sunny = mkRuntime({ state: 'hung', humidity: 0.8 });
+  const damp = mkRuntime({ state: 'hung', humidity: 0.8 });
+  for (let i = 0; i < 100; i++) {
+    stepEvolution(sunny, { humidity: 0.5, heat: 0, wind: 0.6 }, 0.1, 'doc-code', 0.99);
+    stepEvolution(damp, { humidity: 0.5, heat: 0, wind: 0.15 }, 0.1, 'doc-code', 0.99);
+  }
+  const ratio = (0.8 - sunny.humidity) / (0.8 - damp.humidity);
+  assert.ok(ratio > 1.6 && ratio < 2.0, `风干倍率应约 1.8，实算 ${ratio.toFixed(2)}`);
+});
+
+test('未知菌种售卖不崩溃（脏存档防御）', () => {
+  const r = sellMushroom([{ species: 'ghost', growth: 1 }], 10);
+  assert.equal(r.coins, 10);
+  assert.equal(r.remaining.length, 1);
 });

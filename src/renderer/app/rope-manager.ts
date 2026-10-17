@@ -68,6 +68,18 @@ export class RopeManager {
     return this.bodyByFile.get(fileId);
   }
 
+  /** 释放文件刚体（崩断落地后重新拖动/晾晒前调用，防止旧刚体残留） */
+  releaseFile(fileId: string): void {
+    const body = this.bodyByFile.get(fileId);
+    if (!body) return;
+    Matter.Composite.remove(this.world, body);
+    this.bodyByFile.delete(fileId);
+    for (const e of this.entries) {
+      const i = e.bodies.indexOf(body);
+      if (i >= 0) e.bodies.splice(i, 1);
+    }
+  }
+
   /** 全部文件刚体对（视图同步用：绳上 + 坠落中） */
   pairs(): Array<[string, Matter.Body]> {
     return [...this.bodyByFile.entries()];

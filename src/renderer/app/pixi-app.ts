@@ -3,6 +3,7 @@
  * Pixi v8 异步 init（无同步构造）；透明画布 + DPR 上限 2（R3）
  * R10：WebGL 上下文丢失阻止默认行为（Chromium 自动恢复，纹理由 Pixi 重建）
  */
+import 'pixi.js/unsafe-eval'; // CSP 无 unsafe-eval：启用 Pixi 免 eval polyfill（官方入口）
 import { Application } from 'pixi.js';
 
 export async function createPixiApp(): Promise<Application> {

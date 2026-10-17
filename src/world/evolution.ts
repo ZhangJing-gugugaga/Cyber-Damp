@@ -17,6 +17,7 @@ export interface Env {
 }
 
 function clamp01(v: number): number {
+  if (!Number.isFinite(v)) return 0; // NaN 不得穿透存档（否则存档永远无法加载）
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 

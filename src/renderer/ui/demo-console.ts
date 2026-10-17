@@ -10,6 +10,8 @@ export interface DemoActions {
   rainSweep(): void;
   hangFull(): void;
   cultivate(): void;
+  /** QA 专用（CD_QA=1）：定向生成成熟胆小菇 */
+  cultivateShy(): void;
   /** 状态读数外部快照 */
   readout(): { rope: string; load: string; files: string; moldy: string };
 }
@@ -61,6 +63,10 @@ export function createDemoConsole(mount: HTMLElement, runtime: WorldRuntime, act
   consoleBtn('一键回南天', '全桌面 3 秒走完出水→变软→长蘑菇', () => actions.rainSweep());
   consoleBtn('一键挂满', '容量预检贪心挂载，保住最重文件出深 V', () => actions.hangFull());
   consoleBtn('一键培育', '随机文件立即结出一朵成熟蘑菇', () => actions.cultivate());
+  // QA 模式专属：定向胆小菇（AC-30 现场验收；正常发布不显示）
+  if (location.search.includes('qa=1')) {
+    consoleBtn('胆小菇测试', 'QA：压缩包文件上定向生成成熟胆小菇', () => actions.cultivateShy());
+  }
 
   const readoutDl = document.createElement('dl');
   readoutDl.className = 'console-readout';
@@ -73,14 +79,25 @@ export function createDemoConsole(mount: HTMLElement, runtime: WorldRuntime, act
 
   function refresh(): void {
     const r = actions.readout();
-    readoutDl.innerHTML = `
-      <div><dt>当前绳型</dt><dd>${r.rope}</dd></div>
-      <div><dt>绳上负载</dt><dd>${r.load}</dd></div>
-      <div><dt>桌面文件</dt><dd>${r.files}</dd></div>
-      <div><dt>重度霉变</dt><dd>${r.moldy}</dd></div>
-      <div><dt>除湿币</dt><dd>${runtime.coins}</dd></div>
-      <div><dt>库存蘑菇</dt><dd>${runtime.inventory.length} 朵</dd></div>
-    `;
+    // 全部走 textContent：读数可能来自存档（防 DOM XSS）
+    readoutDl.textContent = '';
+    const rows: Array<[string, string]> = [
+      ['当前绳型', r.rope],
+      ['绳上负载', r.load],
+      ['桌面文件', r.files],
+      ['重度霉变', r.moldy],
+      ['除湿币', String(runtime.coins)],
+      ['库存蘑菇', `${runtime.inventory.length} 朵`],
+    ];
+    for (const [key, value] of rows) {
+      const row = document.createElement('div');
+      const dt = document.createElement('dt');
+      dt.textContent = key;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      row.append(dt, dd);
+      readoutDl.append(row);
+    }
     renderIcons();
   }
 

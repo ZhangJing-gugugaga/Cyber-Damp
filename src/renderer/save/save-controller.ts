@@ -41,6 +41,15 @@ export class SaveController {
     }
   }
 
+  /** 退出前同步语义：取消待触发防抖，立即落盘（main 侧 600ms 退出窗口） */
+  async flushNow(): Promise<void> {
+    if (this.timer !== null) {
+      window.clearTimeout(this.timer);
+      this.timer = null;
+    }
+    await this.flush();
+  }
+
   /** 读档（含结构校验由 main 侧完成；此处再过一层 null 兜底） */
   async load(): Promise<SaveData | null> {
     return this.api.load();

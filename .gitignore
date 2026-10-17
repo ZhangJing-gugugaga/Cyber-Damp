@@ -28,3 +28,8 @@ Thumbs.db
 # 临时文件
 *.tmp
 *.temp
+
+# 运行日志（agent hooks / 会话记录，不纳入版本管理）
+logs/
+.claude/logs/
+.claude/data/

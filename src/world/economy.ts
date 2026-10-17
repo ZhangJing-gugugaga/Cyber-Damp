@@ -20,8 +20,9 @@ export function sellMushroom(inventory: InventoryItem[], coins: number): SellRes
   let earned = 0;
   const remaining: InventoryItem[] = [];
   for (const item of inventory) {
-    if (item.growth >= 1) {
-      earned += SPECIES[item.species].price;
+    const def = SPECIES[item.species];
+    if (item.growth >= 1 && def) {
+      earned += def.price;
     } else {
       remaining.push(item);
     }

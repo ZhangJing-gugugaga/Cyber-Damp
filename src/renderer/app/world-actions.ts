@@ -144,6 +144,16 @@ export function cultivateOne(rt: WorldRuntime, rand: number): boolean {
   return true;
 }
 
+/** QA 专用（CD_QA=1）：在压缩包文件上定向生成成熟胆小菇，用于 AC-30 现场验收 */
+export function cultivateShy(rt: WorldRuntime): boolean {
+  const ent = rt.entities.find((e) => e.node.category === 'archive' && e.runtime.state !== 'burnt');
+  if (!ent) return false;
+  ent.runtime.mold = Math.max(ent.runtime.mold, 0.65);
+  ent.runtime.mushroom = { species: 'shy', growth: 1 };
+  emit(rt);
+  return true;
+}
+
 /** 扣币（吸湿盒批量购买等），余额不足返回 false */
 export function chargeCoins(rt: WorldRuntime, n: number): boolean {
   if (rt.coins < n) return false;

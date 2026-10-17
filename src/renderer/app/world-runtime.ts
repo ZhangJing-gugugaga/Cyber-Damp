@@ -8,6 +8,8 @@ import { stepEvolution } from '../../world/evolution';
 import type { Env } from '../../world/evolution';
 import { CITIES, simulateDay, humidityMultiplier, isSunny, dateToDayIndex } from '../../world/weather-simulator';
 import { generateDesktop } from '../../world/virtual-desktop';
+import { SPECIES } from '../../world/mushroom-species';
+import { getItem } from '../../world/shop-catalog';
 import type { SaveData, RopeSave } from '../../shared/types/save';
 import { clamp01 } from './clamp';
 import * as act from './world-actions';
@@ -44,6 +46,8 @@ export class WorldRuntime {
   onChange: (() => void) | null = null;
 
   cpu = 0;
+  /** 电扇锚点（AC-23：仅对 300px 内绳上文件加成；未放置为 null） */
+  private fanAnchor: { x: number; y: number } | null = null;
   private cpuHighSec = 0;
   private timeSec = 0;
   private startNow = Date.now();
@@ -64,10 +68,10 @@ export class WorldRuntime {
     return this.cpuHighSec >= 5; // AC-05：连续 5s >80%
   }
 
-  /** 新开局：生成 16 锚文件桌面 */
-  initNew(now: number): void {
+  /** 新开局：生成 16 锚文件桌面（workW/workH 为真实工作区 DIP，适配不同分辨率/DPI） */
+  initNew(now: number, workW?: number, workH?: number): void {
     this.startNow = now;
-    for (const node of generateDesktop(now)) {
+    for (const node of generateDesktop(now, workW, workH)) {
       const ent = new FileEntity(node);
       ent.syncStage(now);
       this.entities.push(ent);
@@ -76,11 +80,14 @@ export class WorldRuntime {
   }
 
   /** 从存档恢复（mtime/x/y/name/ext/size 由生成器确定性重建，不入存档） */
-  initFromSave(save: SaveData, now: number): void {
-    this.initNew(now);
+  initFromSave(save: SaveData, now: number, workW?: number, workH?: number): void {
+    this.initNew(now, workW, workH);
     this.coins = save.player.coins;
-    this.owned = save.player.owned.slice();
+    // 白名单清洗：未知道具 id / 非法装备回落默认，防止脏存档把 undefined 带进渲染与物理
+    this.owned = save.player.owned.filter((id) => !!getItem(id));
     this.equipped = { ...save.player.equipped };
+    if (!getItem(this.equipped.rope)?.byteLimit) this.equipped.rope = 'rope-1';
+    if (getItem(this.equipped.clip)?.category !== 'clip') this.equipped.clip = 'clip-1';
     this.city = save.weather.city;
     this.migratedOn = save.weather.migratedOn;
     this.stats = { ...save.stats };
@@ -94,7 +101,8 @@ export class WorldRuntime {
       ent.runtime.mold = clamp01(s.mold);
       ent.runtime.char = clamp01(s.char);
       ent.runtime.state = s.state;
-      ent.runtime.mushroom = s.mushroom ? { ...s.mushroom } : null;
+      ent.runtime.mushroom =
+        s.mushroom && SPECIES[s.mushroom.species] ? { ...s.mushroom } : null;
     }
   }
 
@@ -111,9 +119,13 @@ export class WorldRuntime {
     if (this.humidifierOn) humidity += 0.15;
     humidity -= this.boxAbsorb;
     if (this.surgeT > 0) humidity += this.surgeAmount; // 泼洒暴涨
-    let wind = isSunny(day.condition) ? 0.45 : 0.15;
-    if (this.fanPlaced) wind = Math.max(wind, 0.7);
+    let wind = isSunny(day.condition) ? 0.6 : 0.15; // AC-16：晴天风干速率约为高湿 2 倍（>0.5 触发 ×1.8）
     return { humidity: clamp01(humidity), heat: 0, wind };
+  }
+
+  /** 电扇放置后锚点（AC-23：300px 内局部风干加成） */
+  setFanAnchor(x: number, y: number): void {
+    this.fanAnchor = { x, y };
   }
 
   /** 固定步推进（game-loop 每步调用） */
@@ -131,7 +143,13 @@ export class WorldRuntime {
     for (const ent of this.entities) {
       ent.syncStage(now);
       if (this.sweepT < 1) this.applySweep(ent);
-      stepEvolution(ent.runtime, env, dtSec, ent.node.category, this.rnd());
+      // AC-23：电扇只对 300px 内的文件附加风干加成（其余走基础风）
+      let entEnv = env;
+      if (this.fanPlaced && this.fanAnchor) {
+        const d = Math.hypot(ent.node.x - this.fanAnchor.x, ent.node.y - this.fanAnchor.y);
+        if (d <= 300) entEnv = { ...env, wind: Math.max(env.wind, 0.7) };
+      }
+      stepEvolution(ent.runtime, entEnv, dtSec, ent.node.category, this.rnd());
     }
   }
 
@@ -178,6 +196,10 @@ export class WorldRuntime {
   }
   cultivateOne(): boolean {
     return act.cultivateOne(this, this.rnd());
+  }
+  /** QA 专用：定向生成成熟胆小菇（AC-30 现场验收） */
+  cultivateShy(): boolean {
+    return act.cultivateShy(this);
   }
   chargeCoins(n: number): boolean {
     return act.chargeCoins(this, n);

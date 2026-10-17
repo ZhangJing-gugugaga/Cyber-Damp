@@ -18,6 +18,8 @@ import type { SettingsPanel } from './settings-panel';
 import { createToastHost } from './toast';
 import type { ToastHost } from './toast';
 import { icon, renderIcons } from './icons';
+import { emitAction } from '../app/events';
+import { trackEvent } from '../app/telemetry';
 
 export interface UiRoot {
   mount: HTMLElement;
@@ -38,7 +40,7 @@ export function mountUi(
     onSell(): void;
     onBuy(itemId: string): void;
     onBuyBox(qty: number): void;
-    sfx: { setEnabled(on: boolean): void };
+    sfx: { setEnabled(on: boolean): void; whoosh(): void };
     demo: DemoActions;
   },
 ): UiRoot {
@@ -67,7 +69,7 @@ export function mountUi(
   settingsBtn.innerHTML = icon('settings', 24);
   mount.appendChild(settingsBtn);
 
-  const weather = createWeatherSign(mount, runtime);
+  const weather = createWeatherSign(mount, runtime, () => hooks.sfx.whoosh());
   const toolbox = createToolbox(mount, runtime);
   const toast = createToastHost(mount);
   const shop = createShopPanel(mount, runtime, {
@@ -78,7 +80,11 @@ export function mountUi(
   const demo = createDemoConsole(mount, runtime, hooks.demo);
   const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on) });
 
-  shopBtn.addEventListener('click', () => shop.toggle());
+  shopBtn.addEventListener('click', () => {
+    emitAction('shop-open');
+    trackEvent('shop_opened');
+    shop.toggle();
+  });
   settingsBtn.addEventListener('click', () => settings.toggle());
 
   // Demo 控制台快捷键（AC-31）

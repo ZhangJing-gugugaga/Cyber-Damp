@@ -1,8 +1,4 @@
-/**
- * 游戏总装配（app 层）：pixi + matter + world + view + input + ui + save 接线
- * renderer/index.ts 只调 createGame()；本文件只装配与逐帧编排，不写领域逻辑
- * （售卖/购买/Demo/采摘动作在 game-actions.ts，粒子效果在 input/fx-burst.ts）
- */
+/** 游戏总装配（app 层）：pixi + matter + world + view + input + ui + save 接线；领域逻辑在 game-actions/actions 模块 */
 import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
 import { createMatterWorld } from './matter-world';
@@ -21,36 +17,43 @@ import { FileSprite } from '../view/file-sprite';
 import { MushroomView } from '../view/mushroom-view';
 import { drawRope, drawRopeWarn } from '../view/rope-view';
 import { ParticlePool } from '../view/particles';
+import { GlyphPool } from '../view/glyph-pool';
+import { updateFileDebris } from './file-debris';
 import { FanView } from '../view/fan-view';
-import { FILE_ICON_H } from '../view/token-colors';
+import { FILE_ICON_W } from '../view/token-colors';
 import { PointerController } from '../input/pointer-controller';
 import { debrisBurst } from '../input/fx-burst';
 import { applyHeatFx, squeegeeFx } from './tool-fx';
 import { mountUi } from '../ui/ui-root';
+import { createGuide } from '../ui/onboarding';
+import { createHoverCard } from '../ui/hover-card';
+import { createWarnBadge } from '../ui/warn-badge';
+import { createFpsWatch } from './fps-watch';
+import { wirePause, wireSystemEvents } from './system-wiring';
+import { trackError } from './telemetry';
 import { Sfx } from '../audio/sfx';
 import { SaveController } from '../save/save-controller';
 import { loadSave } from './save-bridge';
+import { restoreRopes } from './rope-restore';
 import type { SaveData } from '../../shared/types/save';
-
 const AUTOSAVE_SEC = 30;
 export async function createGame(app: Application): Promise<void> {
   // 1. 存档加载（失败/损坏走新开局——契约纪律 3）
   const loaded = await loadSave();
-
-  // 2. 世界与物理
   const matter = createMatterWorld(app.screen.width, app.screen.height);
   const runtime = new WorldRuntime();
   const ropes = new RopeManager(matter.engine.world);
   const now = Date.now();
-  if (loaded) runtime.initFromSave(loaded, now);
-  else runtime.initNew(now);
-  console.info('[cyber-damp] 世界装配完成:', loaded ? '存档已恢复' : '新开局', runtime.entities.length, '个文件'); // 冒烟断言锚点
-
+  if (loaded) runtime.initFromSave(loaded, now, app.screen.width, app.screen.height);
+  else runtime.initNew(now, app.screen.width, app.screen.height);
+  console.info('[cyber-damp] 世界装配完成:', loaded ? '存档已恢复' : '新开局', runtime.entities.length, '个文件', 'viewport', app.screen.width, 'x', app.screen.height, 'dpr', window.devicePixelRatio);
   // 3. 视图图层
   const layers = new WorldLayers();
   app.stage.addChild(layers.root);
   const pool = new ParticlePool();
   layers.fxLayer.addChild(pool.container);
+  const glyphs = new GlyphPool();
+  layers.fxLayer.addChild(glyphs.container);
   const sprites = new Map<string, FileSprite>();
   const shrooms = new Map<string, MushroomView>();
   for (const ent of runtime.entities) {
@@ -58,7 +61,6 @@ export async function createGame(app: Application): Promise<void> {
     layers.fileLayer.addChild(sprite.container);
     sprites.set(ent.node.id, sprite);
   }
-
   // 4. 绳索恢复（读档）+ 绳 Graphics
   const ropeGfx = new Map<RopeEntry, Graphics>();
   function addRopeEntry(entry: RopeEntry): RopeEntry {
@@ -67,30 +69,11 @@ export async function createGame(app: Application): Promise<void> {
     ropeGfx.set(entry, g);
     return entry;
   }
-  if (loaded) restoreRopes(loaded);
-
-  function restoreRopes(save: SaveData): void {
-    for (const r of save.ropes) {
-      const entry = ropes.spawn(r.ax, r.ay, r.bx, r.by, r.tier);
-      if (!entry) continue;
-      for (const id of r.fileIds) {
-        const ent = runtime.byId.get(id);
-        if (!ent) continue;
-        const link = entry.rope.links[Math.floor((entry.rope.links.length - 1) * (0.5 + Math.random() * 0.3))];
-        if (ropes.hang(entry, ent.node, { x: link.position.x, y: link.position.y })) {
-          runtime.markState(id, 'hung');
-        }
-      }
-    }
-  }
-
-  // 5. 环境表现 + 音效 + 存档
+  if (loaded) restoreRopes(loaded, runtime, ropes, addRopeEntry);
   const atmosphere = new Atmosphere(app, layers);
   const sfx = new Sfx();
   const saver = new SaveController(runtime, ropes);
   runtime.onChange = () => saver.schedule();
-
-  // 6. 游戏动作（售卖/购买/Demo/采摘）
   const actions = createGameActions({
     app,
     runtime,
@@ -102,8 +85,10 @@ export async function createGame(app: Application): Promise<void> {
     refresh: () => ui.refresh(),
     placeFan: () => {
       fan = atmosphere.placeFan();
+      runtime.setFanAnchor(fan.container.position.x, fan.container.position.y);
     },
     retierRopes: () => ropes.setTierAll(runtime.equipped.rope),
+    registerRope: (entry) => addRopeEntry(entry),
     getTool: () => ui.getTool(),
   });
 
@@ -113,16 +98,20 @@ export async function createGame(app: Application): Promise<void> {
     onSell: actions.onSell,
     onBuy: actions.onBuy,
     onBuyBox: (qty) => {
-      const placed = boxes.place(qty);
-      if (placed === 0) {
+      const want = Math.min(qty, boxes.freeSlots());
+      if (want === 0) {
         ui.toast.tip('墙角放不下了（最多 4 只），倒掉一只满盒再来。');
         return;
       }
-      const cost = placed * boxes.price;
-      if (runtime.chargeCoins(cost)) {
-        sfx.coin();
-        ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满了记得来倒。`);
+      const cost = want * boxes.price;
+      if (!runtime.chargeCoins(cost)) {
+        ui.toast.tip('币不够。蘑菇还在长，急不来。');
+        return;
       }
+      const placed = boxes.place(want);
+      if (placed < want) runtime.chargeCoins(-(want - placed) * boxes.price); // 理论不可达，兜底退款
+      sfx.coin();
+      ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满了记得来倒。`);
     },
     sfx,
     demo: actions.demo,
@@ -135,15 +124,11 @@ export async function createGame(app: Application): Promise<void> {
   };
 
   // 8. 80% 预警角标（AC-35 表现层，pointer-events:none）
-  const warnBadge = document.createElement('span');
-  warnBadge.className = 'warn-badge';
-  warnBadge.textContent = '绳索接近承重极限';
-  warnBadge.style.cssText =
-    'position:fixed;top:64px;left:50%;transform:translateX(-50%);display:none;padding:2px 10px;' +
-    'font-size:var(--text-2xs);color:var(--warn);background:var(--panel-bg);border:1px solid var(--warn);border-radius:var(--radius-pill)';
-  ui.mount.appendChild(warnBadge);
+  const warnBadge = createWarnBadge(ui.mount);
 
-  // 9. 输入层 + 拉绳预览 + 蜗牛（AC-29 P0）
+  // 8.5 新手引导 + 悬停卡片（PRD §7.1）
+  const guide = createGuide(ui.toast);
+  const hoverCard = createHoverCard(ui.mount, runtime, sprites);
   const snails = new SnailController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }));
   const previewG = new Graphics();
   layers.propLayer.addChild(previewG);
@@ -163,6 +148,9 @@ export async function createGame(app: Application): Promise<void> {
     consumeClick: (x, y) => snails.poke(x, y),
     onSqueegee: (dist, x, y) => squeegeeFx(atmosphere, pool, dist, x, y),
     boxHit: (x, y) => boxes.hit(x, y),
+    snailHit: (x, y) => snails.hit(x, y),
+    sweepGlyphs: (x, y) => { if (glyphs.sweep(x, y) > 0) sfx.swish(); },
+    glyphHit: (x, y) => glyphs.hit(x, y),
     boxMove: (id, x, y) => boxes.moveTo(id, x, y),
     boxDrop: (id, x, y) => {
       const res = boxes.dropAt(id, x, y);
@@ -183,15 +171,8 @@ export async function createGame(app: Application): Promise<void> {
   });
   for (const btn of document.querySelectorAll('#ui-hud button')) btn.setAttribute('data-ui-interactive', '1');
 
-  // 10. IPC 订阅（CPU 出汗数据源 / 退出 flush）
-  window.damp?.system.onCpu((usage) => {
-    runtime.cpu = usage;
-  });
-  window.damp?.app.onBeforeQuit(() => {
-    void saver.flush();
-  });
-
-  // 11. 开场演出（每次启动；读档时近似无缝）
+  // 10. IPC 订阅（CPU 出汗 / 退出 flush / AC-28 暂停）
+  wireSystemEvents(runtime, saver);
   let opening: Opening | null = new Opening({
     runtime,
     atmosphere,
@@ -201,21 +182,28 @@ export async function createGame(app: Application): Promise<void> {
     onToast: (text) => ui.toast.tip(text, { actionLabel: '先去晾晒' }),
     onFinish: () => {
       opening = null;
+      pointer.clickThrough.update(false);
+      if (!loaded) guide.start();
       ui.refresh();
     },
   });
+  // 演出期间整窗拦截点击，让“点击跳过”生效（AC-01）
+  pointer.clickThrough.update(true);
 
-  // 12. 逐帧编排
   let tSec = 0;
   let autosaveAcc = 0;
   let fan: FanView | null = null;
-  if (runtime.fanPlaced) fan = atmosphere.placeFan();
+  if (runtime.fanPlaced) {
+    fan = atmosphere.placeFan();
+    runtime.setFanAnchor(fan.container.position.x, fan.container.position.y);
+  }
   let lastCondition = runtime.dayWeather().condition;
   const overheatWarned = new Set<string>(); // 吹风机过热警示一次
-
-  startGameLoop({
+  const fpsWatch = createFpsWatch(app);
+  const loop = startGameLoop({
     app,
     engine: matter.engine,
+    onError: (err) => trackError('tick', err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : undefined),
     tick: (dtSec) => {
       tSec += dtSec;
       opening?.update(dtSec);
@@ -228,6 +216,11 @@ export async function createGame(app: Application): Promise<void> {
       // 崩断判定（字节累计）→ 表现层反馈（含砸中吸湿盒泼洒）
       ropes.checkBreak((entry) => {
         sfx.crack();
+        // 崩断后落地文件恢复可拖动/可再次晾晒（否则永久卡在 hung）
+        for (const b of ropes.bodiesOf(entry)) {
+          const id = (b.plugin as { fileId?: string } | undefined)?.fileId;
+          if (id) runtime.markState(id, 'idle');
+        }
         const link = entry.rope.links[Math.floor(entry.rope.links.length / 2)];
         debrisBurst(pool, link.position.x, link.position.y);
         ui.toast.tip('啪嗒——晾衣绳崩断了，文件摔在任务栏上弹了两下。', { warn: true });
@@ -245,8 +238,9 @@ export async function createGame(app: Application): Promise<void> {
         if (sprite) sprite.container.position.set(body.position.x, body.position.y);
       }
 
-      // 蘑菇视图：随 runtime 萌生/生长
+      // 文件四阶段视觉 + 文件名标签（AC-07~11；每帧幂等幂刷新）
       for (const ent of runtime.entities) {
+        sprites.get(ent.node.id)?.update(ent.runtime, tSec);
         const m = ent.runtime.mushroom;
         if (m && !shrooms.has(ent.node.id)) {
           const view = new MushroomView(m.species);
@@ -256,7 +250,7 @@ export async function createGame(app: Application): Promise<void> {
         const view = shrooms.get(ent.node.id);
         if (view && m) {
           const sp = sprites.get(ent.node.id)!.container.position;
-          view.container.position.set(sp.x, sp.y - FILE_ICON_H * 0.72);
+          view.container.position.set(sp.x + FILE_ICON_W / 2, sp.y + 10);
           view.update(m.growth, tSec, pointer.lastPos);
         }
       }
@@ -278,6 +272,10 @@ export async function createGame(app: Application): Promise<void> {
       warnBadge.style.display = anyWarn ? '' : 'none';
 
       pool.update(dtSec);
+      glyphs.update(dtSec);
+      updateFileDebris(runtime, sprites, pool, glyphs, dtSec);
+      hoverCard.update(pointer.lastPos.x, pointer.lastPos.y, runtime.locked);
+      fpsWatch(dtSec);
       atmosphere.update(runtime, dtSec, tSec, pool, fan);
       snails.update(runtime, ropes, dtSec, tSec);
       runtime.setBoxAbsorb(boxes.absorbRate);
@@ -297,4 +295,5 @@ export async function createGame(app: Application): Promise<void> {
       }
     },
   });
+  wirePause(app, loop);
 }

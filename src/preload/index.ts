@@ -25,10 +25,18 @@ contextBridge.exposeInMainWorld('damp', {
       ipcRenderer.on('system:displayChanged', h);
       return () => ipcRenderer.off('system:displayChanged', h);
     },
+    /** AC-28：全屏应用/锁屏暂停状态推送 */
+    onPauseChanged: (cb: (paused: boolean, reason: string) => void) => {
+      const h = (_: unknown, paused: boolean, reason: string) => cb(paused, reason);
+      ipcRenderer.on('system:pauseChanged', h);
+      return () => ipcRenderer.off('system:pauseChanged', h);
+    },
   },
   app: {
     version: () => ipcRenderer.invoke('app:version'),
     quit: () => ipcRenderer.invoke('app:quit'),
+    track: (name: string, props: Record<string, string | number | boolean>) =>
+      ipcRenderer.invoke('app:track', name, props),
     onBeforeQuit: (cb: () => void) => {
       const h = () => cb();
       ipcRenderer.on('app:beforeQuit', h);

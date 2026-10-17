@@ -59,6 +59,15 @@ export class SnailController {
     return false;
   }
 
+  /** 悬停命中（AC-26：世界里可交互物必须拦截穿透） */
+  hit(x: number, y: number): boolean {
+    for (const s of this.snails) {
+      if (s.state !== 'crawl' && s.state !== 'shell') continue;
+      if (Math.hypot(s.x - x, s.y - y) <= HIT_RADIUS) return true;
+    }
+    return false;
+  }
+
   update(runtime: WorldRuntime, ropes: RopeManager, dtSec: number, tSec: number): void {
     const { w, h } = this.screen();
     const groundY = h - 64;
@@ -99,6 +108,7 @@ export class SnailController {
           if (s.restT <= 0) this.despawn(i);
           break;
       }
+      if (s.view.container.destroyed) continue; // 本帧已离场：禁止再访问已销毁视图（position=null）
       s.view.container.position.set(s.x, s.y);
       s.view.update(tSec, s.state === 'crawl', s.state === 'shell' ? 1 : 0);
     }

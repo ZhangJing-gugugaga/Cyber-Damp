@@ -55,7 +55,7 @@ function dateSeed(d: Date): number {
 
 const DAY_MS = 86400000;
 
-/** 工作区基准：1920x1080 屏减去任务栏；左右各避让 140px 晾衣绳吸附区 */
+/** 工作区基准兜底：1920x1080 屏减去任务栏；实际调用时传入真实工作区尺寸 */
 const WORK_W = 1920;
 const WORK_H = 1040;
 const EDGE_MARGIN = 140;
@@ -64,16 +64,18 @@ const TOP_MARGIN = 80;
 /**
  * 生成 16 个锚文件的初始桌面。
  * @param now 当前 epoch ms（mtime = now - days*DAY_MS）
+ * @param workW 工作区宽（DIP；默认 1920，Windows 实际值由调用方传入）
+ * @param workH 工作区高（DIP；默认 1040）
  */
-export function generateDesktop(now: number): FileNode[] {
+export function generateDesktop(now: number, workW = WORK_W, workH = WORK_H): FileNode[] {
   const rnd = mulberry32(dateSeed(new Date(now)));
   const nodes: FileNode[] = [];
 
-  // 布局：4 列网格 + 确定性抖动
+  // 布局：4 列网格 + 确定性抖动（列宽/行高按真实工作区自适应，防小屏文件出界）
   const cols = 4;
-  const cellW = (WORK_W - EDGE_MARGIN * 2) / cols;
+  const cellW = (workW - EDGE_MARGIN * 2) / cols;
   const rows = Math.ceil(PIN_SET.length / cols);
-  const cellH = (WORK_H - TOP_MARGIN - 40) / rows;
+  const cellH = (workH - TOP_MARGIN - 40) / rows;
 
   PIN_SET.forEach(([name, days, pinnedSize], i) => {
     const { ext } = splitExt(name);

@@ -20,6 +20,7 @@ const TOOLS: ToolDef[] = [
   { id: 'spray', lucide: 'spray-can', label: '保湿喷雾：焦化恢复（消耗品）' },
   { id: 'heat', lucide: 'wind', label: '手持吹风机：按住吹干，过热会焦化' },
   { id: 'squeegee', lucide: 'eraser', label: '橡胶刮水器：拖动刮去屏幕雾气' },
+  { id: 'broom', lucide: 'brush', label: '小扫把：清扫滴落的标点字符' },
 ];
 
 export interface Toolbox {

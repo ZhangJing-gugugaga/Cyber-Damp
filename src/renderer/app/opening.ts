@@ -53,6 +53,7 @@ export class Opening {
       }
     }
     deps.sfx.setRain(0.8);
+    deps.sfx.thunder();
     this.skipHandler = () => this.skip();
     window.addEventListener('keydown', this.skipHandler, { once: false });
     window.addEventListener('pointerdown', this.skipHandler, { once: false });

@@ -3,7 +3,7 @@
  * SPEC §7/AC-06~AC-11：分格式差异化受潮（墨洇/褪色/蓄水袋/胀气）+ 四阶段渐进
  * 色值全部来自 token-colors（设计 Token 的十六进制映射）
  */
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import type { FileNode } from '../../shared/types/file-node';
 import type { FileRuntime } from '../../shared/types/file-runtime';
 import { CATEGORY_COLOR, DAMP, ENV_COLOR, FILE_ICON_H, FILE_ICON_W, INK } from './token-colors';
@@ -16,21 +16,24 @@ function drawIcon(g: Graphics, node: FileNode): void {
   g.clear();
 
   if (node.ext === '' && node.name.includes('文件夹')) {
-    // 文件夹：底板 + 标签页
+    // 文件夹：底板 + 标签页（hairline 描边，浅壁纸下保持轮廓）
     g.moveTo(6, h - 18).lineTo(6, h - 34).lineTo(28, h - 34).lineTo(34, h - 28)
-      .lineTo(58, h - 28).lineTo(58, h - 18).closePath().fill({ color: base });
+      .lineTo(58, h - 28).lineTo(58, h - 18).closePath().fill({ color: base })
+      .stroke({ width: 1, color: INK.panel, alpha: 0.32 });
     return;
   }
   if (node.category === 'archive') {
     // 压缩包：箱体 + 束带
-    g.roundRect(8, h - 62, w - 16, 44, 4).fill({ color: base });
+    g.roundRect(8, h - 62, w - 16, 44, 4).fill({ color: base })
+      .stroke({ width: 1, color: INK.panel, alpha: 0.32 });
     g.rect(8, h - 46, w - 16, 6).fill({ color: INK.paper2, alpha: 0.35 });
     return;
   }
 
   // 通用纸页 + 右下折角
   g.moveTo(8, h - 62).lineTo(w - 20, h - 62).lineTo(w - 8, h - 44).lineTo(w - 8, h - 18).lineTo(8, h - 18)
-    .closePath().fill({ color: base });
+    .closePath().fill({ color: base })
+    .stroke({ width: 1, color: INK.panel, alpha: 0.32 });
   g.moveTo(w - 20, h - 62).lineTo(w - 20, h - 44).lineTo(w - 8, h - 44)
     .closePath().fill({ color: INK.paper2, alpha: 0.5 });
 
@@ -66,12 +69,30 @@ export class FileSprite {
   private readonly icon = new Graphics();
   private readonly overlay = new Graphics();
   private readonly audioBag = new Graphics();
+  /** 文件名标签（产品灵魂：梗文件名必须可见；AC-07 受潮时墨洇） */
+  private readonly label: Text;
   readonly node: FileNode;
 
   constructor(node: FileNode) {
     this.node = node;
     drawIcon(this.icon, node);
-    this.container.addChild(this.icon, this.audioBag, this.overlay);
+    this.label = new Text({
+      text: node.name,
+      style: {
+        fontFamily: '"Microsoft YaHei", "Noto Sans SC", sans-serif',
+        fontSize: 10,
+        fill: DAMP.label,
+        stroke: { color: INK.panel, width: 3 },
+        align: 'center',
+        wordWrap: true,
+        wordWrapWidth: 96,
+        lineHeight: 12,
+        breakWords: true,
+      },
+    });
+    this.label.anchor.set(0.5, 0);
+    this.label.position.set(FILE_ICON_W / 2, 60);
+    this.container.addChild(this.icon, this.audioBag, this.overlay, this.label);
     this.container.position.set(node.x, node.y);
     this.container.eventMode = 'static';
   }
@@ -100,21 +121,29 @@ export class FileSprite {
     switch (stage) {
       case 'fresh':
         this.icon.alpha = 1;
+        this.label.alpha = 1;
+        this.label.tint = 0xffffff;
         break;
       case 'damp':
-        // 轻度：冷凝 tint + 底部墨水晕染
+        // 轻度：冷凝 tint + 底部墨水晕染（标签墨洇：透明度下降 + 冷色偏移）
         this.icon.tint = mixTint(0xffffff, DAMP.water, 0.25 + rt.humidity * 0.3);
+        this.label.alpha = 0.78;
+        this.label.tint = mixTint(0xffffff, DAMP.water, 0.35);
         this.drawLabelInk();
         break;
       case 'wet':
         // 中度：四角青苔蔓延 + 水渍
         this.icon.tint = mixTint(0xffffff, DAMP.water, 0.45);
+        this.label.alpha = 0.72;
+        this.label.tint = mixTint(0xffffff, DAMP.stain, 0.4);
         this.drawMoss(tSec, 0.15 + rt.mold * 0.4);
         this.drawStain();
         break;
       case 'moldy':
         // 重度：深苔覆盖 >40% + 顶部破土位（蘑菇挂 shroomLayer）
         this.icon.tint = mixTint(0xffffff, DAMP.mossDeep, 0.55);
+        this.label.alpha = 0.66;
+        this.label.tint = mixTint(0xffffff, DAMP.moss, 0.35);
         this.drawMoss(tSec, 0.4 + rt.mold * 0.5);
         break;
     }
@@ -144,17 +173,23 @@ export class FileSprite {
     this.overlay.roundRect(x, y, w, 15, 3).stroke({ width: 1, color: DAMP.inkBleed, alpha: 0.6 });
   }
 
-  /** 四角绒毛青苔（Perlin 观感：多层半透明斑块向中心蔓延） */
+  /** 沿图标边缘分布的细碎青苔（低透明度，避免大色块糊住图标） */
   private drawMoss(tSec: number, coverage: number): void {
-    const lobes = 5;
+    const lobes = 7;
     for (let i = 0; i < lobes; i++) {
-      const phase = tSec * 0.6 + i * 1.7;
-      const wob = Math.sin(phase) * 2.5;
-      const cornerX = i % 2 === 0 ? 10 + wob : FILE_ICON_W - 10 + wob;
-      const cornerY = i < 3 ? FILE_ICON_H - 64 : FILE_ICON_H - 22;
-      const r = 8 + coverage * 14 + Math.cos(phase) * 2;
-      this.overlay.circle(cornerX, cornerY, Math.max(2, r))
-        .fill({ color: DAMP.moss, alpha: 0.28 + coverage * 0.3 });
+      const phase = tSec * 0.5 + i * 1.3;
+      const t = i / (lobes - 1);
+      const wob = Math.sin(phase) * 2;
+      const x = 12 + t * 40 + wob;
+      const y = (i % 2 === 0 ? FILE_ICON_H - 60 : FILE_ICON_H - 22) + wob * 0.5;
+      const r = 2.5 + coverage * 5 + Math.cos(phase) * 1.2;
+      this.overlay.circle(x, y, Math.max(1.5, r)).fill({ color: DAMP.moss, alpha: 0.14 + coverage * 0.18 });
+      this.overlay.circle(x + 1, y + 0.5, Math.max(1, r * 0.5)).fill({ color: DAMP.mossDeep, alpha: 0.18 + coverage * 0.2 });
+    }
+    // 整面薄苔：表达「覆盖率 >40%」的观感（AC-09）
+    if (coverage > 0.3) {
+      this.overlay.roundRect(8, FILE_ICON_H - 62, FILE_ICON_W - 16, 44, 4)
+        .fill({ color: DAMP.moss, alpha: 0.08 + coverage * 0.12 });
     }
   }
 

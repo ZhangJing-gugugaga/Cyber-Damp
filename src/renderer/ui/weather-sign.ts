@@ -19,7 +19,11 @@ export interface WeatherSign {
   refresh(): void;
 }
 
-export function createWeatherSign(mount: HTMLElement, runtime: WorldRuntime): WeatherSign {
+export function createWeatherSign(
+  mount: HTMLElement,
+  runtime: WorldRuntime,
+  onMigrate?: () => void,
+): WeatherSign {
   const el = document.createElement('section');
   el.className = 'weather-sign';
   el.setAttribute('aria-label', '气象牌');
@@ -37,7 +41,7 @@ export function createWeatherSign(mount: HTMLElement, runtime: WorldRuntime): We
 
   migrate.addEventListener('click', () => {
     if (!runtime.canMigrate()) return;
-    runtime.migrate(runtime.nextCity());
+    if (runtime.migrate(runtime.nextCity())) onMigrate?.(); // AC-03：迁徙音效
     refresh();
   });
 

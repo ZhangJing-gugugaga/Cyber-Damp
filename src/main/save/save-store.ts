@@ -22,13 +22,18 @@ export function loadSave(): SaveData | null {
   }
 }
 
-/** 写存档：先写 .tmp 再 rename（原子替换，防写入中断损坏） */
+/** 写存档：先过 schema 校验（脏数据拒绝落盘），再写 .tmp 后 rename（原子替换，防写入中断损坏） */
 export function writeSave(data: SaveData): { ok: boolean } {
+  const valid = validateSave(data);
+  if (!valid) {
+    console.error('[save] 写入被拒绝：存档结构非法（NaN/未知字段），已保留上一份存档');
+    return { ok: false };
+  }
   const target = savePath();
   const tmp = `${target}.tmp`;
   try {
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(tmp, JSON.stringify(data), 'utf8');
+    fs.writeFileSync(tmp, JSON.stringify(valid), 'utf8');
     fs.renameSync(tmp, target);
     return { ok: true };
   } catch (err) {

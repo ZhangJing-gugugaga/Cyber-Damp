@@ -13,7 +13,30 @@ export function getWorkArea(): { x: number; y: number; width: number; height: nu
 }
 
 export function createOverlayWindow(preloadPath: string): BrowserWindow {
+  // QA 模式（CD_QA=1）：不透明普通窗口，供 CursorTouch/Windows-MCP 截屏与点击走查
+  const qa = process.env.CD_QA === '1';
   const area = getWorkArea();
+
+  if (qa) {
+    const qaWin = new BrowserWindow({
+      width: 1440,
+      height: 900,
+      frame: true,
+      resizable: true,
+      backgroundColor: '#10130F',
+      title: '回南天 Cyber Damp (QA)',
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        sandbox: true,
+        backgroundThrottling: false,
+      },
+    });
+    qaWin.center();
+    qaWin.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'), { query: { qa: '1' } });
+    return qaWin;
+  }
+
   const win = new BrowserWindow({
     transparent: true,
     frame: false,
@@ -31,12 +54,27 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
       preload: preloadPath,
       contextIsolation: true,
       sandbox: true,
+      // 桌面挂件常态失焦：禁止 Chromium 后台降帧（雨滴/蘑菇动画需持续 60fps）
+      backgroundThrottling: false,
     },
   });
 
   // 压过任务栏（screen-saver 层级，专注模式由渲染层降透明度而非抢焦点）
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setBounds(area);
+
+  // 安全加固（AC-25 相邻）：禁止渲染层打开新窗口/导航到外部页面
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-navigate', (e, url) => {
+    const devUrl = process.env.VITE_DEV_SERVER_URL;
+    if (!devUrl || !url.startsWith(devUrl)) e.preventDefault();
+  });
+
+  // 渲染层日志转发（诊断/QA：控制台错误可见于进程 stdout）
+  win.webContents.on('console-message', (event) => {
+    const msg = (event as unknown as { message?: string }).message;
+    if (msg) console.log('[renderer]', msg);
+  });
 
   // dev 模式加载 Vite dev server；生产加载构建产物
   const devUrl = process.env.VITE_DEV_SERVER_URL;

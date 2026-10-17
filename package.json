@@ -4,6 +4,9 @@
   "description": "回南天 Cyber Damp - 桌面文件受潮发霉/拉绳晾晒/蘑菇养成的数字家务模拟器 MVP",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",
+  "contributors": [
+    "2584666910@qq.com"
+  ],
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -17,17 +20,18 @@
     "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs"
   },
   "devDependencies": {
+    "@types/matter-js": "0.20.2",
+    "@types/node": "24.19.2",
     "electron": "44.8.0",
     "electron-builder": "26.15.3",
     "typescript": "5.9.3",
-    "vite": "8.3.4",
-    "@types/node": "24.19.2",
-    "@types/matter-js": "0.20.2"
+    "vite": "8.3.4"
   },
   "dependencies": {
+    "koffi": "^3.3.3",
+    "lucide": "1.58.0",
     "matter-js": "0.20.0",
-    "pixi.js": "8.21.0",
-    "lucide": "1.58.0"
+    "pixi.js": "8.21.0"
   },
   "build": {
     "appId": "com.moonzj.cyberdamp",
