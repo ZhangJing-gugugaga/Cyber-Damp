@@ -17,10 +17,11 @@
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win --x64",
     "test:constants": "node --test scripts/check-shared.mjs",
-    "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs"
+    "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs",
+    "qa:cdp": "node scripts/qa-cdp.mjs",
+    "qa:window": "node scripts/qa-window.mjs"
   },
   "devDependencies": {
-    "@types/matter-js": "0.20.2",
     "@types/node": "24.19.2",
     "electron": "44.8.0",
     "electron-builder": "26.15.3",
@@ -30,7 +31,6 @@
   "dependencies": {
     "koffi": "^3.3.3",
     "lucide": "1.58.0",
-    "matter-js": "0.20.0",
     "pixi.js": "8.21.0"
   },
   "build": {

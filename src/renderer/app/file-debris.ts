@@ -32,8 +32,8 @@ export function updateFileDebris(
       } else {
         fragmentAcc.set(ent.node.id, 0);
         pool.spawn({
-          x: p.x + 8 + Math.random() * 48,
-          y: p.y + 18 + Math.random() * 34,
+          x: p.x + 18 + Math.random() * 48,
+          y: p.y + 6 + Math.random() * 50,
           vx: (Math.random() - 0.5) * 26,
           vy: -6 - Math.random() * 12,
           gravity: 140,
@@ -52,7 +52,7 @@ export function updateFileDebris(
         glyphAcc.set(ent.node.id, t);
       } else {
         glyphAcc.set(ent.node.id, 0);
-        glyphs.spawn(p.x + 32, p.y + 56);
+        glyphs.spawn(p.x + 50, p.y + 64);
       }
     }
   }

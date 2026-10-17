@@ -7,7 +7,7 @@ import type { WorldRuntime } from './world-runtime';
 import { CITIES } from '../../world/weather-simulator';
 import { sellMushroom } from '../../world/economy';
 import { purchase, getItem } from '../../world/shop-catalog';
-import { pickSpecies } from '../../world/mushroom-species';
+import { pickSpecies, SPECIES } from '../../world/mushroom-species';
 import { clamp01 } from './clamp';
 
 import type { InventoryItem } from '../../world/economy';
@@ -32,15 +32,17 @@ export function wring(rt: WorldRuntime, id: string): boolean {
   return true;
 }
 
-/** 采摘成熟蘑菇入库存（AC-15/AC-19） */
+/** 采摘成熟蘑菇：直接入账金币（剪断/飞向金币栏动画由 app 层表现） */
 export function pickMushroom(rt: WorldRuntime, id: string): InventoryItem | null {
   const ent = rt.byId.get(id);
   const m = ent?.runtime.mushroom;
   if (!ent || !m || m.growth < 1) return null;
   ent.runtime.mushroom = null;
   const item = { species: m.species, growth: m.growth };
-  rt.inventory.push(item);
+  const price = SPECIES[m.species]?.price ?? 0;
+  rt.coins += price;
   rt.stats.harvested += 1;
+  rt.stats.earned += price;
   emit(rt);
   return item;
 }

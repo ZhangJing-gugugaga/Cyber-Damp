@@ -12,6 +12,8 @@ function drawOyster(g: Graphics, growth: number): void {
   const capW = 18 * s;
   const capH = 9 * s;
   const stemH = 12 * s;
+  // 根部接地阴影（y=0 即图标上边框，零间隙）
+  g.ellipse(0, 0, 6 * s, 2 * s).fill({ color: SHROOM.rootShadow, alpha: 0.5 });
   // 菌柄
   g.roundRect(-2.5 * s, -stemH, 5 * s, stemH, 2 * s).fill({ color: SHROOM.oysterStem });
   // 菌褶（菌盖下缘）
@@ -26,6 +28,8 @@ function drawOyster(g: Graphics, growth: number): void {
 function drawEnoki(g: Graphics, growth: number, tSec: number): void {
   const s = 0.3 + growth * 0.7;
   const glow = 0.08 + Math.sin(tSec * 1.6) * 0.03;
+  // 根部接地阴影
+  g.ellipse(0, 0, 6 * s, 2 * s).fill({ color: SHROOM.rootShadow, alpha: 0.45 });
   // 菌丝荧光光晕（呼吸）
   g.circle(0, -10 * s, 10 * s).fill({ color: SHROOM.enokiGlow, alpha: glow });
   // 细束菌柄（3-4 根）
@@ -42,6 +46,8 @@ function drawEnoki(g: Graphics, growth: number, tSec: number): void {
 function drawShy(g: Graphics, growth: number, tSec: number): void {
   const s = 0.3 + growth * 0.7;
   const stemH = 22 * s;
+  // 根部接地阴影
+  g.ellipse(0, 0, 5 * s, 2 * s).fill({ color: SHROOM.rootShadow, alpha: 0.45 });
   // 修长菌柄（烟紫，低饱和）
   g.roundRect(-2.2 * s, -stemH, 4.4 * s, stemH, 2 * s).fill({ color: SHROOM.shyStem });
   // 小菌盖（藏眼位）
@@ -82,14 +88,16 @@ export class MushroomView {
 
     // 土壤隆起（growth<0.3：只露土堆）
     if (growth < 0.3) {
+      this.g.position.y = 0;
       const k = growth / 0.3;
       this.g.ellipse(0, 0, 10 * k, 4 * k).fill({ color: SHROOM.oysterStem, alpha: 0.6 });
     } else {
-      this.g.position.y = -(growth - 0.3) * 6;
+      // 根部锚点固定 (0.5, 1.0)：g 的 y 偏移必须为 0，否则蘑菇会悬浮在图标上方
+      this.g.position.y = 0;
       if (this.species === 'enoki') drawEnoki(this.g, growth, tSec);
       else if (this.species === 'shy') drawShy(this.g, growth, tSec);
       else drawOyster(this.g, growth);
-      // 成熟后轻微晃动（可采摘信号）
+      // 成熟后轻微晃动（可采摘信号）——绕根部旋转，根不离开图标上边缘
       if (growth >= 1) this.g.rotation = Math.sin(tSec * 1.2) * 0.05;
       else this.g.rotation = 0;
     }

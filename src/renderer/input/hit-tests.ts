@@ -1,14 +1,13 @@
 /**
- * 世界命中测试纯函数（input 层）：文件替身 / 蘑菇 / 绳链最近点
- * 从 pointer-controller.ts 拆出（单文件 ≤300 行纪律）
+ * 世界命中测试纯函数（input 层）：文件替身 / 蘑菇 / 绳点
+ * 命中区域与 72px 绳上间距对齐，避免相邻图标互相抢点击。
  */
 import type { WorldRuntime } from '../app/world-runtime';
 import type { RopeManager, RopeEntry } from '../app/rope-manager';
 import type { FileSprite } from '../view/file-sprite';
-import { FILE_ICON_W, FILE_ICON_H } from '../view/token-colors';
+import { FILE_CELL_H, FILE_CELL_W, FILE_ICON_TOP } from '../view/token-colors';
 
-const SNAP_DIST = 90;   // 松手落绳判定距离
-const MUSHROOM_R = 28;  // 蘑菇点选半径
+const MUSHROOM_R = 24; // 成熟蘑菇点选半径
 export const EDGE_ZONE = 24; // 左右缘拉绳吸附区
 
 /** 悬停命中输入（PointerDeps 结构兼容） */
@@ -29,7 +28,7 @@ export function worldHitAt(s: HitSources, x: number, y: number, viewportW: numbe
     s.domHit(x, y) ||
     !!fileAt(s.sprites, x, y) ||
     !!mushroomAt(s.sprites, s.runtime, x, y) ||
-    !!nearestRopePoint(s.ropes, x, y) ||
+    !!s.ropes.nearestPoint(x, y) ||
     !!s.boxHit?.(x, y) ||
     !!s.snailHit?.(x, y) ||
     !!s.glyphHit?.(x, y) ||
@@ -37,41 +36,49 @@ export function worldHitAt(s: HitSources, x: number, y: number, viewportW: numbe
   );
 }
 
-/** 文件替身命中（按图标实际绘制范围：y ∈ [p.y+14, p.y+58]，外扩容差 8px） */
+/**
+ * 文件替身命中：容器坐标是 100x110 网格单元左上角。
+ * 横向收窄到 68px（标签宽度），保证 72px 间距下互不抢占。
+ */
 export function fileAt(sprites: Map<string, FileSprite>, x: number, y: number): FileSprite | null {
+  const hw = 34;
   for (const sprite of sprites.values()) {
     const p = sprite.container.position;
-    if (Math.abs(x - p.x) <= FILE_ICON_W / 2 + 8 && y >= p.y + 6 && y <= p.y + FILE_ICON_H - 8) {
-      return sprite;
-    }
+    if (x < p.x + FILE_CELL_W / 2 - hw || x > p.x + FILE_CELL_W / 2 + hw) continue;
+    if (y < p.y || y > p.y + FILE_CELL_H - 2) continue;
+    return sprite;
   }
   return null;
 }
 
-/** 最近绳链点（未崩断绳内全域最近链，≤SNAP_DIST 才返回） */
+/** 最近绳链点（25px 吸附以内；封装 RopeManager.nearestPoint） */
 export function nearestRopePoint(
   ropes: RopeManager,
   x: number,
   y: number,
 ): { entry: RopeEntry; x: number; y: number } | null {
-  let best: { entry: RopeEntry; x: number; y: number; d: number } | null = null;
-  for (const entry of ropes.entries) {
-    if (entry.broken) continue;
-    for (const link of entry.rope.links) {
-      const d = Math.hypot(link.position.x - x, link.position.y - y);
-      if (!best || d < best.d) best = { entry, x: link.position.x, y: link.position.y, d };
-    }
-  }
-  return best && best.d <= SNAP_DIST ? best : null;
+  const near = ropes.nearestPoint(x, y);
+  return near ? { entry: near.entry, x: near.x, y: near.y } : null;
 }
 
-/** 蘑菇点选（蘑菇容器挂在图标顶部中心 (p.x+W/2, p.y+10)，向上生长） */
-export function mushroomAt(sprites: Map<string, FileSprite>, runtime: WorldRuntime, x: number, y: number): string | null {
+/** 成熟蘑菇命中：根部在图标上边框中心，向上生长 */
+export function mushroomAt(
+  sprites: Map<string, FileSprite>,
+  runtime: WorldRuntime,
+  x: number,
+  y: number,
+): string | null {
   for (const [id, sprite] of sprites) {
     const rt = runtime.byId.get(id)?.runtime;
-    if (!rt?.mushroom) continue;
-    const p = sprite.container.position;
-    if (Math.hypot(x - (p.x + FILE_ICON_W / 2), y - (p.y - 4)) <= MUSHROOM_R) return id;
+    const m = rt?.mushroom;
+    if (!m || m.growth < 1) continue;
+    const root = sprite.mushroomAnchor;
+    if (Math.hypot(x - root.x, y - (root.y - 14)) <= MUSHROOM_R) return id;
   }
   return null;
+}
+
+/** 图标上边框 Y（蘑菇根部/夹子的像素锚点） */
+export function iconTopOf(sprite: FileSprite): number {
+  return sprite.container.position.y + FILE_ICON_TOP;
 }

@@ -1,7 +1,7 @@
 /**
  * 存档数据模型（shared 叶子层类型）
  * 机器可读契约：docs/contracts/save-schema.json（schemaVersion: 1）
- * 只存逻辑态，不存 Matter 刚体；mtime/x/y/name/ext/size 由确定性生成器重建，不入存档
+ * 只存逻辑态，不存物理刚体；mtime/x/y/name/ext/size 由真实桌面扫描重建，不入存档
  */
 import type { FileActionState, MushroomSpecies } from './file-runtime';
 

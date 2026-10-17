@@ -1,19 +1,21 @@
 /**
- * 透明置顶穿透覆盖窗（main 进程）
- * 架构 §5.1：Electron 44.8.0 API 形态；穿透控制经 IPC 仅跳变调用（契约纪律 1）
+ * 桌面壁纸层覆盖窗（main 进程）
+ * 架构 §5.1：透明无边框；不再 alwaysOnTop —— 启动就绪后由 Win32 SetParent 嵌入 WorkerW，
+ * 位于系统壁纸之上、所有常规应用窗口之下。穿透控制经 IPC 仅跳变调用（契约纪律 1）。
  */
 import { BrowserWindow, screen } from 'electron';
 import type { WebContents } from 'electron';
 import * as path from 'node:path';
+import { isDesktopAttached, repositionOverlay } from '../native/win32-desktop';
 
-/** 工作区 bounds（主屏，不含任务栏） */
+/** 工作区 bounds（主屏，不含任务栏；桌面图标网格与舞台同尺寸） */
 export function getWorkArea(): { x: number; y: number; width: number; height: number } {
-  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const area = screen.getPrimaryDisplay().workArea;
   return { x: area.x, y: area.y, width: area.width, height: area.height };
 }
 
 export function createOverlayWindow(preloadPath: string): BrowserWindow {
-  // QA 模式（CD_QA=1）：不透明普通窗口，供 CursorTouch/Windows-MCP 截屏与点击走查
+  // QA 模式（CD_QA=1）：不透明普通窗口，供自动化截屏与点击走查；不挂 WorkerW/不隐藏图标
   const qa = process.env.CD_QA === '1';
   const area = getWorkArea();
 
@@ -44,12 +46,13 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
     resizable: false,
     skipTaskbar: true,
     focusable: true,
-    alwaysOnTop: true,
+    // 不设置 alwaysOnTop：窗口稍后会被 SetParent 到 WorkerW 壁纸层。
     backgroundColor: '#00000000',
     x: area.x,
     y: area.y,
     width: area.width,
     height: area.height,
+    show: false,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -59,9 +62,12 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
     },
   });
 
-  // 压过任务栏（screen-saver 层级，专注模式由渲染层降透明度而非抢焦点）
-  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setSkipTaskbar(true);
   win.setBounds(area);
+  win.once('ready-to-show', () => {
+    // 不抢用户当前工作窗口焦点
+    win.showInactive();
+  });
 
   // 安全加固（AC-25 相邻）：禁止渲染层打开新窗口/导航到外部页面
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -94,10 +100,10 @@ export function startDisplayTracker(
 ): void {
   screen.on('display-metrics-changed', () => {
     const win = getWin();
-    if (win && !win.isDestroyed()) {
-      const area = getWorkArea();
-      win.setBounds(area);
-      getWc()?.send('system:displayChanged', { width: area.width, height: area.height });
-    }
+    if (!win || win.isDestroyed()) return;
+    const area = getWorkArea();
+    win.setBounds(area);
+    if (isDesktopAttached()) repositionOverlay(win);
+    getWc()?.send('system:displayChanged', { width: area.width, height: area.height });
   });
 }

@@ -19,6 +19,8 @@ export interface PointerDeps {
   getTool(): Tool;
   /** 剪下成熟蘑菇（含视图移除），由 game 装配注入 */
   onPick(id: string): void;
+  /** 双击替身图标：打开真实文件并重置受潮状态 */
+  onOpen?(id: string): void;
   /** 挂载成功回调（视图/状态同步），由 game 装配注入 */
   onHang(id: string): void;
   /** 边缘新绳回调，返回新绳（满 2 条返回 null） */
@@ -30,7 +32,7 @@ export interface PointerDeps {
   consumeClick?(x: number, y: number): boolean;
   /** 刮水器拖动（P1）：dist=本次位移 px，(x,y) 为当前位置 */
   onSqueegee?(dist: number, x: number, y: number): void;
-  /** 吸湿盒拖拽（P1）：命中/移动/松手（dropAt 判定倒水角） */
+  /** 吸湿盒拖拽（P1）：命中/移动/松手（dropAt 判定回收站/底边倾倒） */
   boxHit?(x: number, y: number): string | null;
   boxMove?(id: string, x: number, y: number): void;
   boxDrop?(id: string, x: number, y: number): 'emptied' | 'kept';

@@ -1,6 +1,6 @@
 /**
- * 读档恢复绳索（app 层）：从存档重建绳链并挂回文件
- * 从 game.ts 拆出（单文件 ≤300 行纪律）；注册回调负责建 Graphics。
+ * 读档恢复绳索（app 层）：从存档重建 Verlet 绳并沿弧长挂回文件。
+ * 注册回调负责建 Graphics；孤儿 hung（存档时正在断绳落体）重置为 idle。
  */
 import type { SaveData } from '../../shared/types/save';
 import type { WorldRuntime } from './world-runtime';
@@ -16,14 +16,18 @@ export function restoreRopes(
     const entry = ropes.spawn(r.ax, r.ay, r.bx, r.by, r.tier);
     if (!entry) continue;
     register(entry);
-    for (const id of r.fileIds) {
-      const ent = runtime.byId.get(id);
-      if (!ent) continue;
-      const links = entry.rope.links;
-      const link = links[Math.floor((links.length - 1) * (0.5 + Math.random() * 0.3))];
-      if (ropes.hang(entry, ent.node, { x: link.position.x, y: link.position.y })) {
-        runtime.markState(id, 'hung');
-      }
+    const ids = r.fileIds.filter((id) => runtime.byId.has(id));
+    const total = entry.rope.length;
+    ids.forEach((id, i) => {
+      const node = runtime.byId.get(id)!.node;
+      const s = total * ((i + 1) / (ids.length + 1));
+      if (ropes.pinAt(entry, node, s)) runtime.markState(id, 'hung');
+    });
+  }
+
+  for (const ent of runtime.entities) {
+    if (ent.runtime.state === 'hung' && !ropes.isPinned(ent.node.id)) {
+      runtime.markState(ent.node.id, 'idle');
     }
   }
 }

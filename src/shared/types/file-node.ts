@@ -1,25 +1,33 @@
 /**
- * 虚拟文件节点（shared 叶子层类型）
- * pin 集（PRD v1.1 §7.2）的静态定义；运行时字段见 file-runtime.ts
+ * 真实桌面文件节点（shared 叶子层类型）
+ * 节点数据 100% 来自主进程扫描的真实 Desktop 目录；x/y 由 100x110 网格布局计算。
  */
 
 /** 文件大类：决定受潮/滴落物/蘑菇菌种的表现分支 */
 export type ExtCategory = 'doc-code' | 'image-video' | 'audio' | 'archive';
 
+/** 节点来源：普通文件 / 文件夹 / 系统桌面特殊项（回收站） */
+export type FileKind = 'file' | 'dir' | 'recycle';
+
 export interface FileNode {
-  /** 稳定 UUID（生成时确定，存档主键） */
+  /** 稳定 id（真实路径哈希；存档主键） */
   id: string;
-  /** 展示名，如「毕业论文_最终版_不改了_v3.docx」 */
+  /** 真实文件名，如「会议纪要.docx」 */
   name: string;
-  /** 小写无点，如 docx */
+  /** 小写无点扩展名；文件夹/回收站为空串 */
   ext: string;
-  /** 由 ext 映射，决定受潮/滴落物表现 */
+  /** 由 ext 映射，决定受潮/滴落物/菌种表现 */
   category: ExtCategory;
-  /** 虚拟但真实量级，用于配重与字节崩断判定 */
+  /** 真实字节数（stat.size；文件夹 0） */
   sizeBytes: number;
-  /** epoch ms；冷落度 = now - mtime */
+  /** 真实 mtime（epoch ms）；冷落度 = now - mtime */
   mtime: number;
-  /** 桌面工作区坐标（初始布局） */
+  /** 桌面网格单元左上角（100x110 单元） */
   x: number;
   y: number;
+  /** 真实绝对路径（回收站为 shell:RecycleBinFolder） */
+  realPath: string;
+  kind: FileKind;
+  /** 主进程原生 API 提取的高清图标 PNG data URL */
+  iconDataUrl: string;
 }

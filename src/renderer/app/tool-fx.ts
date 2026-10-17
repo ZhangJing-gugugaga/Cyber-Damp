@@ -22,8 +22,8 @@ export function applyHeatFx(
   const sp = sprites.get(id)?.container.position;
   if (sp) {
     pool.spawn({
-      x: sp.x + (Math.random() - 0.5) * 30,
-      y: sp.y + 20,
+      x: sp.x + 50 + (Math.random() - 0.5) * 30,
+      y: sp.y + 24,
       vx: (Math.random() - 0.5) * 30,
       vy: -50 - Math.random() * 40,
       gravity: -30,

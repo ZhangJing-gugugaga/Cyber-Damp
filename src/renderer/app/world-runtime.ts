@@ -1,16 +1,17 @@
 /**
  * 游戏运行时（app 装配层，无 pixi/matter import——只依赖 world/ 与 shared/，可测）
- * 核心：实体表 / 演化 tick / 环境输入 / 存档快照；
+ * 核心：真实桌面实体表 / 演化 tick / 环境输入 / 存档快照；
  * 玩家动作（拧干/采摘/购买/施热等）委托 world-actions.ts（单文件 ≤300 行纪律）
  */
 import { FileEntity } from '../../world/file-entity';
 import { stepEvolution } from '../../world/evolution';
 import type { Env } from '../../world/evolution';
 import { CITIES, simulateDay, humidityMultiplier, isSunny, dateToDayIndex } from '../../world/weather-simulator';
-import { generateDesktop } from '../../world/virtual-desktop';
 import { SPECIES } from '../../world/mushroom-species';
 import { getItem } from '../../world/shop-catalog';
+import { seedMoldyMushroom, stageSeed } from '../../world/file-seed';
 import type { SaveData, RopeSave } from '../../shared/types/save';
+import type { FileNode } from '../../shared/types/file-node';
 import { clamp01 } from './clamp';
 import * as act from './world-actions';
 import type { InventoryItem, PurchaseResult } from './world-actions';
@@ -40,7 +41,7 @@ export class WorldRuntime {
   humidifierOn = false;
   stats = { harvested: 0, earned: 0, playedMs: 0 };
 
-  /** 演出期间输入锁定（开场时光坍缩 / AC-01） */
+  /** 演出期间输入锁定（6 秒开场延时腐化） */
   locked = true;
   /** 状态变化信号（UI 刷新 + 存档防抖） */
   onChange: (() => void) | null = null;
@@ -68,22 +69,28 @@ export class WorldRuntime {
     return this.cpuHighSec >= 5; // AC-05：连续 5s >80%
   }
 
-  /** 新开局：生成 16 锚文件桌面（workW/workH 为真实工作区 DIP，适配不同分辨率/DPI） */
-  initNew(now: number, workW?: number, workH?: number): void {
+  /** 新开局：真实桌面节点（名称/大小/mtime 全部来自文件系统） */
+  initNew(nodes: FileNode[], now: number): void {
     this.startNow = now;
-    for (const node of generateDesktop(now, workW, workH)) {
+    this.entities.length = 0;
+    this.byId.clear();
+    for (const node of nodes) {
       const ent = new FileEntity(node);
       ent.syncStage(now);
+      const seed = stageSeed(ent.runtime.stage);
+      ent.runtime.humidity = seed.humidity;
+      ent.runtime.mold = seed.mold;
+      seedMoldyMushroom(ent.runtime, node.category, node.id);
       this.entities.push(ent);
       this.byId.set(node.id, ent);
     }
   }
 
-  /** 从存档恢复（mtime/x/y/name/ext/size 由生成器确定性重建，不入存档） */
-  initFromSave(save: SaveData, now: number, workW?: number, workH?: number): void {
-    this.initNew(now, workW, workH);
+  /** 从存档恢复（节点由真实桌面扫描重建，存档只覆盖逻辑态） */
+  initFromSave(save: SaveData, nodes: FileNode[], now: number): void {
+    this.initNew(nodes, now);
     this.coins = save.player.coins;
-    // 白名单清洗：未知道具 id / 非法装备回落默认，防止脏存档把 undefined 带进渲染与物理
+    // 白名单清洗：未知道具 id / 非法装备回落默认
     this.owned = save.player.owned.filter((id) => !!getItem(id));
     this.equipped = { ...save.player.equipped };
     if (!getItem(this.equipped.rope)?.byteLimit) this.equipped.rope = 'rope-1';
@@ -104,6 +111,10 @@ export class WorldRuntime {
       ent.runtime.mushroom =
         s.mushroom && SPECIES[s.mushroom.species] ? { ...s.mushroom } : null;
     }
+    // 开场演出需要所有 ΔT≥30d 文件有一朵可生长的菇（存档里已采摘的也重新破土）
+    for (const ent of this.entities) {
+      seedMoldyMushroom(ent.runtime, ent.node.category, ent.node.id);
+    }
   }
 
   /** 当日天气（确定性） */
@@ -119,7 +130,7 @@ export class WorldRuntime {
     if (this.humidifierOn) humidity += 0.15;
     humidity -= this.boxAbsorb;
     if (this.surgeT > 0) humidity += this.surgeAmount; // 泼洒暴涨
-    let wind = isSunny(day.condition) ? 0.6 : 0.15; // AC-16：晴天风干速率约为高湿 2 倍（>0.5 触发 ×1.8）
+    const wind = isSunny(day.condition) ? 0.6 : 0.15;
     return { humidity: clamp01(humidity), heat: 0, wind };
   }
 
@@ -143,7 +154,6 @@ export class WorldRuntime {
     for (const ent of this.entities) {
       ent.syncStage(now);
       if (this.sweepT < 1) this.applySweep(ent);
-      // AC-23：电扇只对 300px 内的文件附加风干加成（其余走基础风）
       let entEnv = env;
       if (this.fanPlaced && this.fanAnchor) {
         const d = Math.hypot(ent.node.x - this.fanAnchor.x, ent.node.y - this.fanAnchor.y);
@@ -204,6 +214,18 @@ export class WorldRuntime {
   chargeCoins(n: number): boolean {
     return act.chargeCoins(this, n);
   }
+  /** 双击打开真实文件后：受潮状态清零（打开即视为被使用/晾干） */
+  dryFile(id: string): boolean {
+    const ent = this.byId.get(id);
+    if (!ent) return false;
+    ent.runtime.humidity = 0;
+    ent.runtime.mold = 0;
+    ent.runtime.char = 0;
+    ent.runtime.state = 'idle';
+    ent.runtime.mushroom = null;
+    this.onChange?.();
+    return true;
+  }
 
   // ---- 环境调节与 Demo ----
 
@@ -221,18 +243,6 @@ export class WorldRuntime {
   /** Demo 一键回南天 */
   startRainSweep(): void {
     this.sweepT = 0;
-  }
-
-  /** 演出用：受潮斜坡目标（opening 模块每帧插值调用） */
-  introTargets(): Array<{ id: string; humidity: number; mold: number; moldy: boolean }> {
-    return this.entities
-      .filter((e) => e.runtime.stage !== 'fresh')
-      .map((e) => ({
-        id: e.node.id,
-        humidity: e.runtime.stage === 'damp' ? 0.55 : 0.85,
-        mold: e.runtime.stage === 'damp' ? 0.05 : e.runtime.stage === 'wet' ? 0.45 : 0.68,
-        moldy: e.runtime.stage === 'moldy',
-      }));
   }
 
   toSave(ropes: RopeSave[]): SaveData {

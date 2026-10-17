@@ -87,7 +87,7 @@ export function createDemoConsole(mount: HTMLElement, runtime: WorldRuntime, act
       ['桌面文件', r.files],
       ['重度霉变', r.moldy],
       ['除湿币', String(runtime.coins)],
-      ['库存蘑菇', `${runtime.inventory.length} 朵`],
+      ['已采蘑菇', `${runtime.stats.harvested} 朵`],
     ];
     for (const [key, value] of rows) {
       const row = document.createElement('div');

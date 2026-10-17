@@ -52,6 +52,8 @@ export const SHROOM = {
   shyStem: 0x8B7BA0,   // --shroom-shy-stem（物种设定色，非 UI 渐变）
   shyEye: 0xF2EDE0,    // --shroom-shy-eye
   shyPupil: 0x2A2622,  // --shroom-shy-pupil
+  /** 根部接地阴影：让菌柄与图标上边缘视觉咬合 */
+  rootShadow: 0x2E2A22,
 };
 
 /** 环境与工具（--mist/--sweat/--coin/--slime-trail） */
@@ -72,7 +74,16 @@ export const CATEGORY_COLOR = {
   archive: 0xD6C9A8,
 } as const;
 
-/** 图标内边距与圆角（SPEC §10 单文件图标尺寸 24px 体系之外的替身尺寸） */
-export const FILE_ICON_W = 64;
-export const FILE_ICON_H = 76;
-export const FILE_RADIUS = 8;
+/** 桌面网格与图标尺寸（网格 100x110；图标 64x64 居中；标签在图标下方） */
+export const FILE_CELL_W = 100;
+export const FILE_CELL_H = 110;
+export const FILE_ICON_SIZE = 64;
+export const FILE_ICON_W = FILE_ICON_SIZE;
+export const FILE_ICON_H = FILE_ICON_SIZE;
+/** 图标在网格单元内的左上偏移（水平居中） */
+export const FILE_ICON_LEFT = (FILE_CELL_W - FILE_ICON_SIZE) / 2;
+/** 图标顶边距单元顶边的像素距离 */
+export const FILE_ICON_TOP = 4;
+export const FILE_RADIUS = 10;
+/** 绳上相邻挂载点的最小弧长（一维刚体排斥） */
+export const FILE_PIN_SPACING = 72;

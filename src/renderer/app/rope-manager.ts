@@ -1,39 +1,70 @@
 /**
- * 绳索管理器（app 装配层）：持有绳实体 / 文件刚体 / 崩断判定
- * SPEC §6：文件刚体仅在挂载时创建；质量走 massEff（AC-37）；崩断按 Σ sizeBytes（AC-12b）
- * AC-22：绳型切换即时改外观与承重（setTierAll）
+ * 绳索管理器（app 装配层）
+ * - 持有 VerletRope（32 质点 / 15 次约束）；
+ * - 25px 吸附判定 → PINNED；挂载点沿弧长一维排斥（≥72px）；
+ * - 80%~99% 返回 warn（渲染层抖动 + 挂钩裂纹）；≥100% 断右端 → 图标与绳落体。
  */
-import Matter from 'matter-js';
+import { PIN_MIN_DISTANCE, PIN_SNAP_RADIUS, VerletRope } from '../../world/verlet-rope';
 import {
-  createRope,
-  breakRope,
-  createFileBody,
-  applyMass,
-  bodySizeBytes,
-} from '../physics/rope-factory';
-import type { Rope } from '../physics/rope-factory';
-import { hangFile, ropeByteLimit, ropeLoadState } from '../physics/hang-controller';
-import type { RopeLoadState } from '../physics/hang-controller';
-import { massEff } from '../physics/weight';
-import { FILE_ICON_W, FILE_ICON_H } from '../view/token-colors';
+  ropeByteLimit,
+  ropeLoadRatio,
+  ropeLoadState,
+  type RopeLoadState,
+} from '../../world/rope-load';
+import { FILE_CELL_W, FILE_ICON_TOP } from '../view/token-colors';
 import type { FileNode } from '../../shared/types/file-node';
 import type { RopeSave } from '../../shared/types/save';
 
 export interface RopeEntry {
-  rope: Rope;
+  rope: VerletRope;
   tier: string;
-  bodies: Matter.Body[];
   broken: boolean;
+}
+
+interface FallingFile {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
+export interface PinnedPosition {
+  id: string;
+  /** FileSprite 容器（网格单元左上角）坐标 */
+  x: number;
+  y: number;
+}
+
+export interface LandedFile {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface NearestRope {
+  entry: RopeEntry;
+  x: number;
+  y: number;
+  s: number;
+  dist: number;
 }
 
 /** 同屏最多 2 条绳（SPEC §10 并发边界） */
 export const MAX_ROPES = 2;
+const TASKBAR_GAP = 60;
 
 export class RopeManager {
   readonly entries: RopeEntry[] = [];
-  private bodyByFile = new Map<string, Matter.Body>();
+  private falling: FallingFile[] = [];
+  private landedSlots = new Map<string, { x: number; y: number }>();
+  private width = 1920;
+  private height = 1040;
 
-  constructor(private world: Matter.World) {}
+  setViewport(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
+  }
 
   canSpawn(): boolean {
     return this.entries.filter((e) => !e.broken).length < MAX_ROPES;
@@ -41,52 +72,123 @@ export class RopeManager {
 
   spawn(ax: number, ay: number, bx: number, by: number, tier: string): RopeEntry | null {
     if (!this.canSpawn()) return null;
-    const rigid = tier === 'rope-3'; // 304 不锈钢杆：刚性笔直不垂（AC-33 前置）
-    const rope = createRope(this.world, ax, ay, bx, by, { rigid });
-    const entry: RopeEntry = { rope, tier, bodies: [], broken: false };
+    const rope = new VerletRope(ax, ay, bx, by, { rigid: tier === 'rope-3' });
+    const entry: RopeEntry = { rope, tier, broken: false };
     this.entries.push(entry);
     return entry;
   }
 
   /**
-   * 挂文件：创建刚体 + 指数化质量 + 夹子约束（重文件自动多点挂载）
-   * @param pos 挂载点（绳链附近），文件刚体从该点垂下
+   * 挂文件：距绳质点 < 25px 才允许 PINNED。
+   * @param pos 松手位置（屏幕坐标）
    */
   hang(entry: RopeEntry, node: FileNode, pos: { x: number; y: number }): boolean {
-    if (entry.broken || this.bodyByFile.has(node.id)) return false;
-    const body = createFileBody(pos.x, pos.y + FILE_ICON_H * 0.4, FILE_ICON_W, FILE_ICON_H * 0.55, node.sizeBytes, node.id);
-    applyMass(body, massEff(node.sizeBytes));
-    Matter.Composite.add(this.world, body);
-    // 钢杆防滑槽：夹子刚度 1.0（文件不滑向最低点挤团）；柔绳 0.9
-    hangFile(this.world, entry.rope, body, massEff(node.sizeBytes), entry.rope.rigid ? 1.0 : 0.9);
-    entry.bodies.push(body);
-    this.bodyByFile.set(node.id, body);
-    return true;
+    if (entry.broken || node.kind === 'recycle') return false;
+    if (this.isPinned(node.id)) return false;
+    const near = entry.rope.nearest(pos.x, pos.y);
+    if (near.dist > PIN_SNAP_RADIUS) return false;
+    this.landedSlots.delete(node.id);
+    return entry.rope.attach(node.id, node.sizeBytes, near.s) !== null;
   }
 
-  bodyOf(fileId: string): Matter.Body | undefined {
-    return this.bodyByFile.get(fileId);
+  /** 读档恢复：按给定弧长挂载 */
+  pinAt(entry: RopeEntry, node: FileNode, s: number): boolean {
+    if (entry.broken || node.kind === 'recycle') return false;
+    if (this.isPinned(node.id)) return false;
+    this.landedSlots.delete(node.id);
+    return entry.rope.attach(node.id, node.sizeBytes, s) !== null;
   }
 
-  /** 释放文件刚体（崩断落地后重新拖动/晾晒前调用，防止旧刚体残留） */
-  releaseFile(fileId: string): void {
-    const body = this.bodyByFile.get(fileId);
-    if (!body) return;
-    Matter.Composite.remove(this.world, body);
-    this.bodyByFile.delete(fileId);
+  isPinned(fileId: string): boolean {
+    return this.entries.some((e) => e.rope.pins.some((p) => p.id === fileId));
+  }
+
+  releaseFile(fileId: string): boolean {
+    let removed = false;
     for (const e of this.entries) {
-      const i = e.bodies.indexOf(body);
-      if (i >= 0) e.bodies.splice(i, 1);
+      if (e.rope.detach(fileId)) removed = true;
     }
+    return removed;
   }
 
-  /** 全部文件刚体对（视图同步用：绳上 + 坠落中） */
-  pairs(): Array<[string, Matter.Body]> {
-    return [...this.bodyByFile.entries()];
+  /** 最近绳点（25px 内才算，命中测试与吸附共用） */
+  nearestPoint(x: number, y: number): NearestRope | null {
+    let best: NearestRope | null = null;
+    for (const entry of this.entries) {
+      if (entry.broken) continue;
+      const near = entry.rope.nearest(x, y);
+      if (near.dist > PIN_SNAP_RADIUS) continue;
+      if (!best || near.dist < best.dist) {
+        best = { entry, x: near.x, y: near.y, s: near.s, dist: near.dist };
+      }
+    }
+    return best;
+  }
+
+  /** 所有 PINNED 图标的容器坐标（图标上边框 = 绳质点） */
+  pinnedPositions(): PinnedPosition[] {
+    const out: PinnedPosition[] = [];
+    for (const entry of this.entries) {
+      if (entry.broken) continue;
+      for (const pin of entry.rope.pins) {
+        const p = entry.rope.pointAtS(pin.s);
+        out.push({ id: pin.id, x: p.x - FILE_CELL_W / 2, y: p.y - FILE_ICON_TOP });
+      }
+    }
+    return out;
+  }
+
+  /** 断绳后自由落体中的图标（容器坐标） */
+  fallingPositions(): PinnedPosition[] {
+    return this.falling.map((f) => ({ id: f.id, x: f.x, y: f.y }));
+  }
+
+  /** 固定步推进；返回本步落地的文件（调用方置 idle + 写回 node 坐标） */
+  update(dt: number): LandedFile[] {
+    const floorY = this.height - TASKBAR_GAP;
+    for (const entry of this.entries) {
+      entry.rope.step(dt, { floorY, width: this.width });
+    }
+
+    const landed: LandedFile[] = [];
+    // 网格单元高 110：单元底边落在任务栏上方（Y = screenHeight - 60）
+    const iconFloorTop = floorY - 110;
+    for (let i = this.falling.length - 1; i >= 0; i--) {
+      const f = this.falling[i];
+      f.vy += 2200 * dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.vx *= 0.985;
+      if (f.y < iconFloorTop) continue;
+      const slot = this.claimLandingSlot(f.x);
+      this.falling.splice(i, 1);
+      this.landedSlots.set(f.id, slot);
+      landed.push({ id: f.id, x: slot.x, y: slot.y });
+    }
+    return landed;
+  }
+
+  /** 底边散落：72px 槽位，避免落地图标互相遮挡 */
+  private claimLandingSlot(desiredX: number): { x: number; y: number } {
+    const y = this.height - TASKBAR_GAP - 110;
+    const maxSlot = Math.max(0, Math.floor((this.width - FILE_CELL_W - 8) / PIN_MIN_DISTANCE));
+    const used = new Set<number>();
+    for (const p of this.landedSlots.values()) {
+      used.add(Math.round((p.x - 8) / PIN_MIN_DISTANCE));
+    }
+    const base = Math.max(0, Math.min(maxSlot, Math.round((desiredX - 8) / PIN_MIN_DISTANCE)));
+    for (let step = 0; step <= maxSlot; step++) {
+      for (const candidate of step === 0 ? [base] : [base + step, base - step]) {
+        if (candidate >= 0 && candidate <= maxSlot && !used.has(candidate)) {
+          return { x: 8 + candidate * PIN_MIN_DISTANCE, y };
+        }
+      }
+    }
+    return { x: 8 + base * PIN_MIN_DISTANCE, y };
   }
 
   totalBytes(entry: RopeEntry): number {
-    return entry.bodies.reduce((s, b) => s + bodySizeBytes(b), 0);
+    return entry.rope.totalBytes();
   }
 
   loadState(entry: RopeEntry): RopeLoadState {
@@ -94,44 +196,58 @@ export class RopeManager {
     return ropeLoadState(this.totalBytes(entry), entry.tier);
   }
 
-  /** 绳型字节上限（Demo 容量预检用，AC-32） */
+  loadRatio(entry: RopeEntry): number {
+    return ropeLoadRatio(this.totalBytes(entry), entry.tier);
+  }
+
+  /** 绳型字节上限（Demo 容量预检用） */
   limitOf(tier: string): number {
     return ropeByteLimit(tier);
   }
 
-  /** 每步崩断判定（字节累计，AC-12b）；onBreak 交表现层处理音效/toast */
+  /**
+   * 超载断绳：断开右端 → 挂载图标脱落进入自由落体；0.3s 后左端撕裂，整绳落地。
+   * onBreak 只做表现层反馈（音效/toast/吸湿盒泼洒）。
+   */
   checkBreak(onBreak: (entry: RopeEntry) => void): void {
     for (const e of this.entries) {
       if (e.broken) continue;
-      if (this.loadState(e) === 'break') {
-        e.broken = true;
-        breakRope(this.world, e.rope);
-        onBreak(e);
+      if (ropeLoadState(this.totalBytes(e), e.tier) !== 'break') continue;
+      e.broken = true;
+      e.rope.breakRight();
+      const pins = [...e.rope.pins];
+      for (const pin of pins) {
+        const p = e.rope.pointAtS(pin.s);
+        const v = e.rope.velocityAtS(pin.s);
+        this.falling.push({
+          id: pin.id,
+          x: p.x - FILE_CELL_W / 2,
+          y: p.y - FILE_ICON_TOP,
+          vx: v.vx * 60 + (Math.random() - 0.5) * 40,
+          vy: Math.max(0, v.vy * 60),
+        });
+        e.rope.detach(pin.id);
       }
+      onBreak(e);
     }
   }
 
-  /** AC-22：购买红塑料绳即时改外观承重——既有绳整体换 tier */
+  /** 购买新绳型：既有绳即时换材质与承重 */
   setTierAll(tier: string): void {
     for (const e of this.entries) e.tier = tier;
   }
 
-  /** 崩断绳上的文件不再受绳约束（自由落体由 Matter 涌现） */
-  bodiesOf(entry: RopeEntry): Matter.Body[] {
-    return entry.bodies;
-  }
-
   snapshot(): RopeSave[] {
-    return this.entries.map((e, i) => ({
-      id: `r-${String(i + 1).padStart(3, '0')}`,
-      ax: e.rope.ax,
-      ay: e.rope.ay,
-      bx: e.rope.bx,
-      by: e.rope.by,
-      tier: e.tier,
-      fileIds: e.bodies
-        .map((b) => (b.plugin as { fileId?: string } | undefined)?.fileId ?? '')
-        .filter((id) => id.length > 0),
-    }));
+    return this.entries
+      .filter((e) => !e.broken)
+      .map((e, i) => ({
+        id: `r-${String(i + 1).padStart(3, '0')}`,
+        ax: e.rope.ax,
+        ay: e.rope.ay,
+        bx: e.rope.bx,
+        by: e.rope.by,
+        tier: e.tier,
+        fileIds: e.rope.pins.map((p) => p.id),
+      }));
   }
 }

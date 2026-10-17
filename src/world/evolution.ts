@@ -44,17 +44,20 @@ export function stepEvolution(
 ): void {
   if (rt.state === 'burnt') return; // 焦化锁定，需保湿喷雾重置
 
-  // 湿度趋向目标；绳上晾晒趋向干爽（AC-13 速率），大风加速
+  // 湿度趋向目标；绳上晾晒趋向干爽（AC-13 速率），大风加速。
+  // 冷落度 <3 天的新鲜文件对回南天不敏感，保持基本干燥（与开局 ΔT 分档一致）。
   const hung = rt.state === 'hung';
-  const target = hung ? 0.15 : env.humidity * 0.9;
+  const target = hung ? 0.15 : env.humidity * (rt.stage === 'fresh' ? 0.15 : 0.9);
   let rate = dtSec * (hung ? DRY_RATE : 0.2);
   if (hung && env.wind > 0.5) rate *= 1.8;
   const delta = target - rt.humidity;
   rt.humidity = clamp01(rt.humidity + delta * Math.min(rate, 1));
 
-  // 霉变蔓延（高湿加速）
+  // 霉变蔓延（高湿加速）；速度按真实 mtime 阶段分档，避免新文件也迅速长满霉
   if (env.humidity > 0.55) {
-    rt.mold = clamp01(rt.mold + dtSec * 0.004 * env.humidity);
+    const moldRate =
+      rt.stage === 'fresh' ? 0.0002 : rt.stage === 'damp' ? 0.001 : rt.stage === 'wet' ? 0.0025 : 0.004;
+    rt.mold = clamp01(rt.mold + dtSec * moldRate * env.humidity);
   }
 
   // 蘑菇：mold > 0.6 萌生；生长三阶段由 growth 0..1 表达

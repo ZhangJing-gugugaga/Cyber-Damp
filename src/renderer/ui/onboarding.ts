@@ -14,7 +14,7 @@ const TIP_MS = 9000;
 const STEP_TIPS: Record<number, string> = {
   1: '拧干了第一件。湿气重到拧不干？试试晾衣绳：从屏幕左缘或右缘拖出一条，再把湿文件拖上去。',
   2: '挂上绳就开始风干了（每分钟约掉 5%-15% 湿度）。等文件上长出蘑菇，用工具箱的剪刀剪下成熟的菇。',
-  3: '蘑菇入库了。打开右上角杂货铺，把它卖掉换除湿币。',
+  3: '蘑菇直接折成了除湿币（剪刀悬停成熟蘑菇即可剪下）。攒够 100 币去右上角杂货铺换妈妈的红塑料绳。',
   4: '首购目标：妈妈的红塑料绳（100 币）——承重从 5GB 升到 25GB，能挂更大的文件。',
 };
 
@@ -56,9 +56,10 @@ export function createGuide(toast: ToastHost): Guide {
       trackEvent('guide_step', { step });
       tip(STEP_TIPS[2]);
     } else if (action === 'pick' && step === 2) {
-      step = 3;
+      step = 4;
       trackEvent('guide_step', { step });
       tip(STEP_TIPS[3]);
+      finish();
     } else if (action === 'sell' && step === 3) {
       step = 4;
       trackEvent('guide_step', { step });

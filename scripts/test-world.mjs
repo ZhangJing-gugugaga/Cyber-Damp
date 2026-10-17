@@ -5,13 +5,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { stepEvolution, deriveStage } from '../dist/test/world/evolution.js';
-import { generateDesktop, countMoldy } from '../dist/test/world/virtual-desktop.js';
+import { layoutDesktopCells, buildFileNodes } from '../dist/test/world/desktop-layout.js';
 import { pickSpecies, SPECIES } from '../dist/test/world/mushroom-species.js';
 import { simulateDay } from '../dist/test/world/weather-simulator.js';
 import { sellMushroom } from '../dist/test/world/economy.js';
 import { purchase } from '../dist/test/world/shop-catalog.js';
 import { validateSave } from '../dist/test/shared/save/save-schema.js';
-import { GB } from '../dist/test/shared/constants.js';
+import { GB, ropePointLoad } from '../dist/test/shared/constants.js';
+import {
+  VerletRope,
+  ROPE_NODE_COUNT,
+  ROPE_ITERATIONS,
+  PIN_MIN_DISTANCE,
+} from '../dist/test/world/verlet-rope.js';
+import { ropeLoadState } from '../dist/test/world/rope-load.js';
 
 function mkRuntime(over = {}) {
   return { id: 't', humidity: 0.2, mold: 0, char: 0, stage: 'damp', state: 'idle', mushroom: null, ...over };
@@ -26,7 +33,6 @@ test('高湿环境湿度上升', () => {
 test('绳上晾晒趋向干爽且大风加速', () => {
   const calm = mkRuntime({ state: 'hung', humidity: 0.8 });
   const windy = mkRuntime({ state: 'hung', humidity: 0.8 });
-  // AC-13 慢干速率（DRY_RATE=0.0034）：600 帧 = 60s 游戏时间，calm 约降 12%/min 中档
   for (let i = 0; i < 600; i++) {
     stepEvolution(calm, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
     stepEvolution(windy, { humidity: 0.9, heat: 0, wind: 1 }, 0.1, 'doc-code', 0.99);
@@ -39,14 +45,12 @@ test('mold>0.6 萌生蘑菇并生长至可采摘', () => {
   const rt = mkRuntime({ mold: 0.7 });
   stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.1);
   assert.ok(rt.mushroom, '应萌生蘑菇');
-  // SPEC 速率 dt×0.01：100 秒游戏时间成熟（1050 帧留余量）
   for (let i = 0; i < 1050; i++) stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
   assert.equal(rt.mushroom.growth, 1, '应生长至 1');
 });
 
 test('过热焦化并锁定 burnt', () => {
   const rt = mkRuntime({ humidity: 0.1 });
-  // SPEC 速率 dt×0.01：持续热风 60 秒游戏时间 char 过 0.6（620 帧留余量）
   for (let i = 0; i < 620; i++) stepEvolution(rt, { humidity: 0.1, heat: 0.9, wind: 0 }, 0.1, 'doc-code', 0.99);
   assert.equal(rt.state, 'burnt', 'char>0.6 应锁定 burnt');
   const charBefore = rt.char;
@@ -63,42 +67,108 @@ test('deriveStage 四阶段边界', () => {
   assert.equal(deriveStage(now - 40 * day, now), 'moldy');
 });
 
-test('pin 集：16 个锚文件、≥8 个陈年老文件、demo.mp4 钉 2.3GB', () => {
-  const now = 1_700_000_000_000;
-  const nodes = generateDesktop(now);
-  assert.equal(nodes.length, 16, '应恰 16 个锚文件');
-  assert.ok(countMoldy(nodes, now) >= 8, `>30 天文件应 ≥8，实算 ${countMoldy(nodes, now)}`);
-  const demo = nodes.find((n) => n.name === 'demo.mp4');
-  assert.ok(demo, 'demo.mp4 必须在 pin 集');
-  assert.equal(demo.sizeBytes, 2.3 * GB, 'demo.mp4 应钉 2.3GB');
-  // 架构师锁定：≥1 个 24GB 级锚文件（AC-37 下垂/Demo 预检/钢杆价值三锚点依赖）
-  const szip = nodes.find((n) => n.name === '学习资料.7z');
-  assert.equal(szip.sizeBytes, 24 * GB, '学习资料.7z 应钉 24GB');
-  // 字节预检必要性自证：demo.mp4 + 学习资料.7z = 26.3GB > 麻绳 5GB（不预检必断）
-  assert.ok(demo.sizeBytes + szip.sizeBytes > 5 * GB, '两个大文件之和应超麻绳上限（Demo 预检必要性）');
-  const names = nodes.map((n) => n.name);
-  for (const expect of ['毕业论文_最终版_不改了_v3.docx', '新建文件夹 (2)', '学习资料.7z', 'main.py', '表情包.gif', '报销单.xlsx']) {
-    assert.ok(names.includes(expect), `pin 集缺 ${expect}`);
-  }
-  // 坐标避让：左右边缘 140px 内无文件
-  for (const n of nodes) {
-    assert.ok(n.x > 140 && n.x < 1920 - 140, `${n.name} x=${n.x} 应在避让区外`);
+test('真实桌面网格：100x110、左上起始、纵向优先', () => {
+  const cells = layoutDesktopCells(20, 1536, 864);
+  const rows = Math.floor((864 - 8) / 110);
+  assert.deepEqual(cells[0], { x: 4, y: 4 });
+  assert.deepEqual(cells[1], { x: 4, y: 114 });
+  assert.deepEqual(cells[2], { x: 4, y: 224 });
+  assert.deepEqual(cells[rows], { x: 104, y: 4 }, '第 rows+1 个换到第二列顶部');
+  for (const c of cells) {
+    assert.ok(c.x >= 0 && c.x + 100 <= 1536, `x 出界: ${c.x}`);
+    assert.ok(c.y >= 0 && c.y + 110 <= 864, `y 出界: ${c.y}`);
   }
 });
 
-test('确定性：同日同桌面（mtime 与 sizeBytes 可复现）', () => {
-  const t1 = generateDesktop(1_700_000_000_000);
-  const t2 = generateDesktop(1_700_000_000_000);
-  assert.deepEqual(t1.map((n) => [n.name, n.sizeBytes, n.mtime]), t2.map((n) => [n.name, n.sizeBytes, n.mtime]));
+test('真实条目 → FileNode 1:1 映射（名称/大小/mtime/图标不变）', () => {
+  const entry = {
+    id: 'd-abc',
+    name: '真实文件.docx',
+    ext: 'docx',
+    category: 'doc-code',
+    sizeBytes: 123456,
+    mtime: 1700000000000,
+    realPath: 'C:\\Users\\x\\Desktop\\真实文件.docx',
+    kind: 'file',
+    iconDataUrl: 'data:image/png;base64,AA==',
+  };
+  const nodes = buildFileNodes([entry], 1536, 864);
+  assert.equal(nodes.length, 1);
+  assert.equal(nodes[0].name, entry.name);
+  assert.equal(nodes[0].sizeBytes, entry.sizeBytes);
+  assert.equal(nodes[0].mtime, entry.mtime);
+  assert.equal(nodes[0].iconDataUrl, entry.iconDataUrl);
+  assert.equal(nodes[0].realPath, entry.realPath);
+  assert.deepEqual({ x: nodes[0].x, y: nodes[0].y }, { x: 4, y: 4 });
 });
 
-test('Windows 适配：1536×864 工作区所有文件不出界（DIP 自适应）', () => {
-  const nodes = generateDesktop(1_700_000_000_000, 1536, 864);
-  assert.equal(nodes.length, 16);
-  for (const n of nodes) {
-    assert.ok(n.x > 140 && n.x < 1536 - 140, `${n.name} x=${n.x} 应在左右避让区外`);
-    assert.ok(n.y + 100 < 864, `${n.name} y=${n.y} 应在工作区内（含标签高度）`);
+test('载荷公式 Fg = log10(sizeBytes+10)×1.8', () => {
+  assert.equal(ropePointLoad(1024).toFixed(2), '5.43');
+  assert.equal(ropePointLoad(1024 * 1024).toFixed(2), '10.84');
+  assert.equal(ropePointLoad(24 * GB).toFixed(2), '18.74');
+});
+
+test('绳负载状态：safe / 80% warn / 100% break', () => {
+  assert.equal(ropeLoadState(3.9 * GB, 'rope-1'), 'safe');
+  assert.equal(ropeLoadState(4 * GB, 'rope-1'), 'warn', '恰好 80% 进入预警');
+  assert.equal(ropeLoadState(5 * GB, 'rope-1'), 'break');
+});
+
+test('Verlet 绳：32 质点 / 15 次约束 / 有松弛量可下垂', () => {
+  assert.equal(ROPE_NODE_COUNT, 32);
+  assert.equal(ROPE_ITERATIONS, 15);
+  const rope = new VerletRope(100, 100, 1100, 100);
+  assert.equal(rope.points.length, 32);
+  for (let i = 0; i < 600; i++) rope.step(1 / 60, { width: 1920, floorY: 1080 });
+  const mid = rope.points[16];
+  assert.ok(mid.y > 140, `悬链线中点应下垂，实算 y=${mid.y.toFixed(1)}`);
+  assert.ok(mid.y < 600, `不应无限下坠，实算 y=${mid.y.toFixed(1)}`);
+});
+
+test('重文件载荷使绳中点更深（24GB > 1KB）', () => {
+  const light = new VerletRope(100, 100, 1100, 100);
+  const heavy = new VerletRope(100, 100, 1100, 100);
+  light.attach('light', 1024, light.length / 2);
+  heavy.attach('heavy', 24 * GB, heavy.length / 2);
+  for (let i = 0; i < 900; i++) {
+    light.step(1 / 60, { width: 1920, floorY: 1080 });
+    heavy.step(1 / 60, { width: 1920, floorY: 1080 });
   }
+  const lightMid = light.pointAtS(light.length / 2);
+  const heavyMid = heavy.pointAtS(heavy.length / 2);
+  assert.ok(
+    heavyMid.y > lightMid.y + 20,
+    `重文件应明显更深：heavy ${heavyMid.y.toFixed(1)} vs light ${lightMid.y.toFixed(1)}`,
+  );
+});
+
+test('5+ 个挂载图标沿弧长保持 ≥72px，无重叠', () => {
+  const rope = new VerletRope(60, 120, 1460, 120);
+  for (let i = 0; i < 6; i++) rope.attach(`f${i}`, GB, rope.length / 2);
+  for (let i = 0; i < 900; i++) rope.step(1 / 60, { width: 1920, floorY: 1080 });
+  const ss = rope.pins.map((p) => p.s).sort((a, b) => a - b);
+  assert.equal(ss.length, 6);
+  for (let i = 0; i < ss.length - 1; i++) {
+    assert.ok(
+      ss[i + 1] - ss[i] >= PIN_MIN_DISTANCE - 0.5,
+      `弧长间距 ${(ss[i + 1] - ss[i]).toFixed(1)} < ${PIN_MIN_DISTANCE}`,
+    );
+  }
+});
+
+test('超载断右端 → 0.3s 后整绳自由落体到 floorY', () => {
+  const rope = new VerletRope(100, 100, 1100, 100);
+  rope.attach('x', 24 * GB, rope.length / 2);
+  rope.breakRight();
+  assert.equal(rope.attachedRight, false);
+  assert.equal(rope.attachedLeft, true);
+  for (let i = 0; i < 180; i++) rope.step(1 / 60, { width: 1920, floorY: 900 });
+  assert.equal(rope.attachedLeft, false, '0.3s 后左端也应脱开');
+  assert.ok(
+    rope.points.every((p) => p.y <= 900.5),
+    '所有质点在 floorY 上方',
+  );
+  assert.ok(rope.points[0].y > 500, '整绳已落到下方');
 });
 
 test('pickSpecies：代码类 40% 金针菇，压缩包类 15% 胆小菇（AC-30），其他类只有平菇', () => {
@@ -107,8 +177,8 @@ test('pickSpecies：代码类 40% 金针菇，压缩包类 15% 胆小菇（AC-30
   assert.equal(pickSpecies('image-video', 0.1), 'oyster');
   assert.equal(pickSpecies('audio', 0.1), 'oyster');
   assert.equal(pickSpecies('archive', 0.1), 'oyster');
-  assert.equal(pickSpecies('archive', 0.85), 'shy');  // ≥0.85 → SSR 胆小菇
-  assert.equal(pickSpecies('archive', 0.84), 'oyster'); // 边界外仍平菇
+  assert.equal(pickSpecies('archive', 0.85), 'shy');
+  assert.equal(pickSpecies('archive', 0.84), 'oyster');
 });
 
 test('胆小菇 SSR 定价与售卖（AC-30/AC-20）', () => {
@@ -160,21 +230,14 @@ test('存档校验：坏数据 null，好数据通过', () => {
 
 test('存档校验拒绝 NaN 绳坐标/未知绳型/非法状态/NaN 蘑菇（AC-24/27）', () => {
   const badRope = { ...goodSave(), ropes: [{ id: 'r-1', ax: NaN, ay: 1, bx: 2, by: 3, tier: 'rope-1', fileIds: [] }] };
-  assert.equal(validateSave(badRope), null, 'NaN 锚点会污染 Matter，必须拒绝');
-
+  assert.equal(validateSave(badRope), null, 'NaN 锚点必须拒绝');
   const badTier = { ...goodSave(), ropes: [{ id: 'r-1', ax: 0, ay: 1, bx: 2, by: 3, tier: 'rope-x', fileIds: [] }] };
   assert.equal(validateSave(badTier), null, '未知绳型必须拒绝');
-
   const badState = { ...goodSave(), files: [{ ...goodSave().files[0], state: 'zombie' }] };
   assert.equal(validateSave(badState), null, '非法状态必须拒绝');
-
   const badGrowth = { ...goodSave(), files: [{ ...goodSave().files[0], mushroom: { species: 'oyster', growth: NaN } }] };
   assert.equal(validateSave(badGrowth), null, 'NaN 生长值必须拒绝');
-
-  const withRope = {
-    ...goodSave(),
-    ropes: [{ id: 'r-1', ax: 10, ay: 20, bx: 300, by: 200, tier: 'rope-2', fileIds: ['f-001'] }],
-  };
+  const withRope = { ...goodSave(), ropes: [{ id: 'r-1', ax: 10, ay: 20, bx: 300, by: 200, tier: 'rope-2', fileIds: ['f-001'] }] };
   assert.ok(validateSave(withRope), '合法绳条目应通过');
 });
 

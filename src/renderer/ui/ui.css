@@ -469,8 +469,7 @@
 }
 
 /* ---------- AC-36 统一约定：装饰性 chrome 一律禁事件 ---------- */
-[data-chrome='decor'],
-.warn-badge {
+[data-chrome='decor'] {
   pointer-events: none;
 }
 
@@ -573,22 +572,12 @@
   pointer-events: none;
 }
 
-/* ---------- 倒水角（吸湿盒回收区，decor 禁事件） ---------- */
-.recycle-zone {
-  position: fixed;
-  right: var(--space-4);
-  bottom: var(--space-16);
-  width: 96px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: var(--text-2xs);
-  color: var(--muted);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1);
+/* ---------- 成熟蘑菇 hover：剪刀光标（纯 CSS data-URI，无外部资源） ---------- */
+html.cursor-scissors,
+html.cursor-scissors body,
+html.cursor-scissors #stage,
+html.cursor-scissors canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23F2EDE0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='24' r='3.5' fill='%2310130F'/%3E%3Ccircle cx='8' cy='8' r='3.5' fill='%2310130F'/%3E%3Cpath d='M11 21 L26 6 M11 11 L26 26'/%3E%3C/g%3E%3C/svg%3E") 8 8, crosshair !important;
 }
 
 /* ---------- 动效降级 ---------- */

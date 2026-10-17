@@ -117,7 +117,7 @@ export class SnailController {
   private spawn(groundY: number, ropes: RopeManager): void {
     const { w } = this.screen();
     const fromLeft = Math.random() < 0.5;
-    const live = ropes.entries.filter((e) => !e.broken && e.bodies.length > 0);
+    const live = ropes.entries.filter((e) => !e.broken && e.rope.pins.length > 0);
     const rope = live.length > 0 ? live[0] : null;
     const s: Snail = {
       view: new SnailView(),
@@ -126,7 +126,7 @@ export class SnailController {
       y: rope ? rope.rope.ay : groundY,
       dir: fromLeft ? 1 : -1,
       rope,
-      pathIdx: fromLeft ? 0 : 13,
+      pathIdx: fromLeft ? 0 : rope ? rope.rope.points.length - 1 : 0,
       vy: 0,
       shellT: 0,
       restT: 0,
@@ -140,16 +140,16 @@ export class SnailController {
   private crawl(s: Snail, runtime: WorldRuntime, ropes: RopeManager, dtSec: number, tSec: number): void {
     const { w, h } = this.screen();
     if (s.rope && !s.rope.broken) {
-      // 沿绳链折线爬行
-      const links = s.rope.rope.links;
+      // 沿 Verlet 质点爬行
+      const links = s.rope.rope.points;
       const next = links[Math.min(links.length - 1, Math.max(0, s.pathIdx + s.dir))];
-      const dx = next.position.x - s.x;
-      const dy = next.position.y - s.y;
+      const dx = next.x - s.x;
+      const dy = next.y - s.y;
       const dist = Math.hypot(dx, dy);
       const step = CRAWL_SPEED * dtSec;
       if (dist <= step) {
-        s.x = next.position.x;
-        s.y = next.position.y;
+        s.x = next.x;
+        s.y = next.y;
         s.pathIdx += s.dir;
         if (s.pathIdx <= 0 || s.pathIdx >= links.length - 1) s.rope = null; // 爬到头，落地
       } else {
@@ -165,12 +165,14 @@ export class SnailController {
       }
     }
 
-    // 食苔：附近 mold 文件免费清洁（AC-29）
+    // 食苔：附近 mold 文件免费清洁（AC-29）；以图标中心计距
     for (const ent of runtime.entities) {
       if (ent.runtime.mold <= 0.05) continue;
+      const cx = ent.node.x + 50;
+      const cy = ent.node.y + 36;
       const near =
-        Math.hypot(ent.node.x - s.x, ent.node.y - s.y) <= EAT_RADIUS ||
-        (ent.runtime.state === 'hung' && Math.hypot(ent.node.x - s.x, ent.node.y - s.y) <= EAT_RADIUS + 20);
+        Math.hypot(cx - s.x, cy - s.y) <= EAT_RADIUS ||
+        (ent.runtime.state === 'hung' && Math.hypot(cx - s.x, cy - s.y) <= EAT_RADIUS + 20);
       if (near) runtime.reduceMold(ent.node.id, dtSec * 0.05);
     }
 

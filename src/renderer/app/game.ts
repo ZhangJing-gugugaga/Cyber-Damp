@@ -1,7 +1,9 @@
-/** 游戏总装配（app 层）：pixi + matter + world + view + input + ui + save 接线；领域逻辑在 game-actions/actions 模块 */
+/**
+ * 游戏总装配（app 层）：真实桌面 + 原生图标 + Verlet 绳 + 6s 开场 + UI/存档接线。
+ * 领域逻辑在 game-actions/world-actions；单文件 ≤300 行纪律。
+ */
 import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
-import { createMatterWorld } from './matter-world';
 import { startGameLoop } from './game-loop';
 import { WorldRuntime } from './world-runtime';
 import { RopeManager } from './rope-manager';
@@ -10,58 +12,79 @@ import { Atmosphere } from './atmosphere';
 import { Opening } from './opening';
 import { SnailController } from './snail-controller';
 import { BoxController } from './box-controller';
+import type { RecycleRect } from './box-controller';
 import { createGameActions } from './game-actions';
-import type { GameActions } from './game-actions';
 import { WorldLayers } from '../view/layers';
-import { FileSprite } from '../view/file-sprite';
+import { FileSprite, loadNativeIcon } from '../view/file-sprite';
 import { MushroomView } from '../view/mushroom-view';
-import { drawRope, drawRopeWarn } from '../view/rope-view';
 import { ParticlePool } from '../view/particles';
 import { GlyphPool } from '../view/glyph-pool';
-import { updateFileDebris } from './file-debris';
 import { FanView } from '../view/fan-view';
-import { FILE_ICON_W } from '../view/token-colors';
+import { FILE_ICON_TOP } from '../view/token-colors';
 import { PointerController } from '../input/pointer-controller';
-import { debrisBurst } from '../input/fx-burst';
-import { applyHeatFx, squeegeeFx } from './tool-fx';
+import { squeegeeFx } from './tool-fx';
+import { createGameTick } from './game-tick';
 import { mountUi } from '../ui/ui-root';
 import { createGuide } from '../ui/onboarding';
 import { createHoverCard } from '../ui/hover-card';
-import { createWarnBadge } from '../ui/warn-badge';
 import { createFpsWatch } from './fps-watch';
-import { wirePause, wireSystemEvents } from './system-wiring';
+import { wireSystemEvents } from './system-wiring';
 import { trackError } from './telemetry';
 import { Sfx } from '../audio/sfx';
 import { SaveController } from '../save/save-controller';
 import { loadSave } from './save-bridge';
+import { loadDesktopEntries, openRealPath } from './desktop-bridge';
 import { restoreRopes } from './rope-restore';
-import type { SaveData } from '../../shared/types/save';
+import { buildFileNodes } from '../../world/desktop-layout';
 const AUTOSAVE_SEC = 30;
+
 export async function createGame(app: Application): Promise<void> {
-  // 1. 存档加载（失败/损坏走新开局——契约纪律 3）
-  const loaded = await loadSave();
-  const matter = createMatterWorld(app.screen.width, app.screen.height);
+  // 1. 真实桌面 + 存档并行读取；绝不生成 Mock 文件
+  const [loaded, entries] = await Promise.all([loadSave(), loadDesktopEntries()]);
+  const nodes = buildFileNodes(entries, app.screen.width, app.screen.height);
   const runtime = new WorldRuntime();
-  const ropes = new RopeManager(matter.engine.world);
+  const ropes = new RopeManager();
+  ropes.setViewport(app.screen.width, app.screen.height);
   const now = Date.now();
-  if (loaded) runtime.initFromSave(loaded, now, app.screen.width, app.screen.height);
-  else runtime.initNew(now, app.screen.width, app.screen.height);
-  console.info('[cyber-damp] 世界装配完成:', loaded ? '存档已恢复' : '新开局', runtime.entities.length, '个文件', 'viewport', app.screen.width, 'x', app.screen.height, 'dpr', window.devicePixelRatio);
-  // 3. 视图图层
+  if (loaded) runtime.initFromSave(loaded, nodes, now);
+  else runtime.initNew(nodes, now);
+  console.info(
+    '[cyber-damp] 真实桌面装配完成:',
+    loaded ? '存档已恢复' : '新开局',
+    runtime.entities.length,
+    '个文件',
+    'viewport',
+    app.screen.width,
+    'x',
+    app.screen.height,
+  );
+
+  // 2. 视图图层 + 原生图标纹理（并发解码）
   const layers = new WorldLayers();
   app.stage.addChild(layers.root);
   const pool = new ParticlePool();
   layers.fxLayer.addChild(pool.container);
   const glyphs = new GlyphPool();
   layers.fxLayer.addChild(glyphs.container);
+  const textures = await Promise.all(nodes.map((n) => loadNativeIcon(n.iconDataUrl)));
   const sprites = new Map<string, FileSprite>();
   const shrooms = new Map<string, MushroomView>();
-  for (const ent of runtime.entities) {
-    const sprite = new FileSprite(ent.node);
+  nodes.forEach((node, i) => {
+    const sprite = new FileSprite(node, textures[i]);
     layers.fileLayer.addChild(sprite.container);
-    sprites.set(ent.node.id, sprite);
+    sprites.set(node.id, sprite);
+  });
+  function ensureShroom(id: string): void {
+    const ent = runtime.byId.get(id);
+    const m = ent?.runtime.mushroom;
+    if (!ent || !m || shrooms.has(id)) return;
+    const view = new MushroomView(m.species);
+    layers.shroomLayer.addChild(view.container);
+    shrooms.set(id, view);
   }
-  // 4. 绳索恢复（读档）+ 绳 Graphics
+  for (const ent of runtime.entities) ensureShroom(ent.node.id);
+
+  // 3. 绳索 + 存档恢复
   const ropeGfx = new Map<RopeEntry, Graphics>();
   function addRopeEntry(entry: RopeEntry): RopeEntry {
     const g = new Graphics();
@@ -70,10 +93,25 @@ export async function createGame(app: Application): Promise<void> {
     return entry;
   }
   if (loaded) restoreRopes(loaded, runtime, ropes, addRopeEntry);
+  // 入场前给所有绳一个稳定下垂姿态
+  for (let i = 0; i < 30; i++) ropes.update(1 / 60);
+
   const atmosphere = new Atmosphere(app, layers);
   const sfx = new Sfx();
   const saver = new SaveController(runtime, ropes);
   runtime.onChange = () => saver.schedule();
+
+  // 4. 吸湿盒（回收站碰撞盒由替身真实坐标提供）
+  const recycleNode = runtime.entities.find((e) => e.node.kind === 'recycle');
+  const recycleRect = (): RecycleRect | null => {
+    if (!recycleNode) return null;
+    const s = sprites.get(recycleNode.node.id);
+    if (!s) return null;
+    return { x: s.container.position.x + 18, y: s.container.position.y + FILE_ICON_TOP, w: 64, h: 64 };
+  };
+  const boxes = new BoxController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }), recycleRect);
+
+  // 5. 动作 + UI
   const actions = createGameActions({
     app,
     runtime,
@@ -91,9 +129,6 @@ export async function createGame(app: Application): Promise<void> {
     registerRope: (entry) => addRopeEntry(entry),
     getTool: () => ui.getTool(),
   });
-
-  // 7. UI 装配（含吸湿盒控制器：回收角 decor 挂 ui 层）
-  const boxes = new BoxController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }), document.getElementById('ui-root') ?? document.body);
   const ui = mountUi(document.getElementById('ui-root') ?? document.body, runtime, {
     onSell: actions.onSell,
     onBuy: actions.onBuy,
@@ -109,24 +144,20 @@ export async function createGame(app: Application): Promise<void> {
         return;
       }
       const placed = boxes.place(want);
-      if (placed < want) runtime.chargeCoins(-(want - placed) * boxes.price); // 理论不可达，兜底退款
+      if (placed < want) runtime.chargeCoins(-(want - placed) * boxes.price);
       sfx.coin();
-      ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满了记得来倒。`);
+      ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满记得拖去回收站倒掉。`);
     },
     sfx,
     demo: actions.demo,
   });
-  // onChange 已被 UI 刷新占用：包一层串上存档防抖
   const uiRefresh = runtime.onChange;
   runtime.onChange = () => {
     uiRefresh?.();
     saver.schedule();
   };
 
-  // 8. 80% 预警角标（AC-35 表现层，pointer-events:none）
-  const warnBadge = createWarnBadge(ui.mount);
-
-  // 8.5 新手引导 + 悬停卡片（PRD §7.1）
+  // 6. 新手引导 / 悬停卡片 / 蜗牛 / 指针
   const guide = createGuide(ui.toast);
   const hoverCard = createHoverCard(ui.mount, runtime, sprites);
   const snails = new SnailController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }));
@@ -144,6 +175,16 @@ export async function createGame(app: Application): Promise<void> {
       return !!el && el.closest('[data-ui-interactive]') !== null;
     },
     onPick: (id) => actions.pickMushroom(id),
+    onOpen: (id) => {
+      const ent = runtime.byId.get(id);
+      if (!ent) return;
+      ropes.releaseFile(id);
+      runtime.dryFile(id);
+      void openRealPath(ent.node.realPath).then((ok) => {
+        ui.toast.tip(ok ? `打开「${ent.node.name}」，桌面上的潮气被带走了。` : `「${ent.node.name}」打不开，但湿气已经散了。`);
+      });
+      sfx.pop(1.2);
+    },
     onHang: () => undefined,
     consumeClick: (x, y) => snails.poke(x, y),
     onSqueegee: (dist, x, y) => squeegeeFx(atmosphere, pool, dist, x, y),
@@ -156,7 +197,7 @@ export async function createGame(app: Application): Promise<void> {
       const res = boxes.dropAt(id, x, y);
       if (res === 'emptied') {
         sfx.splash();
-        ui.toast.tip('积水倒进了下水道，盒里颗粒又能接着干了。');
+        ui.toast.tip('积水倒进了回收站，盒里颗粒又能接着干了。');
       }
       return res;
     },
@@ -170,14 +211,18 @@ export async function createGame(app: Application): Promise<void> {
     },
   });
   for (const btn of document.querySelectorAll('#ui-hud button')) btn.setAttribute('data-ui-interactive', '1');
-
-  // 10. IPC 订阅（CPU 出汗 / 退出 flush / AC-28 暂停）
   wireSystemEvents(runtime, saver);
+  window.damp?.system.onDisplayChanged(({ width, height }) => {
+    ropes.setViewport(width, height);
+  });
+
+  // 7. 6 秒开场（锁拖拽 + 按真实 mtime 分档腐化）
   let opening: Opening | null = new Opening({
     runtime,
     atmosphere,
     pool,
     sfx,
+    sprites,
     shrooms,
     onToast: (text) => ui.toast.tip(text, { actionLabel: '先去晾晒' }),
     onFinish: () => {
@@ -187,113 +232,62 @@ export async function createGame(app: Application): Promise<void> {
       ui.refresh();
     },
   });
-  // 演出期间整窗拦截点击，让“点击跳过”生效（AC-01）
-  pointer.clickThrough.update(true);
+  pointer.clickThrough.update(true); // 演出期间捕获点击，让“点击跳过”生效
 
-  let tSec = 0;
-  let autosaveAcc = 0;
   let fan: FanView | null = null;
   if (runtime.fanPlaced) {
     fan = atmosphere.placeFan();
     runtime.setFanAnchor(fan.container.position.x, fan.container.position.y);
   }
-  let lastCondition = runtime.dayWeather().condition;
-  const overheatWarned = new Set<string>(); // 吹风机过热警示一次
   const fpsWatch = createFpsWatch(app);
-  const loop = startGameLoop({
+  const gameTick = createGameTick({
     app,
-    engine: matter.engine,
-    onError: (err) => trackError('tick', err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : undefined),
-    tick: (dtSec) => {
-      tSec += dtSec;
-      opening?.update(dtSec);
-      runtime.tick(dtSec);
-
-      // 吹风机按住施热（P1）：局部烘干 + 焦化 + 过热警示
-      const hid = pointer.heatTargetId;
-      if (hid) applyHeatFx(runtime, sprites, pool, (t) => ui.toast.tip(t), overheatWarned, hid, dtSec);
-
-      // 崩断判定（字节累计）→ 表现层反馈（含砸中吸湿盒泼洒）
-      ropes.checkBreak((entry) => {
-        sfx.crack();
-        // 崩断后落地文件恢复可拖动/可再次晾晒（否则永久卡在 hung）
-        for (const b of ropes.bodiesOf(entry)) {
-          const id = (b.plugin as { fileId?: string } | undefined)?.fileId;
-          if (id) runtime.markState(id, 'idle');
-        }
-        const link = entry.rope.links[Math.floor(entry.rope.links.length / 2)];
-        debrisBurst(pool, link.position.x, link.position.y);
-        ui.toast.tip('啪嗒——晾衣绳崩断了，文件摔在任务栏上弹了两下。', { warn: true });
-        const hitBox = boxes.splashNear(link.position.x);
-        if (hitBox) {
-          runtime.triggerSurge(0.35, 8);
-          sfx.splash();
-          ui.toast.tip('崩落的文件砸翻了吸湿盒——半屏都在淌水，湿度暴涨！', { warn: true });
-        }
-      });
-
-      // 视图同步：绳上/坠落文件跟随刚体
-      for (const [id, body] of ropes.pairs()) {
-        const sprite = sprites.get(id);
-        if (sprite) sprite.container.position.set(body.position.x, body.position.y);
-      }
-
-      // 文件四阶段视觉 + 文件名标签（AC-07~11；每帧幂等幂刷新）
-      for (const ent of runtime.entities) {
-        sprites.get(ent.node.id)?.update(ent.runtime, tSec);
-        const m = ent.runtime.mushroom;
-        if (m && !shrooms.has(ent.node.id)) {
-          const view = new MushroomView(m.species);
-          layers.shroomLayer.addChild(view.container);
-          shrooms.set(ent.node.id, view);
-        }
-        const view = shrooms.get(ent.node.id);
-        if (view && m) {
-          const sp = sprites.get(ent.node.id)!.container.position;
-          view.container.position.set(sp.x + FILE_ICON_W / 2, sp.y + 10);
-          view.update(m.growth, tSec, pointer.lastPos);
-        }
-      }
-
-      // 绳渲染（唯一真相源 = Matter 链坐标，AC-34）+ 80% 预警
-      let anyWarn = false;
-      for (const [entry, g] of ropeGfx) {
-        if (entry.broken) {
-          g.clear();
-          continue;
-        }
-        if (ropes.loadState(entry) === 'warn') {
-          anyWarn = true;
-          drawRopeWarn(g, entry.rope, entry.tier, tSec);
-        } else {
-          drawRope(g, entry.rope, entry.tier);
-        }
-      }
-      warnBadge.style.display = anyWarn ? '' : 'none';
-
-      pool.update(dtSec);
-      glyphs.update(dtSec);
-      updateFileDebris(runtime, sprites, pool, glyphs, dtSec);
-      hoverCard.update(pointer.lastPos.x, pointer.lastPos.y, runtime.locked);
-      fpsWatch(dtSec);
-      atmosphere.update(runtime, dtSec, tSec, pool, fan);
-      snails.update(runtime, ropes, dtSec, tSec);
-      runtime.setBoxAbsorb(boxes.absorbRate);
-      boxes.update(dtSec, runtime.env().humidity, tSec);
-
-      // 雨声氛围随天气
-      const cond = runtime.dayWeather().condition;
-      if (cond !== lastCondition) {
-        lastCondition = cond;
-        sfx.setRain(cond === 'rain' || cond === 'storm' ? 0.8 : 0.15);
-      }
-
-      autosaveAcc += dtSec;
-      if (autosaveAcc >= AUTOSAVE_SEC) {
-        autosaveAcc = 0;
-        void saver.flush();
-      }
-    },
+    runtime,
+    ropes,
+    sprites,
+    shrooms,
+    ensureShroom,
+    ropeGfx,
+    pool,
+    glyphs,
+    boxes,
+    atmosphere,
+    snails,
+    pointer,
+    hoverCard,
+    fpsWatch,
+    ui,
+    sfx,
+    saver,
+    getOpening: () => opening,
+    getFan: () => fan,
+    autosaveSec: AUTOSAVE_SEC,
   });
-  wirePause(app, loop);
+  startGameLoop({
+    app,
+    onError: (err) =>
+      trackError(
+        'tick',
+        err instanceof Error ? err.message : String(err),
+        err instanceof Error ? err.stack : undefined,
+      ),
+    tick: gameTick,
+  });
+
+  // 首帧渲染后挂 WorkerW + 隐藏原生图标（失败则保持图标显示）
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void window.damp?.app.desktopReady();
+    });
+  });
+
+  // QA 只读探针（仅 ?qa=1）：自动化验收用于定位蘑菇/绳/图标，不进入正常发布路径
+  if (location.search.includes('qa=1')) {
+    (window as unknown as Record<string, unknown>).__CD_DEBUG__ = {
+      runtime,
+      ropes,
+      sprites,
+      shrooms,
+    };
+  }
 }

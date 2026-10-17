@@ -14,12 +14,14 @@ export class PointerController {
   readonly clickThrough = new ClickThrough();
   private wring = new CircleWring();
   private wringId: string | null = null;
-  private drag: { id: string; dx: number; dy: number; moved: boolean } | null = null;
+  private drag: { id: string; dx: number; dy: number; moved: boolean; ox: number; oy: number } | null = null;
   private ropeDraw: { ax: number; ay: number } | null = null;
   private downPos = { x: 0, y: 0 };
   private downTime = 0;
   private lastX = 0;
   private lastY = 0;
+  /** 双击打开：同一文件 400ms 内二次按下 */
+  private lastClick = { id: '', at: 0 };
   /** 吹风机按住目标（game tick 每帧施热） */
   private heatTarget: string | null = null;
   private squeegeeing = false;
@@ -44,11 +46,18 @@ export class PointerController {
     this.squeegeeing = false;
     this.boxDrag = null;
     this.brooming = false;
+    this.setScissorsCursor(false);
     this.wring.cancel();
     this.wringId = null;
     if (this.drag) {
-      const id = this.drag.id;
+      const { id, ox, oy } = this.drag;
       this.drag = null;
+      const sprite = this.deps.sprites.get(id);
+      if (sprite) {
+        sprite.container.position.set(ox, oy);
+        sprite.node.x = ox;
+        sprite.node.y = oy;
+      }
       this.deps.runtime.markState(id, 'idle');
     }
     if (this.ropeDraw) {
@@ -56,6 +65,11 @@ export class PointerController {
       this.ropeDraw = null;
       this.deps.ropePreview(ax, ay, 0, null);
     }
+  }
+
+  /** 成熟蘑菇 hover → 剪刀光标（CSS 类，data-URI 剪刀图标） */
+  private setScissorsCursor(on: boolean): void {
+    document.documentElement.classList.toggle('cursor-scissors', on);
   }
   /** 最近指针位置（胆小菇缩头/悬停卡片消费） */
   get lastPos(): { x: number; y: number } {
@@ -74,6 +88,7 @@ export class PointerController {
 
     // 演出期间：整窗拦截点击以便“点击跳过”，不做命中测试
     if (this.deps.runtime.locked) {
+      this.setScissorsCursor(false);
       this.clickThrough.update(true);
       return;
     }
@@ -142,6 +157,8 @@ export class PointerController {
       return;
     }
 
+    // 成熟蘑菇 hover：剪刀光标（点击即采摘，与当前工具无关）
+    this.setScissorsCursor(!!mushroomAt(this.deps.sprites, this.deps.runtime, x, y));
     // 音频类文件悬停：八音盒走调旋律（P1，6s 冷却）
     if (performance.now() - this.musicBoxAt > 6000 && fileAt(this.deps.sprites, x, y)?.node.category === 'audio') {
       this.musicBoxAt = performance.now();
@@ -167,12 +184,31 @@ export class PointerController {
     // 世界内额外点击（蜗牛戳击优先消费）
     if (this.deps.consumeClick?.(x, y)) return;
 
+    // 成熟蘑菇优先：任意工具点击即剪下（hover 已切换剪刀光标）
+    const mature = mushroomAt(this.deps.sprites, this.deps.runtime, x, y);
+    if (mature) {
+      this.deps.onPick(mature);
+      return;
+    }
+
     const tool = this.deps.getTool();
-    const fileId = fileAt(this.deps.sprites, x, y)?.node.id ?? null;
+    const sprite = fileAt(this.deps.sprites, x, y);
+    const fileId = sprite?.node.id ?? null;
+
+    // 双击替身图标/回收站：打开真实文件（与当前工具无关）
+    if (fileId) {
+      const now = performance.now();
+      if (this.lastClick.id === fileId && now - this.lastClick.at < 400) {
+        this.lastClick = { id: '', at: 0 };
+        this.deps.onOpen?.(fileId);
+        return;
+      }
+      this.lastClick = { id: fileId, at: now };
+    }
+    // 回收站是系统特殊项：只响应双击，不参与网格拖拽
+    if (sprite?.node.kind === 'recycle') return;
 
     if (tool === 'scissors') {
-      const mid = mushroomAt(this.deps.sprites, this.deps.runtime, x, y);
-      if (mid) this.deps.onPick(mid);
       return;
     }
     if (tool === 'spray') {
@@ -231,12 +267,14 @@ export class PointerController {
     if (!id) return;
     const sprite = this.deps.sprites.get(id);
     if (!sprite) return;
-    this.deps.ropes.releaseFile(id); // 崩断落地文件的旧刚体先释放
+    this.deps.ropes.releaseFile(id); // 残留挂载先解除
     this.drag = {
       id,
       dx: x - sprite.container.position.x,
       dy: y - sprite.container.position.y,
       moved: false,
+      ox: sprite.node.x,
+      oy: sprite.node.y,
     };
   }
 
@@ -277,23 +315,26 @@ export class PointerController {
     }
 
     if (this.drag) {
-      const { id, moved } = this.drag;
+      const { id, moved, ox, oy } = this.drag;
       this.drag = null;
       if (!moved) return;
+      const sprite = this.deps.sprites.get(id);
       const near = nearestRopePoint(this.deps.ropes, x, y);
-      if (near) {
-        const sprite = this.deps.sprites.get(id);
-        const node = sprite?.node;
-        if (node && this.deps.ropes.hang(near.entry, node, { x: near.x, y: near.y })) {
-          this.deps.runtime.markState(id, 'hung');
-          this.deps.onHang(id);
-          this.deps.sfx.pop(0.8);
-          emitAction('hang');
-          trackFirst('first_hang');
-        }
-      } else {
-        this.deps.runtime.markState(id, 'idle');
+      if (near && sprite && this.deps.ropes.hang(near.entry, sprite.node, { x: near.x, y: near.y })) {
+        this.deps.runtime.markState(id, 'hung');
+        this.deps.onHang(id);
+        this.deps.sfx.pop(0.8);
+        emitAction('hang');
+        trackFirst('first_hang');
+        return;
       }
+      // 未进入 25px 吸附：回到桌面网格原位，进入 GRID
+      if (sprite) {
+        sprite.container.position.set(ox, oy);
+        sprite.node.x = ox;
+        sprite.node.y = oy;
+      }
+      this.deps.runtime.markState(id, 'idle');
     }
   }
 }

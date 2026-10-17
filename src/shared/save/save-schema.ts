@@ -53,7 +53,7 @@ export function validateSave(raw: unknown): SaveData | null {
     }
   }
 
-  // 绳索条目：坐标必须有限（NaN 会污染 Matter 解算），tier 必须在已知绳型内
+  // 绳索条目：坐标必须有限（NaN 会污染 Verlet 解算），tier 必须在已知绳型内
   for (const r of d.ropes as unknown[]) {
     const rr = r as Record<string, unknown>;
     if (!rr || !isStr(rr.id)) return null;
