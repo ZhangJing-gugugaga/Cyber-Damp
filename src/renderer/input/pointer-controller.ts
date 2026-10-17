@@ -71,7 +71,6 @@ export class PointerController {
   get heatTargetId(): string | null {
     return this.heatTarget;
   }
-
   private fileAt(x: number, y: number): FileSprite | null {
     for (const sprite of this.deps.sprites.values()) {
       const p = sprite.container.position;
