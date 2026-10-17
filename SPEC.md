@@ -198,7 +198,7 @@
 
 - 响应式维度非移动断点：多显示器（HUD 锚主屏，in-world 覆盖工作区）、DPI 100-200%（--ui-scale 整体缩放）、任务栏避让（HUD 距屏缘 ≥16px）；监听 `display-metrics-changed` 重算 bounds
 - 性能目标：冷启动到可交互 <3s；200 文件+2 绳+30 蘑菇同屏 ≥50fps；空闲内存 <300MB；空闲 CPU <5%
-- 物理精度：Matter 质量比 ≤35:1；constraintIterations 4 / positionIterations 8；固定步长 16.666ms 累加器，禁止可变 dt 直喂
+- 物理精度：单挂点质量比 ≤40:1（指数化包络内最坏约 27）；constraintIterations 4 / positionIterations 8；固定步长 16.666ms 累加器，禁止可变 dt 直喂
 - 兼容：Windows 10/11 x64；WebGL2 不可用降级 Canvas 2D（特效简化）；不需要管理员权限；权限清单为空
 - 并发：同文件多效果叠加不超 100% 湿度；最多 2 条绳并存
 - 边界值：湿度钳制 0-100；文件上限 200（超按冷落度取前 200）；0 字节空文件重量下限保护（绳不下垂穿帮）
@@ -211,7 +211,7 @@
 | Pixi v7→v8 API 断裂 | pixi.js-8 | 异步 init/Filter 新构造/Graphics build-then-fill/ESM-first | 一律按 v8 文档；await app.init()；禁 beginFill；tsc 门必过 |
 | Vite 8 Rolldown/Oxc 换血 | vite-8 | rollupOptions→rolldownOptions、esbuild→oxc | 配置最小化，不用 rollupOptions |
 | 绳索崩断按质量判定无差异 | matter-js-0.20 + 本项目 | 对数映射下 5GB→5.78 与 25GB→6.33 质量几乎无差 | 字节累计判定（AC-12b），sizeToMass 仅下垂 |
-| Matter 质量比抖动 | matter-js-0.20 | 约束迭代解算，质量比 >40:1 抖 | ≤35:1；固定迭代数；固定步长 |
+| Matter 质量比抖动 | matter-js-0.20 | 约束迭代解算，单挂点质量比 >40:1 抖 | 单挂点 ≤40:1（包络内最坏约 27）；固定迭代数；固定步长 |
 | setIgnoreMouseEvents 逐帧掉帧 | electron-44 | API 原生开销 | 仅跳变调用；常态 forward:true |
 | 透明 WebGL 全屏滤镜掉帧 | pixi.js-8 + win | alpha 合成每帧全图采样 | 滤镜只挂 Sprite；粒子 ≤300；DPR ≤2；hidden 暂停 |
 | matter-js CJS + @types 混乱 | matter-js-0.20 | 导入形态 | 统一 import Matter from 'matter-js' 解构 |

@@ -63,3 +63,10 @@ export const MASS_RATIO_MAX = 35;        // 绳-文件质量比安全上限
 export const CONSTRAINT_ITERATIONS = 4;
 export const POSITION_ITERATIONS = 8;
 export const FIXED_DELTA_MS = 1000 / 60; // 固定步长累加器驱动，禁止可变 dt 直喂
+
+/** Matter 碰撞分类位（绳链互不碰撞也不撞文件；文件撞文件+任务栏） */
+export const CAT = {
+  ROPE: 0x0001,
+  FILE: 0x0002,
+  TASKBAR: 0x0004,
+} as const;
