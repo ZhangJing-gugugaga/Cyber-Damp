@@ -45,6 +45,8 @@ export async function createGame(app: Application): Promise<void> {
   const now = Date.now();
   if (loaded) runtime.initFromSave(loaded, now);
   else runtime.initNew(now);
+  // 冒烟断言锚点：渲染层世界装配完成（ELECTRON_ENABLE_LOGGING=1 可见）
+  console.info('[cyber-damp] 世界装配完成:', loaded ? '存档已恢复' : '新开局', runtime.entities.length, '个文件');
 
   // 3. 视图图层
   const layers = new WorldLayers();

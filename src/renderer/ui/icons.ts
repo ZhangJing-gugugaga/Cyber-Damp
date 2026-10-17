@@ -18,8 +18,9 @@ function pascal(name: string): string {
 
 const subset: Record<string, unknown> = {};
 for (const n of NAMES) {
-  const icon = (icons as Record<string, unknown>)[pascal(n)];
-  if (icon) subset[n] = icon;
+  const p = pascal(n);
+  const icon = (icons as Record<string, unknown>)[p];
+  if (icon) subset[p] = icon; // createIcons 按 PascalCase 查找（data-lucide="map-pin" → MapPin）
 }
 
 /** 扫描 document 内全部 [data-lucide] 占位并替换为 SVG（幂等） */

@@ -29,7 +29,6 @@ void main(void) {
 
 const FRAGMENT = `
 in vec2 vTextureCoord;
-in vec4 vColor;
 uniform sampler2D uTexture;
 uniform float uMoss;
 uniform float uPhase;
@@ -51,7 +50,7 @@ float noise(vec2 p) {
 void main(void) {
     vec4 fg = texture2D(uTexture, vTextureCoord);
     if (uMoss <= 0.001) {
-        gl_FragColor = fg * vColor;
+        gl_FragColor = fg;
         return;
     }
     // 四角距离场（四蔓延源）
@@ -67,7 +66,7 @@ void main(void) {
     // 青苔双色渐变（--damp-2-moss → --damp-3-moss-deep）
     vec3 moss = mix(vec3(0.431, 0.498, 0.306), vec3(0.271, 0.329, 0.184), uMoss);
     fg.rgb = mix(fg.rgb, moss, mask * uMoss * 0.85);
-    gl_FragColor = fg * vColor;
+    gl_FragColor = fg;
 }
 `;
 

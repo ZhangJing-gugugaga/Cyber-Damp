@@ -29,7 +29,6 @@ void main(void) {
 
 const FRAGMENT = `
 in vec2 vTextureCoord;
-in vec4 vColor;
 uniform sampler2D uTexture;
 uniform float uTime;
 uniform float uDroplets;   // 水珠密度 0..1（由 file humidity 驱动）
@@ -57,7 +56,7 @@ void main(void) {
     vec4 fg = texture2D(uTexture, clamp(uvs + offset, 0.0, 1.0));
     fg.rgb += vec3(0.35) * h;                        // 近白高光（#F4FAFB 近似）
     fg.rgb *= 1.0 - 0.25 * step(0.02, h) * uDroplets; // 边缘暗环
-    gl_FragColor = fg * vColor;
+    gl_FragColor = fg;
 }
 `;
 

@@ -43,7 +43,8 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
   if (devUrl) {
     win.loadURL(devUrl);
   } else {
-    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+    // 产物布局：dist/renderer/index.html（本模块编译在 dist/main/window/，需退两级到 dist）
+    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
   }
   return win;
 }

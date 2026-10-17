@@ -28,7 +28,6 @@ void main(void) {
 
 const FRAGMENT = `
 in vec2 vTextureCoord;
-in vec4 vColor;
 uniform sampler2D uTexture;
 uniform float uFog;      // 0..1 雾浓度（全局湿度映射）
 uniform float uTime;
@@ -46,7 +45,7 @@ float noise(vec2 p) {
 void main(void) {
     vec4 fg = texture2D(uTexture, vTextureCoord);
     if (uFog <= 0.001) {
-        gl_FragColor = fg * vColor;
+        gl_FragColor = fg;
         return;
     }
     vec2 uv = vTextureCoord;
@@ -59,7 +58,7 @@ void main(void) {
     fg.rgb = mix(fg.rgb, fogColor, fog);
     // 色温向冷偏移
     fg.rgb *= vec3(0.97, 1.0, 1.04);
-    gl_FragColor = fg * vColor;
+    gl_FragColor = fg;
 }
 `;
 

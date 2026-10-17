@@ -31,8 +31,7 @@ export class Atmosphere {
     this.fogSprite.width = app.screen.width;
     this.fogSprite.height = app.screen.height;
     this.fogSprite.eventMode = 'none';
-    this.fogSprite.filters = [this.fogFilter];
-    this.fogSprite.alpha = 0.9;
+    this.fogSprite.filters = [this.fogFilter]; // 强度全走 uFog uniform（滤镜不消费 vColor）
     this.layers.fogLayer.addChild(this.fogSprite);
   }
 
