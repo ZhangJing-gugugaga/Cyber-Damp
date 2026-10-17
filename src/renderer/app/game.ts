@@ -12,6 +12,7 @@ import { RopeManager } from './rope-manager';
 import type { RopeEntry } from './rope-manager';
 import { Atmosphere } from './atmosphere';
 import { Opening } from './opening';
+import { SnailController } from './snail-controller';
 import { createGameActions } from './game-actions';
 import type { GameActions } from './game-actions';
 import { WorldLayers } from '../view/layers';
@@ -126,7 +127,8 @@ export async function createGame(app: Application): Promise<void> {
     'font-size:var(--text-2xs);color:var(--warn);background:var(--panel-bg);border:1px solid var(--warn);border-radius:var(--radius-pill)';
   ui.mount.appendChild(warnBadge);
 
-  // 9. 输入层 + 拉绳预览
+  // 9. 输入层 + 拉绳预览 + 蜗牛（AC-29 P0）
+  const snails = new SnailController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }));
   const previewG = new Graphics();
   layers.propLayer.addChild(previewG);
   const pointer = new PointerController({
@@ -142,6 +144,7 @@ export async function createGame(app: Application): Promise<void> {
     },
     onPick: (id) => actions.pickMushroom(id),
     onHang: () => undefined,
+    consumeClick: (x, y) => snails.poke(x, y),
     spawnRope: (ax, ay, bx, by) => {
       const entry = ropes.spawn(ax, ay, bx, by, runtime.equipped.rope);
       return entry ? addRopeEntry(entry) : null;
@@ -238,6 +241,7 @@ export async function createGame(app: Application): Promise<void> {
 
       pool.update(dtSec);
       atmosphere.update(runtime, dtSec, tSec, pool, fan);
+      snails.update(runtime, ropes, dtSec, tSec);
 
       // 雨声氛围随天气
       const cond = runtime.dayWeather().condition;

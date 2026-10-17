@@ -235,6 +235,13 @@ export class WorldRuntime {
     if (ent && ent.runtime.state !== 'burnt') ent.runtime.state = state;
   }
 
+  /** 蜗牛食苔免费清洁（AC-29）：mold -= amt，静默不触发存档防抖（连续过程由周期兜底落盘） */
+  reduceMold(id: string, amt: number): void {
+    const ent = this.byId.get(id);
+    if (!ent) return;
+    ent.runtime.mold = Math.max(0, ent.runtime.mold - amt);
+  }
+
   /** Demo 一键回南天 */
   startRainSweep(): void {
     this.sweepT = 0;

@@ -32,6 +32,8 @@ export interface PointerDeps {
   domHit(x: number, y: number): boolean;
   /** 临时绳预览绘制（拖出过程），传 null 清除 */
   ropePreview(ax: number, ay: number, bx: number, by: number | null): void;
+  /** 世界内额外点击消费（蜗牛戳击等），命中返回 true 短路后续手势 */
+  consumeClick?(x: number, y: number): boolean;
 }
 
 const EDGE_ZONE = 24; // 左右缘拉绳吸附区
@@ -159,6 +161,9 @@ export class PointerController {
     const y = e.clientY;
     this.downPos = { x, y };
     this.downTime = performance.now();
+
+    // 世界内额外点击（蜗牛戳击优先消费）
+    if (this.deps.consumeClick?.(x, y)) return;
 
     const tool = this.deps.getTool();
     const fileId = this.fileAt(x, y)?.node.id ?? null;
