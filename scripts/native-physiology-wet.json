@@ -1,0 +1,11 @@
+[
+  {
+    "label": "physiology-wet",
+    "arguments": {
+      "use_ui_tree": false,
+      "use_vision": true,
+      "use_annotation": false
+    },
+    "tool": "Snapshot"
+  }
+]

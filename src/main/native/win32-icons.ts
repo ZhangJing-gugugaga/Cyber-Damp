@@ -2,14 +2,17 @@
  * 原生 Shell 图标提取（main 进程，koffi FFI）
  * 用于回收站等 Shell 命名空间项：SHParseDisplayNameW → SHGetFileInfoW(SHGFI_PIDL)
  * → HICON → GetDIBits → BGRA → Electron nativeImage → PNG data URL。
- * 普通文件图标走 Electron app.getFileIcon（见 desktop-scan.ts）。
+ * 优先从 Shell 的 256px 图标列表提取原画，旧提供者回退至 SHGFI_ICON。
  */
 import koffi, { type TypeObject } from 'koffi';
 import { nativeImage } from 'electron';
+import type { NativeImage } from 'electron';
+import { largeShellIcon } from './win32-icon-list';
 
 const SHGFI_ICON = 0x000000100;
 const SHGFI_PIDL = 0x000000008;
 const SHGFI_LARGEICON = 0x000000000;
+const SHGFI_SYSICONINDEX = 0x000004000;
 const DIB_RGB_COLORS = 0;
 
 interface ShellStructs {
@@ -124,7 +127,7 @@ function loadIconApi(): IconApi | null {
  * 提取 Shell 命名空间项的图标 PNG。
  * @param shellName 例如回收站 '::{645FF040-5081-101B-9F08-00AA002F954E}'
  */
-export function extractShellIconPng(shellName: string, target = 64): string | null {
+export function extractShellIconImage(shellName: string): NativeImage | null {
   const api = loadIconApi();
   if (!api) return null;
   const t = ensureTypes();
@@ -152,9 +155,14 @@ export function extractShellIconPng(shellName: string, target = 64): string | nu
       szDisplayName: new Array(260).fill(0),
       szTypeName: new Array(80).fill(0),
     };
-    const res = api.SHGetFileInfoW(pidl, 0, sfi, sizeSfi, SHGFI_ICON | SHGFI_PIDL | SHGFI_LARGEICON);
+    const res = api.SHGetFileInfoW(pidl, 0, sfi, sizeSfi, SHGFI_ICON | SHGFI_PIDL | SHGFI_LARGEICON | SHGFI_SYSICONINDEX);
     if (!res || !sfi.hIcon) return null;
     hIcon = sfi.hIcon;
+    const largeIcon = largeShellIcon(Number(sfi.iIcon));
+    if (largeIcon) {
+      api.DestroyIcon(hIcon);
+      hIcon = largeIcon;
+    }
 
     const info: Record<string, unknown> = {
       fIcon: 0,
@@ -212,7 +220,7 @@ export function extractShellIconPng(shellName: string, target = 64): string | nu
 
     const image = nativeImage.createFromBitmap(pixels, { width, height });
     if (image.isEmpty()) return null;
-    return image.resize({ width: target, height: target, quality: 'best' }).toDataURL();
+    return image;
   } catch (err) {
     console.warn('[desktop] 提取 Shell 图标失败:', err);
     return null;
@@ -227,4 +235,9 @@ export function extractShellIconPng(shellName: string, target = 64): string | nu
       /* 清理失败不影响主流程 */
     }
   }
+}
+
+/** Compatibility helper for callers that need a fixed-size PNG data URL. */
+export function extractShellIconPng(shellName: string, target = 64): string | null {
+  return extractShellIconImage(shellName)?.resize({ width: target, height: target, quality: 'best' }).toDataURL() ?? null;
 }

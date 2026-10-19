@@ -7,12 +7,19 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('damp', {
   window: {
+    onCursor: (cb: (point: { x: number; y: number }) => void) => {
+      const handler = (_: unknown, point: { x: number; y: number }) => cb(point);
+      ipcRenderer.on('window:cursor', handler);
+      return () => ipcRenderer.off('window:cursor', handler);
+    },
     setIgnoreMouseEvents: (ignore: boolean, forward = true) =>
       ipcRenderer.invoke('window:setIgnoreMouseEvents', { ignore, forward }),
     getWorkArea: () => ipcRenderer.invoke('window:getWorkArea'),
+    getInputSettings: () => ipcRenderer.invoke('window:getInputSettings'),
   },
   desktop: {
     scan: () => ipcRenderer.invoke('desktop:scan'),
+    wallpaper: () => ipcRenderer.invoke('desktop:wallpaper'),
     open: (realPath: string) => ipcRenderer.invoke('desktop:open', realPath),
   },
   save: {

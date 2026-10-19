@@ -4,7 +4,7 @@
  * - 25px 吸附判定 → PINNED；挂载点沿弧长一维排斥（≥72px）；
  * - 80%~99% 返回 warn（渲染层抖动 + 挂钩裂纹）；≥100% 断右端 → 图标与绳落体。
  */
-import { PIN_MIN_DISTANCE, PIN_SNAP_RADIUS, VerletRope } from '../../world/verlet-rope';
+import { PIN_SNAP_RADIUS, VerletRope } from '../../world/verlet-rope';
 import {
   ropeByteLimit,
   ropeLoadRatio,
@@ -14,6 +14,7 @@ import {
 import { FILE_CELL_W, FILE_ICON_TOP } from '../view/token-colors';
 import type { FileNode } from '../../shared/types/file-node';
 import type { RopeSave } from '../../shared/types/save';
+import { createFallingBody, stepFallingBody, type FallingBody } from '../../world/falling-file';
 
 export interface RopeEntry {
   rope: VerletRope;
@@ -21,12 +22,8 @@ export interface RopeEntry {
   broken: boolean;
 }
 
-interface FallingFile {
+interface FallingFile extends FallingBody {
   id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
 }
 
 export interface PinnedPosition {
@@ -34,12 +31,21 @@ export interface PinnedPosition {
   /** FileSprite 容器（网格单元左上角）坐标 */
   x: number;
   y: number;
+  /** Scatter rotation in radians; rope-pinned files omit this. */
+  angle?: number;
 }
 
 export interface LandedFile {
   id: string;
   x: number;
   y: number;
+  angle: number;
+}
+
+export interface FloorContact {
+  id: string;
+  /** First and second contacts rebound; the third comes to rest. */
+  contact: number;
 }
 
 export interface NearestRope {
@@ -53,10 +59,14 @@ export interface NearestRope {
 /** 同屏最多 2 条绳（SPEC §10 并发边界） */
 export const MAX_ROPES = 2;
 const TASKBAR_GAP = 60;
+// Fallen files use the 92px desktop label, rather than the 68px pinned label.
+// Leave room for the icon's scatter tilt and its complete filename as well.
+const LANDING_SLOT_DISTANCE = 120;
 
 export class RopeManager {
   readonly entries: RopeEntry[] = [];
   private falling: FallingFile[] = [];
+  private floorContacts: FloorContact[] = [];
   private landedSlots = new Map<string, { x: number; y: number }>();
   private width = 1920;
   private height = 1040;
@@ -108,7 +118,21 @@ export class RopeManager {
     for (const e of this.entries) {
       if (e.rope.detach(fileId)) removed = true;
     }
+    const before = this.falling.length;
+    this.falling = this.falling.filter((f) => f.id !== fileId);
+    this.landedSlots.delete(fileId);
+    removed = removed || before !== this.falling.length;
     return removed;
+  }
+
+  /** Explosion throws share the same bounded fall and landing slots as rope breaks. */
+  throwFile(node: FileNode, position: { x: number; y: number }, velocity: { vx: number; vy: number }): void {
+    this.releaseFile(node.id);
+    this.beginFall(node.id, position, velocity);
+  }
+
+  private beginFall(id: string, position: { x: number; y: number }, velocity: { vx: number; vy: number }): void {
+    this.falling.push({ id, ...createFallingBody(id, position, velocity) });
   }
 
   /** 最近绳点（25px 内才算，命中测试与吸附共用） */
@@ -140,7 +164,12 @@ export class RopeManager {
 
   /** 断绳后自由落体中的图标（容器坐标） */
   fallingPositions(): PinnedPosition[] {
-    return this.falling.map((f) => ({ id: f.id, x: f.x, y: f.y }));
+    return this.falling.map((f) => ({ id: f.id, x: f.x, y: f.y, angle: f.angle }));
+  }
+
+  /** Consume physical impacts once; audio remains outside the simulation. */
+  drainBounceEvents(): FloorContact[] {
+    return this.floorContacts.splice(0);
   }
 
   /** 固定步推进；返回本步落地的文件（调用方置 idle + 写回 node 坐标） */
@@ -155,36 +184,39 @@ export class RopeManager {
     const iconFloorTop = floorY - 110;
     for (let i = this.falling.length - 1; i >= 0; i--) {
       const f = this.falling[i];
-      f.vy += 2200 * dt;
-      f.x += f.vx * dt;
-      f.y += f.vy * dt;
-      f.vx *= 0.985;
-      if (f.y < iconFloorTop) continue;
+      const before = f.bounces;
+      stepFallingBody(f, dt, { width: this.width, cellWidth: FILE_CELL_W, floorTop: iconFloorTop });
+      for (let contact = before + 1; contact <= f.bounces; contact++) {
+        this.floorContacts.push({ id: f.id, contact });
+      }
+      if (f.settled) this.floorContacts.push({ id: f.id, contact: 3 });
+      if (this.floorContacts.length > 128) this.floorContacts.splice(0, this.floorContacts.length - 128);
+      if (!f.settled) continue;
       const slot = this.claimLandingSlot(f.x);
       this.falling.splice(i, 1);
       this.landedSlots.set(f.id, slot);
-      landed.push({ id: f.id, x: slot.x, y: slot.y });
+      landed.push({ id: f.id, x: slot.x, y: slot.y, angle: f.restAngle });
     }
     return landed;
   }
 
-  /** 底边散落：72px 槽位，避免落地图标互相遮挡 */
+  /** 底边散落：桌面标签和散落旋转需要120px槽位。 */
   private claimLandingSlot(desiredX: number): { x: number; y: number } {
     const y = this.height - TASKBAR_GAP - 110;
-    const maxSlot = Math.max(0, Math.floor((this.width - FILE_CELL_W - 8) / PIN_MIN_DISTANCE));
+    const maxSlot = Math.max(0, Math.floor((this.width - FILE_CELL_W - 8) / LANDING_SLOT_DISTANCE));
     const used = new Set<number>();
     for (const p of this.landedSlots.values()) {
-      used.add(Math.round((p.x - 8) / PIN_MIN_DISTANCE));
+      used.add(Math.round((p.x - 8) / LANDING_SLOT_DISTANCE));
     }
-    const base = Math.max(0, Math.min(maxSlot, Math.round((desiredX - 8) / PIN_MIN_DISTANCE)));
+    const base = Math.max(0, Math.min(maxSlot, Math.round((desiredX - 8) / LANDING_SLOT_DISTANCE)));
     for (let step = 0; step <= maxSlot; step++) {
       for (const candidate of step === 0 ? [base] : [base + step, base - step]) {
         if (candidate >= 0 && candidate <= maxSlot && !used.has(candidate)) {
-          return { x: 8 + candidate * PIN_MIN_DISTANCE, y };
+          return { x: 8 + candidate * LANDING_SLOT_DISTANCE, y };
         }
       }
     }
-    return { x: 8 + base * PIN_MIN_DISTANCE, y };
+    return { x: 8 + base * LANDING_SLOT_DISTANCE, y };
   }
 
   totalBytes(entry: RopeEntry): number {
@@ -219,10 +251,10 @@ export class RopeManager {
       for (const pin of pins) {
         const p = e.rope.pointAtS(pin.s);
         const v = e.rope.velocityAtS(pin.s);
-        this.falling.push({
-          id: pin.id,
+        this.beginFall(pin.id, {
           x: p.x - FILE_CELL_W / 2,
           y: p.y - FILE_ICON_TOP,
+        }, {
           vx: v.vx * 60 + (Math.random() - 0.5) * 40,
           vy: Math.max(0, v.vy * 60),
         });

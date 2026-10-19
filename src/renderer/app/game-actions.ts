@@ -33,6 +33,8 @@ export interface GameActionContext {
   /** 注册绳 Graphics（Demo 直接 spawn 的绳必须走此回调，否则不可见） */
   registerRope(entry: RopeEntry): void;
   getTool(): Tool;
+  /** Special fungi remain draggable after cutting; only an actual sale earns coins. */
+  harvestSpecial?(id: string): boolean;
 }
 
 export interface GameActions {
@@ -101,6 +103,7 @@ export function createGameActions(ctx: GameActionContext): GameActions {
 
   /** 剪下成熟蘑菇：立即入账，视图沿贝塞尔飞向金币栏后销毁 */
   function pickMushroom(id: string): void {
+    if (ctx.harvestSpecial?.(id)) return;
     const item = runtime.pickMushroom(id);
     if (!item) return; // 未成熟无效且无提示
     const def = SPECIES[item.species];

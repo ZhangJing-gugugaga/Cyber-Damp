@@ -4,8 +4,9 @@
  * 全部纯函数，可单测；所有数值钳制 0..1
  */
 import type { FileRuntime, MushroomSpecies } from '../shared/types/file-runtime';
-import type { ExtCategory } from '../shared/types/file-node';
-import { pickSpecies } from './mushroom-species';
+import type { ExtCategory, FileNode } from '../shared/types/file-node';
+import { pickSpecies, pickFileSpecies } from './mushroom-species';
+import { heatFile, updateDesiccation } from './file-material';
 
 export interface Env {
   /** 全局湿度 0..1 */
@@ -41,6 +42,7 @@ export function stepEvolution(
   dtSec: number,
   category: ExtCategory,
   rand: number,
+  file?: Pick<FileNode, 'name' | 'kind' | 'category'>,
 ): void {
   if (rt.state === 'burnt') return; // 焦化锁定，需保湿喷雾重置
 
@@ -62,20 +64,16 @@ export function stepEvolution(
 
   // 蘑菇：mold > 0.6 萌生；生长三阶段由 growth 0..1 表达
   if (!rt.mushroom && rt.mold > 0.6 && rand < 0.5) {
-    const species: MushroomSpecies = pickSpecies(category, rand * 2 % 1);
+    const species: MushroomSpecies = file ? pickFileSpecies(file, rand * 2 % 1) : pickSpecies(category, rand * 2 % 1);
     rt.mushroom = { species, growth: 0 };
   }
-  if (rt.mushroom) {
+  if (rt.mushroom && rt.mushroom.species !== 'bolete' && rt.mushroom.species !== 'lava') {
     rt.mushroom.growth = clamp01(rt.mushroom.growth + dtSec * 0.01);
   }
 
   // 过热烘烤焦化
-  if (env.heat > 0.8 && rt.humidity < 0.3) {
-    rt.char = clamp01(rt.char + dtSec * 0.01);
-  }
-  if (rt.char > 0.6) {
-    rt.state = 'burnt';
-  }
+  if (env.heat > 0.8) heatFile(rt, dtSec);
+  updateDesiccation(rt, env.humidity, dtSec);
 }
 
 /**

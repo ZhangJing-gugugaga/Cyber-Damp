@@ -1,0 +1,11 @@
+[
+  {"tool":"Move","arguments":{"loc":[155,632]},"label":"cook-hand-hover"},
+  {"tool":"Click","arguments":{"loc":[155,632]},"label":"cook-hand-select","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[48,1034]},"label":"cook-tools-close-hover"},
+  {"tool":"Click","arguments":{"loc":[48,1034]},"label":"cook-tools-close","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[5,300]},"label":"cook-rope-edge-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"cook-rope-ready"},
+  {"tool":"Move","arguments":{"from_loc":[5,300],"loc":[1750,300],"drag":true,"duration":0.15},"label":"cook-rope-draw","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Wait","arguments":{"duration":5},"label":"cook-rope-settle"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"cook-rope-empty"}
+]

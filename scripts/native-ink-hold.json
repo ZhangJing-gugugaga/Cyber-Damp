@@ -1,0 +1,8 @@
+[
+  {"tool":"Move","arguments":{"loc":[442,325]},"label":"ink-paper-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"ink-paper-ready"},
+  {"tool":"Move","arguments":{"from_loc":[442,325],"loc":[442,325],"drag":true,"duration":6.8},"label":"ink-paper-hold","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Wait","arguments":{"duration":4},"label":"ink-settle"},
+  {"tool":"Move","arguments":{"loc":[1250,950]},"label":"ink-clear-hover"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"ink-ash"}
+]

@@ -1,0 +1,10 @@
+# Project-scoped native Windows computer-use server (CursorTouch).
+[mcp_servers.windows-mcp]
+command = "uvx"
+args = ["--from", "windows-mcp==0.8.8", "windows-mcp", "serve"]
+startup_timeout_sec = 60
+tool_timeout_sec = 60
+
+[mcp_servers.windows-mcp.env]
+ANONYMIZED_TELEMETRY = "false"
+PYTHONIOENCODING = "utf-8"

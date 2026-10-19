@@ -3,7 +3,7 @@
  * 机器可读契约：docs/contracts/save-schema.json（schemaVersion: 1）
  * 只存逻辑态，不存物理刚体；mtime/x/y/name/ext/size 由真实桌面扫描重建，不入存档
  */
-import type { FileActionState, MushroomSpecies } from './file-runtime';
+import type { FileActionState, MushroomState } from './file-runtime';
 
 export interface PlayerState {
   coins: number;
@@ -17,8 +17,9 @@ export interface FileRuntimeSave {
   humidity: number;
   mold: number;
   char: number;
+  dryness?: number;
   state: FileActionState;
-  mushroom: { species: MushroomSpecies; growth: number } | null;
+  mushroom: MushroomState | null;
 }
 
 export interface RopeSave {

@@ -46,6 +46,7 @@
           "humidity": { "type": "number", "minimum": 0, "maximum": 1 },
           "mold": { "type": "number", "minimum": 0, "maximum": 1 },
           "char": { "type": "number", "minimum": 0, "maximum": 1 },
+          "dryness": { "type": "number", "minimum": 0, "maximum": 1 },
           "state": { "enum": ["idle", "hung", "drying", "burnt"] },
           "mushroom": {
             "oneOf": [
@@ -55,8 +56,11 @@
                 "required": ["species", "growth"],
                 "additionalProperties": false,
                 "properties": {
-                  "species": { "enum": ["oyster", "dogpee", "binary-enoki"] },
-                  "growth": { "type": "number", "minimum": 0, "maximum": 1 }
+                  "species": { "enum": ["oyster", "enoki", "shy", "bolete", "lava"] },
+                  "growth": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "cooking": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "cutAgeSeconds": { "type": "number", "minimum": 0, "maximum": 0.5 },
+                  "lavaSeconds": { "type": "number", "minimum": 0, "maximum": 12 }
                 }
               }
             ]

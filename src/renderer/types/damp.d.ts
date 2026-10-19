@@ -4,16 +4,20 @@
  */
 import type { SaveData } from '../../shared/types/save';
 import type { DesktopEntry } from '../../shared/types/desktop';
+import type { DesktopWallpaper } from '../../shared/types/wallpaper';
 
 declare global {
   interface Window {
     damp?: {
       window: {
+        onCursor(cb: (point: { x: number; y: number }) => void): () => void;
         setIgnoreMouseEvents(ignore: boolean, forward?: boolean): Promise<void>;
         getWorkArea(): Promise<{ x: number; y: number; width: number; height: number }>;
+        getInputSettings(): Promise<{ doubleClickMs: number }>;
       };
       desktop: {
         scan(): Promise<DesktopEntry[]>;
+        wallpaper(): Promise<DesktopWallpaper | null>;
         open(realPath: string): Promise<{ ok: boolean; error?: string }>;
       };
       save: {

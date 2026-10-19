@@ -3,17 +3,16 @@
  * 小扫把清扫（sweep 半径内批量销毁）；同屏 ≤24，预算内复用。
  */
 import { Container, Text } from 'pixi.js';
-import { DAMP, INK } from './token-colors';
 
-const GLYPHS = ['，', '；', '{', '}', '、'];
+const GLYPHS = ['，', ';', '{', '}', '、'];
 const MAX = 24;
 
 interface LiveGlyph {
   t: Text;
   vx: number;
   vy: number;
-  life: number;
-  age: number;
+  floorY: number;
+  settled: boolean;
 }
 
 export class GlyphPool {
@@ -29,34 +28,38 @@ export class GlyphPool {
   }
 
   /** 从湿润文档底部掉一个字符 */
-  spawn(x: number, y: number): void {
-    if (this.live.length >= MAX) return;
+  spawn(x: number, y: number, floorY = window.innerHeight - 40): void {
+    if (this.live.length >= MAX) {
+      const oldest = this.live.findIndex((glyph) => glyph.settled);
+      if (oldest < 0) return;
+      this.live[oldest].t.destroy(); this.live.splice(oldest, 1);
+    }
     const t = new Text({
       text: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
       style: {
         fontFamily: '"Microsoft YaHei", monospace',
         fontSize: 11,
-        fill: DAMP.inkBleed,
-        stroke: { color: INK.panel, width: 2 },
+        fill: 0x171513,
       },
     });
     t.anchor.set(0.5);
     t.position.set(x + (Math.random() - 0.5) * 34, y + Math.random() * 8);
     this.container.addChild(t);
-    this.live.push({ t, vx: (Math.random() - 0.5) * 16, vy: -3, life: 6 + Math.random() * 3, age: 0 });
+    this.live.push({ t, vx: (Math.random() - 0.5) * 16, vy: 4, floorY, settled: false });
   }
 
   update(dtSec: number): void {
     for (let i = this.live.length - 1; i >= 0; i--) {
       const g = this.live[i];
-      g.age += dtSec;
+      if (g.settled) continue;
       g.vy += 90 * dtSec;
       g.t.position.x += g.vx * dtSec;
       g.t.position.y += g.vy * dtSec;
-      g.t.alpha = Math.max(0, 1 - g.age / g.life);
-      if (g.age >= g.life) {
-        g.t.destroy();
-        this.live.splice(i, 1);
+      if (g.t.position.y >= g.floorY) {
+        g.t.position.y = g.floorY - Math.random() * 3;
+        g.t.scale.set(0.55 + Math.random() * 0.15, 0.24 + Math.random() * 0.1);
+        g.t.rotation = (Math.random() - 0.5) * 0.7;
+        g.t.alpha = 0.9; g.settled = true;
       }
     }
   }

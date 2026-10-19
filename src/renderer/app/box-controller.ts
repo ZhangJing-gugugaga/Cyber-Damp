@@ -1,9 +1,9 @@
 /**
  * 吸湿盒控制器（app 装配层，P1）：墙角槽位放置 / 吸湿 / 积水涨满 / 回收站倾倒 / 泼洒
  *
- * 倒水：拖住盒子与桌面「回收站」图标碰撞盒重叠，或拖到屏幕最底边（Y > H-30）松开
- * → 盒子旋转 110deg + 倒水粒子 → 清空积水。彻底移除旧「倒水角」文字框。
+ * 倒水：拖到真实回收站图标松开 → 倾斜110deg、连续水流 → 清空积水。
  */
+import { Graphics } from 'pixi.js';
 import type { WorldLayers } from '../view/layers';
 import type { ParticlePool } from '../view/particles';
 import { BoxView } from '../view/box-view';
@@ -15,6 +15,9 @@ const FILL_RATE = 0.012; // 湿度 0.8 时约 100s 涨满
 const SPLASH_RADIUS = 60;
 const BOX_W = 48;
 const BOX_H = 34;
+// Auto-hidden taskbars can appear over a full-height Electron work area.
+// Keep the entire box above the shared 54px floor instead of under the taskbar.
+const BOX_BOTTOM_INSET = BOX_H + 54;
 const POUR_DURATION = 0.8;
 const POUR_ANGLE = (110 * Math.PI) / 180;
 
@@ -42,6 +45,7 @@ export class BoxController {
   private views = new Map<string, BoxView>();
   private dragging: string | null = null;
   private seq = 0;
+  private readonly stream = new Graphics();
 
   constructor(
     private layers: WorldLayers,
@@ -49,7 +53,10 @@ export class BoxController {
     private screen: () => { w: number; h: number },
     /** 桌面回收站图标的碰撞盒（由 game 注入） */
     private recycleRect: () => RecycleRect | null,
-  ) {}
+  ) {
+    this.stream.eventMode = 'none';
+    this.layers.propLayer.addChild(this.stream);
+  }
 
   /** 当前吸湿强度（0..0.15） */
   get absorbRate(): number {
@@ -75,7 +82,7 @@ export class BoxController {
         slot,
         fill: 0,
         x: w - 420 + slot * 80,
-        y: h - 52,
+        y: h - BOX_BOTTOM_INSET,
         pourT: null,
         pourAcc: 0,
       };
@@ -99,6 +106,7 @@ export class BoxController {
   /** 每帧：积水增长 / 倒水动画 / 视图刷新 */
   update(dtSec: number, envHumidity: number, tSec: number): void {
     const { w, h } = this.screen();
+    this.stream.clear();
     for (const box of this.boxes) {
       const view = this.views.get(box.id)!;
       if (box.fill < 1 && envHumidity > 0.3 && box.pourT === null) {
@@ -108,16 +116,29 @@ export class BoxController {
       if (box.pourT !== null) {
         box.pourT += dtSec;
         const k = Math.min(1, box.pourT / POUR_DURATION);
-        const ease = 1 - (1 - k) * (1 - k);
+        const tilt = Math.min(1, k / 0.3);
+        const ease = 1 - (1 - tilt) * (1 - tilt);
         view.container.rotation = POUR_ANGLE * ease;
         view.container.position.set(box.x + BOX_W / 2, box.y + BOX_H / 2);
         // 水从旋转后的盒口倒出
-        if (k > 0.08 && k < 0.82) {
+        if (k > 0.08 && k < 0.92) {
+          const mouthX = box.x + BOX_W / 2 + Math.cos(POUR_ANGLE * ease - Math.PI / 2) * 20;
+          const mouthY = box.y + BOX_H / 2 + Math.sin(POUR_ANGLE * ease - Math.PI / 2) * 20;
+          const recycle = this.recycleRect();
+          if (recycle) {
+            const endX = recycle.x + recycle.w * 0.5;
+            const endY = Math.max(mouthY + 10, recycle.y + recycle.h * 0.6);
+            const alpha = Math.min(1, (k - 0.08) / 0.12, (0.92 - k) / 0.12);
+            const bendX = mouthX + (endX - mouthX) * 0.25;
+            const bendY = mouthY + (endY - mouthY) * 0.35;
+            this.stream.moveTo(mouthX, mouthY).quadraticCurveTo(bendX, bendY, endX, endY)
+              .stroke({ width: 4, color: 0xa5dbe8, alpha: alpha * 0.42 });
+            this.stream.moveTo(mouthX, mouthY).quadraticCurveTo(bendX, bendY, endX, endY)
+              .stroke({ width: 1.2, color: 0xf5ffff, alpha: alpha * 0.8 });
+          }
           box.pourAcc += dtSec;
           while (box.pourAcc >= 0.03) {
             box.pourAcc -= 0.03;
-            const mouthX = box.x + BOX_W / 2 + Math.cos(POUR_ANGLE * ease - Math.PI / 2) * 20;
-            const mouthY = box.y + BOX_H / 2 + Math.sin(POUR_ANGLE * ease - Math.PI / 2) * 20;
             this.pool.spawn({
               x: mouthX + (Math.random() - 0.5) * 8,
               y: mouthY,
@@ -137,15 +158,17 @@ export class BoxController {
           box.pourT = null;
           box.pourAcc = 0;
           view.container.rotation = 0;
-          view.container.position.set(w - 420 + box.slot * 80 + BOX_W / 2, h - 52 + BOX_H / 2);
+          box.x = w - 420 + box.slot * 80;
+          box.y = h - BOX_BOTTOM_INSET;
+          view.container.position.set(box.x + BOX_W / 2, box.y + BOX_H / 2);
         }
-        view.update(box.fill, tSec);
+        view.update(box.fill * (1 - Math.max(0, Math.min(1, (k - 0.08) / 0.84))), tSec);
         continue;
       }
 
       if (this.dragging !== box.id) {
         box.x = w - 420 + box.slot * 80;
-        box.y = h - 52;
+        box.y = h - BOX_BOTTOM_INSET;
       }
       view.container.position.set(box.x + BOX_W / 2, box.y + BOX_H / 2);
       view.update(box.fill, tSec);
@@ -172,7 +195,7 @@ export class BoxController {
   }
 
   /**
-   * 松手：与回收站碰撞盒重叠，或位于屏幕最底边（Y > H-30）→ 旋转 110deg 倒水。
+   * 松手：与回收站碰撞盒重叠 → 旋转110deg倒水。
    * 否则放回墙角槽位。
    */
   dropAt(id: string, x: number, y: number): 'emptied' | 'kept' {
@@ -188,16 +211,22 @@ export class BoxController {
       !!recycle &&
       Math.abs(cx - (recycle.x + recycle.w / 2)) < BOX_W / 2 + recycle.w / 2 &&
       Math.abs(cy - (recycle.y + recycle.h / 2)) < BOX_H / 2 + recycle.h / 2;
-    const atBottom = y > h - 30;
-
-    if (box.fill > 0.02 && (overRecycle || atBottom)) {
+    if (box.fill > 0.02 && recycle && overRecycle) {
       box.pourT = 0;
       box.pourAcc = 0;
-      box.x = Math.max(8, Math.min(w - BOX_W - 8, x - BOX_W / 2));
-      box.y = Math.max(8, Math.min(h - BOX_H - 8, y - BOX_H / 2));
+      // Keep the clockwise-tilted lip above the bin, with the stream outside
+      // the tub silhouette rather than hidden behind the translucent body.
+      box.x = Math.max(8, Math.min(w - BOX_W - 8, recycle.x + recycle.w / 2 - BOX_W));
+      box.y = Math.max(12, Math.min(h - BOX_H - 8, recycle.y - BOX_H - 8));
       return 'emptied';
     }
     return 'kept';
+  }
+
+  /** Copies only, for evidence from native UAT; no simulation actions. */
+  snapshot(): { id: string; fill: number; x: number; y: number; angle: number; pouring: boolean }[] {
+    return this.boxes.map(box => ({ id: box.id, fill: box.fill, x: box.x, y: box.y,
+      angle: this.views.get(box.id)?.container.rotation ?? 0, pouring: box.pourT !== null }));
   }
 
   /** 崩断文件砸中泼洒：命中返回 true（box 已移除，由 game 触发 runtime 增湿） */

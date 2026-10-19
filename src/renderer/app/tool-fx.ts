@@ -27,9 +27,9 @@ export function applyHeatFx(
       vx: (Math.random() - 0.5) * 30,
       vy: -50 - Math.random() * 40,
       gravity: -30,
-      color: 0xe8d9b8, // 热风气浪（近 --shroom-bolete-stem 域暖白）
-      size: 2.5,
-      life: 0.5,
+      color: 0xf3f3ed,
+      size: 3.5,
+      life: 0.85,
       shape: 'circle',
       alpha: 0.4,
     });

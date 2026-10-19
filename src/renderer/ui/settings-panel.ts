@@ -10,7 +10,7 @@ export interface SettingsPanel {
   close(): void;
 }
 
-export function createSettingsPanel(mount: HTMLElement, hooks: { onSfxToggle(on: boolean): void }): SettingsPanel {
+export function createSettingsPanel(mount: HTMLElement, hooks: { onSfxToggle(on: boolean): void; onMicrophoneToggle?(on: boolean): Promise<boolean> }): SettingsPanel {
   const el = document.createElement('aside');
   el.className = 'settings-panel';
   el.setAttribute('role', 'dialog');
@@ -56,7 +56,7 @@ export function createSettingsPanel(mount: HTMLElement, hooks: { onSfxToggle(on:
   const sfxRow = document.createElement('div');
   sfxRow.className = 'settings-panel__row';
   const sfxLabel = document.createElement('span');
-  sfxLabel.textContent = '音效（程序合成雨声与脆响）';
+  sfxLabel.textContent = '雨声与家务音效';
   const sfxBtn = document.createElement('button');
   sfxBtn.type = 'button';
   sfxBtn.className = 'sfx-toggle';
@@ -72,6 +72,34 @@ export function createSettingsPanel(mount: HTMLElement, hooks: { onSfxToggle(on:
   });
   sfxRow.append(sfxLabel, sfxBtn);
   el.appendChild(sfxRow);
+  const micRow = document.createElement('div');
+  micRow.className = 'settings-panel__row';
+  const micLabel = document.createElement('span'); micLabel.textContent = '对麦克风吹气';
+  const micBtn = document.createElement('button'); micBtn.type = 'button'; micBtn.className = 'sfx-toggle';
+  micBtn.setAttribute('role', 'switch'); micBtn.setAttribute('aria-checked', 'false');
+  micBtn.setAttribute('aria-label', '麦克风吹气'); micBtn.textContent = '关';
+  const micNote = document.createElement('p'); micNote.className = 'settings-panel__label';
+  micNote.textContent = '声音仅在本机分析，不录音。';
+  let micOn = false, micRequest = 0;
+  micBtn.addEventListener('click', () => {
+    micOn = !micOn;
+    const request = ++micRequest, requested = micOn;
+    micBtn.setAttribute('aria-checked', String(micOn)); micBtn.textContent = micOn ? '开' : '关';
+    micNote.textContent = micOn ? '正在连接麦克风，可随时关闭。' : '声音仅在本机分析，不录音。';
+    void hooks.onMicrophoneToggle?.(micOn).then((ok) => {
+      if (request !== micRequest || !requested) return;
+      micOn = ok; micBtn.setAttribute('aria-checked', String(ok)); micBtn.textContent = ok ? '开' : '关';
+      micNote.textContent = ok ? '轻轻吹气，晾着的文件就会随风摇摆。' : '麦克风暂不可用，仍可使用桌面电扇。';
+    });
+  });
+  micRow.append(micLabel, micBtn); el.append(micRow, micNote);
+  const quit = document.createElement('button');
+  quit.type = 'button';
+  quit.className = 'sfx-toggle';
+  quit.textContent = '退出回南天';
+  quit.setAttribute('aria-label', '退出回南天并恢复原生桌面');
+  quit.addEventListener('click', () => { void window.damp?.app.quit(); });
+  el.appendChild(quit);
 
   function syncVeil(): void {
     const cur = document.documentElement.dataset.veil ?? '';

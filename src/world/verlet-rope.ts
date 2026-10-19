@@ -125,19 +125,22 @@ export class VerletRope {
     const n = this.points.length;
     const damping = 0.992;
     const loads = new Array<number>(n).fill(0);
-    let totalLoad = 0;
+    let elasticLoad = 0;
     if (!this.rigid) {
       for (const pin of this.pins) {
         const w = ropePointLoad(pin.sizeBytes);
-        totalLoad += w;
+        // Kilobyte documents should add almost no rope stretch. Retain the
+        // shared logarithmic gravity load, but stretch only beyond a 64KiB
+        // light-file baseline; GB payloads still visibly lengthen the rope.
+        elasticLoad += Math.max(0, w - ropePointLoad(64 * 1024));
         const { i, t } = this.nodeFractionForS(pin.s);
         loads[i] += w * (1 - t);
         loads[Math.min(n - 1, i + 1)] += w * t;
       }
     }
-    // 承重越大，绳体弹性伸长越多（24GB ≈ +7.6%，1KB ≈ +2.2%），
-    // 这是「重文件压出深 V、轻文件几乎不动」的主要物理来源。
-    this.stretch = this.rigid ? 1 : 1 + Math.min(0.12, totalLoad * 0.004);
+    // 4.2GiB ≈ +7% elastic length; a few KB adds none. Gravity and
+    // constraint solving remain the sole source of the resulting rope shape.
+    this.stretch = this.rigid ? 1 : 1 + Math.min(0.12, elasticLoad * 0.008);
 
     for (let i = 0; i < n; i++) {
       if (this.isAnchored(i)) continue;

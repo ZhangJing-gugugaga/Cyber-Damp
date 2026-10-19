@@ -1,0 +1,72 @@
+[
+  {
+    "label": "physiology-migrate-hover",
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        1103,
+        53
+      ]
+    }
+  },
+  {
+    "label": "physiology-migrate-ready",
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    }
+  },
+  {
+    "targetWindowTitle": "回南天 Cyber Damp",
+    "label": "physiology-migrate-dunhuang",
+    "tool": "Click",
+    "arguments": {
+      "loc": [
+        1103,
+        53
+      ]
+    }
+  },
+  {
+    "label": "physiology-migrate-clear-hover",
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        1500,
+        800
+      ]
+    }
+  },
+  {
+    "label": "physiology-dry-wait1",
+    "tool": "Wait",
+    "arguments": {
+      "duration": 20
+    }
+  },
+  {
+    "label": "physiology-drying",
+    "tool": "Snapshot",
+    "arguments": {
+      "use_annotation": false,
+      "use_ui_tree": false,
+      "use_vision": true
+    }
+  },
+  {
+    "label": "physiology-dry-wait2",
+    "tool": "Wait",
+    "arguments": {
+      "duration": 25
+    }
+  },
+  {
+    "label": "physiology-dry",
+    "tool": "Snapshot",
+    "arguments": {
+      "use_annotation": false,
+      "use_ui_tree": false,
+      "use_vision": true
+    }
+  }
+]

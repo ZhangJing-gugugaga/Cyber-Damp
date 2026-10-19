@@ -1,0 +1,52 @@
+[
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        442,
+        185
+      ]
+    },
+    "label": "ripple-video-image-hover"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    },
+    "label": "ripple-video-image-ready"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "from_loc": [
+        442,
+        185
+      ],
+      "loc": [
+        1000,
+        550
+      ],
+      "drag": true,
+      "duration": 0.15
+    },
+    "label": "ripple-video-image-hang",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 6
+    },
+    "label": "ripple-video-image-settle"
+  },
+  {
+    "tool": "Snapshot",
+    "arguments": {
+      "use_vision": true,
+      "use_annotation": false,
+      "use_ui_tree": false
+    },
+    "label": "ripple-video-image-hung"
+  }
+]

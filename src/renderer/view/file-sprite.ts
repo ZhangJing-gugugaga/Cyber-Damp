@@ -9,16 +9,19 @@
  * - 标签在绳上收窄到 68px，配合 72px 最小弧长间距，杜绝文字遮挡。
  */
 import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { TwistFilter, BulgePinchFilter } from 'pixi-filters';
+import { MaterialFilter } from './shaders/material-filter';
+import { FileLabel } from './file-label';
+import { IconMaterialSurface } from './icon-material-surface';
+import { propTexture } from './mushroom-assets';
 import type { FileNode } from '../../shared/types/file-node';
 import type { FileRuntime } from '../../shared/types/file-runtime';
 import {
-  DAMP,
   ENV_COLOR,
   FILE_CELL_W,
   FILE_ICON_LEFT,
   FILE_ICON_SIZE,
   FILE_ICON_TOP,
-  FILE_RADIUS,
   INK,
 } from './token-colors';
 
@@ -43,46 +46,31 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
-function mixTint(a: number, b: number, t: number): number {
-  const k = clamp01(t);
-  const ar = (a >> 16) & 0xff, ag = (a >> 8) & 0xff, ab = a & 0xff;
-  const br = (b >> 16) & 0xff, bg = (b >> 8) & 0xff, bb = b & 0xff;
-  return (
-    (Math.round(ar + (br - ar) * k) << 16) |
-    (Math.round(ag + (bg - ag) * k) << 8) |
-    Math.round(ab + (bb - ab) * k)
-  );
-}
-
-/** 稳定伪随机（同一文件每帧图案一致，不闪烁） */
-function hash01(text: string, salt: number): number {
-  let h = 2166136261 ^ salt;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 100000) / 100000;
-}
-
 export class FileSprite {
   readonly container = new Container();
   readonly node: FileNode;
 
   private readonly iconLayer = new Container();
+  private readonly body = new Container();
+  private readonly ghost = new Container();
   private readonly icon: Sprite | null;
   private readonly fallback = new Graphics();
-  private readonly maskG = new Graphics();
-  private readonly maskDroplets = new Graphics();
-  private readonly mold = new Graphics();
-  private readonly droplets = new Graphics();
-  private readonly clip = new Graphics();
-  private readonly label: Text;
+  private readonly clip = new Container();
+  private readonly label: FileLabel;
+  private readonly surface: IconMaterialSurface;
 
   /** 开场演出揭示系数（0..1）；演出结束后固定为 1 */
   private introDroplets = 0;
   private introMold = 0;
   private introActive = true;
   private pinned = false;
+  private readonly material = new MaterialFilter();
+  private readonly twist = new TwistFilter({ radius: 46, angle: 0, offset: { x: 32, y: 32 }, padding: 0 });
+  private readonly bulge = new BulgePinchFilter({ center: { x: 0.5, y: 0.5 }, radius: 40, strength: 0 });
+  private wrung = false;
+  private visibleTop = 0;
+  private visualTop = FILE_ICON_TOP;
+  private scatterAngle = 0;
 
   constructor(node: FileNode, texture: Texture | null) {
     this.node = node;
@@ -97,76 +85,63 @@ export class FileSprite {
       this.icon.width = FILE_ICON_SIZE;
       this.icon.height = FILE_ICON_SIZE;
       this.iconLayer.addChild(this.icon);
+      this.icon.filters = [this.material];
+      const source = texture!.source.resource as HTMLImageElement;
+      const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(source, 0, 0, 64, 64);
+        const pixels = ctx.getImageData(0, 0, 64, 64).data;
+        for (let y = 0; y < 64; y++) {
+          if ([30, 31, 32, 33, 34].some((x) => pixels[(y * 64 + x) * 4 + 3] > 128)) { this.visibleTop = y; break; }
+        }
+      }
     } else {
       this.drawFallback();
       this.iconLayer.addChild(this.fallback);
     }
 
-    // 霉斑裁切轮廓：只允许在图标内部（圆角矩形）
-    this.maskG
-      .roundRect(FILE_ICON_LEFT, FILE_ICON_TOP, FILE_ICON_SIZE, FILE_ICON_SIZE, FILE_RADIUS)
-      .fill(0xffffff);
-    this.maskDroplets
-      .roundRect(FILE_ICON_LEFT, FILE_ICON_TOP, FILE_ICON_SIZE, FILE_ICON_SIZE, FILE_RADIUS)
-      .fill(0xffffff);
-    this.mold.blendMode = 'multiply';
-    this.mold.mask = this.maskG;
-    this.droplets.mask = this.maskDroplets;
-
-    this.label = new Text({
-      text: node.name,
-      style: {
-        fontFamily: '"Microsoft YaHei", "Noto Sans SC", sans-serif',
-        fontSize: 10,
-        fill: DAMP.label,
-        stroke: { color: INK.panel, width: 3 },
-        align: 'center',
-        wordWrap: true,
-        wordWrapWidth: 92,
-        lineHeight: 12,
-        breakWords: true,
-      },
-    });
-    this.label.anchor.set(0.5, 0);
+    this.surface = new IconMaterialSurface(this.icon, this.material);
+    this.label = new FileLabel(node);
     this.label.position.set(FILE_CELL_W / 2, FILE_ICON_TOP + FILE_ICON_SIZE + 4);
 
     this.drawClipShape();
     this.clip.visible = false;
     this.clip.position.set(FILE_CELL_W / 2, FILE_ICON_TOP);
 
-    this.container.addChild(
+    this.body.pivot.set(50, FILE_ICON_TOP + this.visibleTop);
+    this.body.position.set(50, FILE_ICON_TOP + this.visibleTop);
+    this.body.addChild(
       this.iconLayer,
-      this.mold,
-      this.droplets,
       this.label,
       this.clip,
-      this.maskG,
-      this.maskDroplets,
     );
+    this.container.addChild(this.body, this.ghost);
   }
 
   /** 蘑菇根部锚点：图标上边框中心（与 (0.5, 1.0) 锚点等价） */
   get mushroomAnchor(): { x: number; y: number } {
     return {
       x: this.container.position.x + FILE_CELL_W / 2,
-      y: this.container.position.y + FILE_ICON_TOP,
+      y: this.container.position.y + this.visualTop,
     };
   }
+
+  get dripOrigin(): { x: number; y: number } {
+    return this.surface.dripOrigin ?? { x: this.container.x + 50, y: this.container.y + 68 };
+  }
+  get mediaDripColor(): number { return this.surface.pigmentColor; }
+  paintHit(x: number, y: number): { u: number; v: number } | null { return this.surface.hit(x, y); }
+  addPaintStain(u: number, v: number, color: number): void { this.surface.addStain(u, v, color); }
+  clearPaintStains(): void { this.surface.clearStains(); }
 
   /** 仅 PINNED 状态显示木夹子 */
   setPinned(pinned: boolean): void {
     if (this.pinned === pinned) return;
     this.pinned = pinned;
+    if (pinned) this.scatterAngle = 0;
     this.clip.visible = pinned;
-    if (pinned) {
-      this.label.style.fontSize = 9;
-      this.label.style.lineHeight = 10;
-      this.label.style.wordWrapWidth = 68;
-    } else {
-      this.label.style.fontSize = 10;
-      this.label.style.lineHeight = 12;
-      this.label.style.wordWrapWidth = 92;
-    }
+    this.label.setPinned(pinned);
   }
 
   /** 开场 6 秒演出：按 mtime 分档的揭示进度 */
@@ -182,114 +157,64 @@ export class FileSprite {
     this.introMold = 1;
   }
 
+  setWring(angle: number, finished = false): void {
+    this.twist.angle = Math.min(9, angle * 0.6);
+    this.wrung ||= finished;
+    if (this.icon) this.icon.filters = angle > 0.1 ? [this.material, this.twist] : [this.material];
+  }
+
+  previewPin(point: {x:number;y:number} | null): void {
+    if (!point) { this.ghost.visible = false; return; }
+    if (!this.ghost.children.length) {
+      const texture = propTexture('clip'); if (!texture) return;
+      const image = new Sprite(texture); image.anchor.set(0.5, 1);
+      image.height = 27; image.width = 27 * texture.width / texture.height;
+      this.ghost.addChild(image); this.ghost.alpha = 0.4;
+    }
+    this.ghost.position.set(point.x - this.container.x, point.y - this.container.y + 5);
+    this.ghost.visible = true;
+  }
+
+  setSwing(time: number, wind: number): void {
+    const weight = Math.max(1, Math.log10(this.node.sizeBytes + 10));
+    this.body.rotation = this.pinned ? Math.sin(time * 5 / Math.sqrt(weight)) * wind * 0.5 / Math.sqrt(weight) : this.scatterAngle;
+  }
+  setScatterAngle(angle: number): void { this.scatterAngle = angle; }
+
   /** 每帧幂等刷新（game loop 调用） */
   update(rt: FileRuntime, tSec: number): void {
     const h = clamp01(rt.humidity) * (this.introActive ? this.introDroplets : 1);
     const m = clamp01(rt.mold) * (this.introActive ? this.introMold : 1);
-
-    // 图标色调：受潮偏冷、焦化偏褐；alpha 恒 1.0
-    let tint = 0xffffff;
-    if (rt.char > 0.05) {
-      tint = mixTint(0xffffff, DAMP.char, Math.min(1, rt.char * 1.4));
-    } else if (h > 0.2) {
-      tint = mixTint(0xffffff, DAMP.water, 0.16 + h * 0.22);
-    }
-    if (this.icon) this.icon.tint = tint;
-    this.fallback.tint = tint;
-
-    // 标签墨洇（文字仍完整可见，只做轻微冷色/透明度变化）
-    this.label.alpha = h > 0.65 ? 0.76 : h > 0.35 ? 0.88 : 1;
-    this.label.tint = h > 0.35 ? mixTint(0xffffff, DAMP.water, 0.3) : 0xffffff;
-
-    this.drawDroplets(h, tSec);
-    this.drawMold(m, tSec);
-  }
-
-  /** 高光水珠粒子（ΔT 3-14 天分支；1~5s 内由 introDroplets 浮现） */
-  private drawDroplets(h: number, tSec: number): void {
-    this.droplets.clear();
-    if (h <= 0.16) return;
-    const count = Math.min(11, 2 + Math.round(h * 10));
-    for (let i = 0; i < count; i++) {
-      const rx = hash01(this.node.id, 100 + i);
-      const ry = hash01(this.node.id, 500 + i);
-      const x = FILE_ICON_LEFT + 6 + rx * (FILE_ICON_SIZE - 12);
-      const y = FILE_ICON_TOP + 5 + ry * (FILE_ICON_SIZE - 12);
-      const r = 1.3 + hash01(this.node.id, 900 + i) * 3.0;
-      const pulse = 0.72 + Math.sin(tSec * 2.1 + i * 1.7) * 0.18;
-      // 水珠主体（半透明水色）+ 左上高光
-      this.droplets.ellipse(x, y, r, r * 1.18).fill({ color: DAMP.water, alpha: 0.5 * pulse });
-      this.droplets
-        .circle(x - r * 0.3, y - r * 0.35, Math.max(0.6, r * 0.32))
-        .fill({ color: DAMP.waterHi, alpha: 0.8 * pulse });
-      // 少量水珠下拉出 1-2px 的高光尾
-      if (i % 4 === 0) {
-        this.droplets
-          .moveTo(x, y + r * 1.1)
-          .lineTo(x, y + r * 1.1 + 1.8)
-          .stroke({ width: 0.8, color: DAMP.waterHi, alpha: 0.45 * pulse });
+    const dryness = (rt.dryness || 0) * (this.introActive ? this.introMold : 1);
+    const char = this.introActive ? rt.char * this.introMold : rt.char;
+    this.material.update(h, m, char, dryness, tSec, this.node.category === 'image-video' ? h : 0);
+    const shrink = 1 - dryness * 0.2 - char * 0.1;
+    const pivotY = this.pinned ? FILE_ICON_TOP + this.visibleTop : 36;
+    this.iconLayer.pivot.set(50, pivotY); this.iconLayer.position.set(50, pivotY);
+    this.iconLayer.scale.set(shrink);
+    this.visualTop = pivotY + (FILE_ICON_TOP + this.visibleTop - pivotY) * shrink;
+    this.label.update(h, char, this.wrung);
+    this.clip.position.y = FILE_ICON_TOP + this.visibleTop;
+    if (this.icon) {
+      this.icon.tint = 0xffffff;
+      if (this.twist.angle === 0 && this.node.category === 'archive' && this.node.kind !== 'recycle') {
+        this.bulge.strength = h * 0.28;
+        this.icon.filters = h > 0.3 ? [this.material, this.bulge] : [this.material];
       }
     }
-  }
-
-  /**
-   * 毛绒状暗绿霉斑：从四角向图标内部蔓延。
-   * blendMode = multiply；mask 限定在图标圆角轮廓内 —— 外围不会出现绿色圆圈。
-   */
-  private drawMold(m: number, tSec: number): void {
-    this.mold.clear();
-    if (m <= 0.015) return;
-    const cx = FILE_ICON_LEFT + FILE_ICON_SIZE / 2;
-    const cy = FILE_ICON_TOP + FILE_ICON_SIZE / 2;
-    // 只在四角蔓延，保留图标中心可辨认；覆盖随 m 增长但不吞没整张图标
-    const spread = 4 + m * 15;
-
-    const corners: Array<[number, number]> = [
-      [FILE_ICON_LEFT + 2, FILE_ICON_TOP + 2],
-      [FILE_ICON_LEFT + FILE_ICON_SIZE - 2, FILE_ICON_TOP + 2],
-      [FILE_ICON_LEFT + 2, FILE_ICON_TOP + FILE_ICON_SIZE - 2],
-      [FILE_ICON_LEFT + FILE_ICON_SIZE - 2, FILE_ICON_TOP + FILE_ICON_SIZE - 2],
-    ];
-
-    corners.forEach(([bx, by], ci) => {
-      const dirX = bx < cx ? 1 : -1;
-      const dirY = by < cy ? 1 : -1;
-      const lobes = 6;
-      for (let k = 0; k < lobes; k++) {
-        const jx = hash01(this.node.id, ci * 37 + k * 3);
-        const jy = hash01(this.node.id, ci * 53 + k * 5 + 900);
-        const reach = (0.2 + jx * 0.8) * spread;
-        const x = bx + dirX * reach * (0.35 + jx * 0.65) + (jx - 0.5) * 6;
-        // 毛绒边缘：呼吸式微抖动（只改绘制，不改物理）
-        const flutter = Math.sin(tSec * 0.9 + k + ci) * 0.7;
-        const y = by + dirY * reach * (0.35 + jy * 0.65) + (jy - 0.5) * 6 + flutter;
-        const r = 1.4 + hash01(this.node.id, ci * 71 + k * 11) * (2.2 + m * 3.2);
-        const a = (0.08 + m * 0.17) * (0.55 + jx * 0.45);
-        this.mold.circle(x, y, r * 1.8).fill({ color: DAMP.mossDeep, alpha: a * 0.3 });
-        this.mold.circle(x, y, r).fill({ color: m > 0.6 ? DAMP.mossDeep : DAMP.moss, alpha: a });
-        this.mold.circle(x + 0.7, y - 0.5, r * 0.42).fill({ color: DAMP.moss, alpha: a * 0.65 });
-      }
-      // 菌丝：从角落向内的细线
-      for (let k = 0; k < 3; k++) {
-        const ang = Math.atan2(dirY, dirX) + (hash01(this.node.id, ci * 13 + k) - 0.5) * 1.4;
-        const len = spread * (0.25 + hash01(this.node.id, ci * 19 + k) * 0.5);
-        this.mold
-          .moveTo(bx, by)
-          .lineTo(bx + Math.cos(ang) * len, by + Math.sin(ang) * len)
-          .stroke({ width: 0.8, color: DAMP.mossDeep, alpha: 0.12 + m * 0.14 });
-      }
-    });
-
-    // 重度霉变：中心薄苔（仍在图标轮廓内，低透明度）
-    if (m > 0.7) {
-      const r = FILE_ICON_SIZE * 0.2 * (m - 0.65) * 3;
-      this.mold.circle(cx, cy + 6, r).fill({ color: DAMP.mossDeep, alpha: 0.06 + m * 0.07 });
-    }
+    // Material shader samples the actual source alpha. Rectangle masks and
+    // floating green circles are deliberately no longer part of the icon.
   }
 
   /** 木夹子（只画一次，靠 visible 切换） */
   private drawClipShape(): void {
-    const g = this.clip;
+    const texture = propTexture('clip');
+    if (texture) {
+      const image = new Sprite(texture); image.anchor.set(0.5, 1);
+      image.height = 27; image.width = 27 * texture.width / texture.height;
+      image.y = 5; this.clip.addChild(image); return;
+    }
+    const g = new Graphics(); this.clip.addChild(g);
     g.moveTo(-9, -5).lineTo(-3, -5).lineTo(0.5, 17).lineTo(-6, 17).closePath()
       .fill({ color: 0xa88b5f })
       .stroke({ width: 1, color: 0x6f5636 });

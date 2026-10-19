@@ -12,6 +12,7 @@
 import koffi from 'koffi';
 import { app } from 'electron';
 import type { BrowserWindow } from 'electron';
+import { protectDesktopIcons } from './desktop-watchdog';
 
 type Hwnd = bigint;
 
@@ -43,6 +44,7 @@ interface Point {
 }
 
 interface Win32 {
+  GetDoubleClickTime(): number;
   FindWindowW(cls: unknown, title: unknown): unknown;
   FindWindowExW(parent: unknown, after: unknown, cls: unknown, title: unknown): unknown;
   SendMessageTimeoutW(hwnd: unknown, msg: number, wp: number, lp: number, flags: number, timeout: number, result: unknown): unknown;
@@ -67,6 +69,7 @@ function win32(): Win32 | null {
   try {
     const user32 = koffi.load('user32.dll');
     api = {
+      GetDoubleClickTime: user32.func('uint32 GetDoubleClickTime()'),
       FindWindowW: user32.func('void *FindWindowW(str16 lpClassName, str16 lpWindowName)'),
       FindWindowExW: user32.func(
         'void *FindWindowExW(void *hWndParent, void *hWndChildAfter, str16 lpszClass, str16 lpszWindow)',
@@ -181,18 +184,16 @@ function findDesktopWindows(a: Win32): FoundDesktop | null {
     }
   }
 
-  let host: Hwnd = holder ?? progman;
-  if (holder) {
-    // DefView 所在层在 z 序中的下一个 WorkerW = 壁纸层（图标之下、壁纸之上）
-    const behind = toHwnd(a.FindWindowExW(null, holder, 'WorkerW', null));
-    if (behind) host = behind;
-  }
+  // A wallpaper WorkerW sits *behind* SHELLDLL_DefView. Hiding SysListView32
+  // does not remove DefView's mouse hit surface: it swallows all native input.
+  // Host inside DefView instead, above the icon list and below ordinary apps.
+  const host: Hwnd = defView ?? holder ?? progman;
 
   const listView = defView ? toHwnd(a.FindWindowExW(defView, null, 'SysListView32', null)) : null;
   return { host, defView, listView };
 }
 
-function placeChild(win: BrowserWindow, a: Win32, host: Hwnd): boolean {
+function placeChild(win: BrowserWindow, a: Win32, host: Hwnd, show = true): boolean {
   const hwnd = windowHandle(win);
   if (!hwnd) return false;
   const rect: Rect = { left: 0, top: 0, right: 0, bottom: 0 };
@@ -209,13 +210,13 @@ function placeChild(win: BrowserWindow, a: Win32, host: Hwnd): boolean {
       Math.round(pt.y),
       width,
       height,
-      SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW,
+      SWP_NOACTIVATE | SWP_FRAMECHANGED | (show ? SWP_SHOWWINDOW : 0),
     ),
   );
 }
 
 /** 挂载到 WorkerW 壁纸层；失败返回 false（调用方不得隐藏图标） */
-export function attachOverlayToDesktop(win: BrowserWindow): boolean {
+export function attachOverlayToDesktop(win: BrowserWindow, show = true): boolean {
   const a = win32();
   if (!a) return false;
   const hwnd = windowHandle(win);
@@ -230,7 +231,6 @@ export function attachOverlayToDesktop(win: BrowserWindow): boolean {
     if (!state.attached) {
       state.originalStyle = Number(a.GetWindowLongW(hwnd, GWL_STYLE)) | 0;
     }
-    a.SetParent(hwnd, found.host);
     // 先登记，保证后续任何一步抛错都能在 catch/退出路径里解绑并恢复图标
     state.overlay = hwnd;
     state.host = found.host;
@@ -239,8 +239,12 @@ export function attachOverlayToDesktop(win: BrowserWindow): boolean {
     // 去掉顶层弹出样式，改为 WorkerW 的子窗口；透明分层窗口从 Win8 起支持子窗口
     const style = (state.originalStyle & ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME)) | WS_CHILD;
     a.SetWindowLongW(hwnd, GWL_STYLE, style);
+    a.SetParent(hwnd, found.host);
+    if (toHwnd(a.GetParent(hwnd)) !== found.host) throw new Error('SetParent did not attach the overlay');
     // HWND_TOP = 0：置于宿主子窗口最上层；宿主本身仍在所有常规应用窗口之下
-    placeChild(win, a, found.host);
+    // Initial takeover attaches while hidden; watchdog/readiness must finish
+    // before the IPC caller reveals the fully painted desktop replacement.
+    if (!placeChild(win, a, found.host, show)) throw new Error('SetWindowPos did not place the desktop overlay');
     console.info(
       `[desktop] 已嵌入 WorkerW: host=0x${found.host.toString(16)} listView=${
         state.listView ? `0x${state.listView.toString(16)}` : '未找到'
@@ -255,7 +259,7 @@ export function attachOverlayToDesktop(win: BrowserWindow): boolean {
 }
 
 /** 启动就绪后隐藏原生桌面图标；未挂载成功时拒绝执行 */
-export function hideDesktopIcons(): boolean {
+export async function hideDesktopIcons(): Promise<boolean> {
   if (!state.attached) return false;
   const a = win32();
   if (!a) return false;
@@ -264,6 +268,10 @@ export function hideDesktopIcons(): boolean {
   const listView = state.listView;
   if (!listView || !a.IsWindow(listView)) {
     console.warn('[desktop] 未找到 SysListView32，原生图标保持显示');
+    return false;
+  }
+  if (!await protectDesktopIcons(listView)) {
+    console.warn('[desktop] Restore watchdog unavailable; native icons stay visible');
     return false;
   }
   a.ShowWindow(listView, SW_HIDE);
@@ -319,6 +327,10 @@ export function isDesktopAttached(): boolean {
   return state.attached;
 }
 
+export function doubleClickInterval(): number {
+  return win32()?.GetDoubleClickTime() || 500;
+}
+
 /** 显示器/DPI 变化后按物理像素重新贴合 WorkerW 客户区 */
 export function repositionOverlay(win: BrowserWindow): void {
   if (!state.attached || !state.host) return;
@@ -326,31 +338,38 @@ export function repositionOverlay(win: BrowserWindow): void {
   if (!a) return;
   if (!a.IsWindow(state.host)) {
     // Explorer 重启：宿主的子窗口已失效，重新挂载
-    attachOverlayToDesktop(win);
+    attachOverlayToDesktop(win, win.isVisible());
     return;
   }
-  placeChild(win, a, state.host);
+  placeChild(win, a, state.host, win.isVisible());
 }
 
 let monitorStarted = false;
+let shuttingDown = false;
+
+export function shutdownDesktop(): void {
+  shuttingDown = true;
+  restoreDesktop();
+}
 
 /** 5s 监护：宿主窗口/图标列表被 Explorer 重建时自动重新占用 */
 export function startDesktopHostMonitor(win: BrowserWindow): void {
   if (monitorStarted) return;
   monitorStarted = true;
   const timer = setInterval(() => {
+    if (shuttingDown) return;
     if (win.isDestroyed()) return;
     const a = win32();
     if (!a) return;
     if (!state.attached || !state.host || !a.IsWindow(state.host)) {
-      if (attachOverlayToDesktop(win)) hideDesktopIcons();
+      if (attachOverlayToDesktop(win)) void hideDesktopIcons();
       return;
     }
     if (state.iconsHidden && (!state.listView || !a.IsWindow(state.listView))) {
       const found = findDesktopWindows(a);
       if (found?.listView) {
         state.listView = found.listView;
-        a.ShowWindow(found.listView, SW_HIDE);
+        void hideDesktopIcons();
       }
     }
   }, 5000);
@@ -365,7 +384,7 @@ export function startDesktopHostMonitor(win: BrowserWindow): void {
 export function installDesktopSafety(): void {
   const restore = (): void => {
     try {
-      restoreDesktop();
+      shutdownDesktop();
     } catch {
       /* exit 钩子内绝不能再抛 */
     }

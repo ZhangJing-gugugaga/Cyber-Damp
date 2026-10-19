@@ -19,10 +19,92 @@ import {
   PIN_MIN_DISTANCE,
 } from '../dist/test/world/verlet-rope.js';
 import { ropeLoadState } from '../dist/test/world/rope-load.js';
+import { FileEntity } from '../dist/test/world/file-entity.js';
+import { seedMoldyMushroom } from '../dist/test/world/file-seed.js';
+import { heatFile, stopHeating, scorchedCharacters } from '../dist/test/world/file-material.js';
+
+test('打开陈年文件后按最近使用时间保持新鲜，不改写原始 mtime', () => {
+  const now = 1800000000000;
+  const mtime = now - 60 * 86400000;
+  const entity = new FileEntity({ id:'used', name:'old.txt', ext:'txt', category:'doc-code', sizeBytes:20, mtime, lastOpenedAt:now, x:0, y:0, realPath:'C:\\Desktop\\old.txt', kind:'file', iconDataUrl:'' });
+  entity.syncStage(now + 10000);
+  assert.equal(entity.runtime.stage, 'fresh');
+  assert.equal(entity.node.mtime, mtime);
+  entity.syncStage(now + 4 * 86400000);
+  assert.equal(entity.runtime.stage, 'damp');
+});
 
 function mkRuntime(over = {}) {
   return { id: 't', humidity: 0.2, mold: 0, char: 0, stage: 'damp', state: 'idle', mushroom: null, ...over };
 }
+
+test('热风须持续超过五秒才焦化，不能在干燥前期提前烤黑', () => {
+  const rt = mkRuntime({ humidity: 0.9 });
+  for (let i = 0; i < 50; i++) stepEvolution(rt, { humidity: 0.1, heat: 1, wind: 0 }, 0.1, 'doc-code', 0.99);
+  assert.equal(rt.char, 0);
+  for (let i = 0; i < 10; i++) stepEvolution(rt, { humidity: 0.1, heat: 1, wind: 0 }, 0.1, 'doc-code', 0.99);
+  assert.ok(rt.char >= 0.3, '第六秒应有肉眼可见的焦斑');
+});
+
+test('沙漠和挂绳过晒都会干瘪，复湿可恢复，短时暴露不会立刻缩水', () => {
+  for (const state of ['idle', 'hung']) {
+    const rt = mkRuntime({ humidity: 0.1, state });
+    for (let i = 0; i < 10; i++) stepEvolution(rt, { humidity: 0.1, heat: 0, wind: 0.6 }, 0.1, 'doc-code', 0.99);
+    assert.ok(rt.dryness < 0.04, '一秒干风不应瞬间干瘪');
+    for (let i = 0; i < 290; i++) stepEvolution(rt, { humidity: 0.1, heat: 0, wind: 0.6 }, 0.1, 'doc-code', 0.99);
+    assert.ok(rt.dryness >= 0.99, `${state} 必须达到缩水20%的脱水度`);
+    rt.humidity = 0.95;
+    for (let i = 0; i < 60; i++) stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
+    assert.equal(rt.dryness, 0);
+  }
+});
+
+test('松开热风再按不会把两次不足五秒的暴露累计成过热', () => {
+  const rt = mkRuntime({ humidity:0.8 });
+  for (let i = 0; i < 40; i++) heatFile(rt, 0.1);
+  stopHeating(rt);
+  for (let i = 0; i < 40; i++) heatFile(rt, 0.1);
+  assert.equal(rt.char, 0);
+  for (let i = 0; i < 20; i++) heatFile(rt, 0.1);
+  assert.ok(rt.char > 0.3);
+});
+
+test('陈年湿文件在29%至34%的干旱天气下最终干瘪，不被平衡湿度卡住', () => {
+  const actualDunhuang = simulateDay('dunhuang', 20261019).humidity;
+  for (const humidity of [actualDunhuang, 0.34]) {
+    const rt = mkRuntime({ humidity: 0.9, stage: 'moldy', dryness: 0 });
+    for (let i = 0; i < 3600; i++) stepEvolution(rt, { humidity, heat: 0, wind: 0 }, 1 / 60, 'doc-code', 0.99);
+    assert.ok(rt.dryness >= 0.99, `干旱天气${humidity}下文件湿度${rt.humidity}不能阻止长期缩水，dryness=${rt.dryness}`);
+    assert.equal(rt.char, 0, '日晒不能当作热风焦化');
+  }
+  const humidRope = mkRuntime({ humidity: 0.3, state: 'hung', dryness: 0 });
+  for (let i = 0; i < 600; i++) stepEvolution(humidRope, { humidity: 0.7, heat: 0, wind: 0 }, 1 / 60, 'doc-code', 0.99);
+  assert.equal(humidRope.dryness, 0, '高湿环境挂绳仍需先降至原来的25%门槛');
+});
+
+test('炭块只替换文件主体的1–2个完整字元，扩展名和原名称保持不变', () => {
+  for (const name of ['会议记录.docx', '照片😀🌧.png', '<script>.txt', '微信.lnk']) {
+    const before = name;
+    const parts = scorchedCharacters(name, name, 0.8);
+    const carbon = parts.filter(p=>p.carbon);
+    assert.ok(carbon.length >= 1 && carbon.length <= 2);
+    if (name.endsWith('.txt')) assert.ok(parts.map(p=>p.glyph).join('').endsWith('.txt'));
+    assert.equal(name, before);
+    assert.deepEqual(parts, scorchedCharacters(name,name,0.8));
+    assert.equal(scorchedCharacters(name,name,0).some(p=>p.carbon),false);
+  }
+});
+
+test('真实新建文件夹及其编号变体自然长胆小菇，普通同名文件不误判', () => {
+  for (const name of ['新建文件夹', '新建文件夹 (2)', 'New folder', 'New folder (3)']) {
+    const rt = mkRuntime({ stage: 'moldy', mold: 0.8 });
+    seedMoldyMushroom(rt, 'doc-code', 'folder-test', name, 'dir');
+    assert.equal(rt.mushroom?.species, 'shy', name);
+  }
+  const rt = mkRuntime({ stage:'moldy', mold:0.8 });
+  seedMoldyMushroom(rt, 'doc-code', 'folder-test', '新建文件夹', 'file');
+  assert.notEqual(rt.mushroom?.species, 'shy');
+});
 
 test('高湿环境湿度上升', () => {
   const rt = mkRuntime({ humidity: 0.2 });
@@ -67,13 +149,13 @@ test('deriveStage 四阶段边界', () => {
   assert.equal(deriveStage(now - 40 * day, now), 'moldy');
 });
 
-test('真实桌面网格：100x110、左上起始、纵向优先', () => {
+test('真实桌面网格：100x192、预留顶部/底部空间、纵向优先', () => {
   const cells = layoutDesktopCells(20, 1536, 864);
-  const rows = Math.floor((864 - 8) / 110);
-  assert.deepEqual(cells[0], { x: 4, y: 4 });
-  assert.deepEqual(cells[1], { x: 4, y: 114 });
-  assert.deepEqual(cells[2], { x: 4, y: 224 });
-  assert.deepEqual(cells[rows], { x: 104, y: 4 }, '第 rows+1 个换到第二列顶部');
+  const rows = Math.floor((864 - 144 - 54 - 124) / 192) + 1;
+  assert.deepEqual(cells[0], { x: 4, y: 144 });
+  assert.deepEqual(cells[1], { x: 4, y: 336 });
+  assert.deepEqual(cells[2], { x: 4, y: 528 });
+  assert.deepEqual(cells[rows], { x: 104, y: 144 }, '第 rows+1 个换到第二列顶部');
   for (const c of cells) {
     assert.ok(c.x >= 0 && c.x + 100 <= 1536, `x 出界: ${c.x}`);
     assert.ok(c.y >= 0 && c.y + 110 <= 864, `y 出界: ${c.y}`);
@@ -99,7 +181,7 @@ test('真实条目 → FileNode 1:1 映射（名称/大小/mtime/图标不变）
   assert.equal(nodes[0].mtime, entry.mtime);
   assert.equal(nodes[0].iconDataUrl, entry.iconDataUrl);
   assert.equal(nodes[0].realPath, entry.realPath);
-  assert.deepEqual({ x: nodes[0].x, y: nodes[0].y }, { x: 4, y: 4 });
+  assert.deepEqual({ x: nodes[0].x, y: nodes[0].y }, { x: 4, y: 144 });
 });
 
 test('载荷公式 Fg = log10(sizeBytes+10)×1.8', () => {
@@ -140,6 +222,20 @@ test('重文件载荷使绳中点更深（24GB > 1KB）', () => {
     heavyMid.y > lightMid.y + 20,
     `重文件应明显更深：heavy ${heavyMid.y.toFixed(1)} vs light ${lightMid.y.toFixed(1)}`,
   );
+});
+
+test('几KB文本几乎不增加下垂，4.2GiB文件夹仍明显压深同一跨度', () => {
+  const settledBottom = (bytes) => {
+    const rope = new VerletRope(10,240,1400,240);
+    if (bytes !== null) rope.attach('owned',bytes,rope.length/2);
+    for (let i=0;i<2400;i++) rope.step(1/60,{width:1536,floorY:804});
+    return Math.max(...rope.points.map(p=>p.y));
+  };
+  const empty=settledBottom(null);
+  const light=settledBottom(3072);
+  const heavy=settledBottom(Math.ceil(4.2*GB));
+  assert.ok(light-empty<=12,`3KB仅应轻微压低：${(light-empty).toFixed(2)} DIP`);
+  assert.ok(heavy-light>=60,`4.2GiB必须明显更深：${(heavy-light).toFixed(2)} DIP`);
 });
 
 test('5+ 个挂载图标沿弧长保持 ≥72px，无重叠', () => {
@@ -228,6 +324,16 @@ test('存档校验：坏数据 null，好数据通过', () => {
   assert.ok(validateSave(goodSave()), '合法存档应通过');
 });
 
+test('脱水度存档向后兼容，拒绝非数值或越界的缩水状态', () => {
+  assert.ok(validateSave(goodSave()), '旧存档无dryness仍可读取');
+  const valid = goodSave(); valid.files[0].dryness = 0.95;
+  assert.equal(validateSave(valid)?.files[0].dryness,0.95);
+  for (const dryness of [NaN, Infinity, -0.1, 1.1, '0.5']) {
+    const bad = goodSave(); bad.files[0].dryness = dryness;
+    assert.equal(validateSave(bad),null);
+  }
+});
+
 test('存档校验拒绝 NaN 绳坐标/未知绳型/非法状态/NaN 蘑菇（AC-24/27）', () => {
   const badRope = { ...goodSave(), ropes: [{ id: 'r-1', ax: NaN, ay: 1, bx: 2, by: 3, tier: 'rope-1', fileIds: [] }] };
   assert.equal(validateSave(badRope), null, 'NaN 锚点必须拒绝');
@@ -264,3 +370,23 @@ test('未知菌种售卖不崩溃（脏存档防御）', () => {
   assert.equal(r.coins, 10);
   assert.equal(r.remaining.length, 1);
 });
+
+test('真实桌面替身保留菌盖/HUD顶部空间和任务栏上方标签，当前29/33项不丢失', () => {
+  for (const count of [29,33]) {
+    for (const [w,h] of [[1536,864],[1280,720],[1920,1080]]) {
+      const cells=layoutDesktopCells(count,w,h);
+      assert.equal(cells.length,count,'Every scanned desktop item must remain represented');
+      assert.equal(new Set(cells.map(c=>`${c.x}:${c.y}`)).size,count,'No duplicate cells');
+      for(const c of cells) {
+        assert.ok(c.y+12-72>=72,'Tallest mature cap plus sway must clear the top HUD');
+        assert.ok(c.y+124<=h-54,'Three-line labels must stay above the shared taskbar floor');
+        assert.ok(c.x>=0&&c.x+100<=w,'Native artwork and label must stay inside the viewport');
+        const next=cells.find(n=>n.x===c.x&&n.y>c.y);
+        if(next) assert.ok(next.y+12-72>=c.y+124+4,'The next mushroom cap must not hide the previous filename');
+      }
+    }
+  }
+});
+
+
+test('顶部留白与行距不能降低旧网格的105项容量',()=>{const cells=layoutDesktopCells(105,1536,864);assert.equal(cells.length,105);for(const c of cells)assert.ok(c.x>=0&&c.x+100<=1536&&c.y>=0&&c.y+124<=810);});

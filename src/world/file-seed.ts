@@ -3,9 +3,9 @@
  * 阶段仍由真实 mtime 推导；湿度/霉变只做与阶段一致的初值，
  * 让 6 秒开场演出有可插值的终态，同时不影响存档覆盖。
  */
-import type { ExtCategory } from '../shared/types/file-node';
+import type { ExtCategory, FileKind } from '../shared/types/file-node';
 import type { FileRuntime } from '../shared/types/file-runtime';
-import { pickSpecies } from './mushroom-species';
+import { pickFileSpecies } from './mushroom-species';
 
 export function stageSeed(stage: FileRuntime['stage']): { humidity: number; mold: number } {
   switch (stage) {
@@ -38,7 +38,9 @@ export function seedMoldyMushroom(
   runtime: FileRuntime,
   category: ExtCategory,
   id: string,
+  name = '',
+  kind: FileKind = 'file',
 ): void {
-  if (runtime.stage !== 'moldy' || runtime.mushroom) return;
-  runtime.mushroom = { species: pickSpecies(category, hash01(id)), growth: 1 };
+  if (runtime.stage !== 'moldy' || runtime.state === 'burnt' || runtime.mushroom) return;
+  runtime.mushroom = { species: pickFileSpecies({ category, name, kind }, hash01(id)), growth: 1 };
 }

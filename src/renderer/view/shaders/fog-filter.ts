@@ -8,7 +8,7 @@ import { Filter, GlProgram } from 'pixi.js';
 const VERTEX = `
 in vec2 aPosition;
 out vec2 vTextureCoord;
-uniform vec4 uInputSize;
+uniform highp vec4 uInputSize;
 uniform vec4 uOutputFrame;
 uniform vec4 uOutputTexture;
 vec4 filterVertexPosition(void) {
@@ -31,6 +31,7 @@ in vec2 vTextureCoord;
 uniform sampler2D uTexture;
 uniform float uFog;      // 0..1 雾浓度（全局湿度映射）
 uniform float uTime;
+uniform highp vec4 uInputSize;
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -43,22 +44,21 @@ float noise(vec2 p) {
 }
 
 void main(void) {
-    vec4 fg = texture2D(uTexture, vTextureCoord);
     if (uFog <= 0.001) {
-        gl_FragColor = fg;
+        gl_FragColor = vec4(0.0);
         return;
     }
     vec2 uv = vTextureCoord;
     float n = noise(uv * 4.0 + vec2(uTime * 0.02, uTime * 0.015));
-    vec2 d = uv - 0.5;
-    // 四边更浓：边缘距离驱动
-    float edge = smoothstep(0.5, 0.18, max(abs(d.x), abs(d.y)) - 0.2);
-    float fog = clamp(uFog * (0.45 + n * 0.4) * (0.5 + edge), 0.0, 0.55);
+    vec2 pixel = uv * uInputSize.xy;
+    vec2 remaining = uInputSize.xy - pixel;
+    float distanceToEdge = min(min(pixel.x, pixel.y), min(remaining.x, remaining.y));
+    float edge = 1.0 - smoothstep(0.0, 80.0, distanceToEdge);
+    float fog = uFog * edge * (0.18 + n * 0.22);
     vec3 fogColor = vec3(0.875, 0.914, 0.918); // --fog-cool #DFE9EA
-    fg.rgb = mix(fg.rgb, fogColor, fog);
-    // 色温向冷偏移
-    fg.rgb *= vec3(0.97, 1.0, 1.04);
-    gl_FragColor = fg;
+    // Premultiplied transparent overlay; WHITE's alpha must never cover the
+    // wallpaper or turn the desktop into an opaque blue sheet.
+    gl_FragColor = vec4(fogColor * fog, fog);
 }
 `;
 

@@ -18,6 +18,10 @@ import type { UiRoot } from '../ui/ui-root';
 import type { Sfx } from '../audio/sfx';
 import type { SaveController } from '../save/save-controller';
 import type { Opening } from './opening';
+import type { MicrophoneWind } from '../audio/microphone-wind';
+import type { SpecialMushroomController } from './special-mushroom-controller';
+import type { HarvestController } from './harvest-controller';
+import type { RopeAudio } from './rope-audio';
 import { updateFileDebris } from './file-debris';
 import { applyHeatFx } from './tool-fx';
 import { drawRope } from '../view/rope-view';
@@ -45,10 +49,15 @@ export interface GameTickDeps {
   getOpening(): Opening | null;
   getFan(): FanView | null;
   autosaveSec: number;
+  microphone: MicrophoneWind;
+  specialMushrooms: SpecialMushroomController;
+  harvest: HarvestController;
+  ropeAudio: RopeAudio;
 }
 
 export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
   const {
+    app,
     runtime,
     ropes,
     sprites,
@@ -70,6 +79,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
   let autosaveAcc = 0;
   let lastCondition = runtime.dayWeather().condition;
   const overheatWarned = new Set<string>();
+  let lastHeatTarget: string | null = null;
 
   return (dtSec: number): void => {
     tSec += dtSec;
@@ -77,6 +87,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
     opening?.update(dtSec);
 
     const landed = ropes.update(dtSec);
+    deps.ropeAudio.update(dtSec);
     for (const f of landed) {
       runtime.markState(f.id, 'idle');
       const ent = runtime.byId.get(f.id);
@@ -85,10 +96,14 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
         ent.node.y = f.y;
       }
       sprites.get(f.id)?.container.position.set(f.x, f.y);
+      sprites.get(f.id)?.setScatterAngle(f.angle);
     }
+    runtime.microphoneWind = deps.microphone.update(dtSec);
     runtime.tick(dtSec);
 
     const hid = pointer.heatTargetId;
+    if (lastHeatTarget && lastHeatTarget !== hid) runtime.stopHeat(lastHeatTarget);
+    lastHeatTarget = hid;
     if (hid) applyHeatFx(runtime, sprites, pool, (t) => ui.toast.tip(t), overheatWarned, hid, dtSec);
 
     // 承重 >100%：断右端 → 图标自由落体 → 绳落地（纯物理反馈，无文字胶囊）
@@ -96,7 +111,6 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
       sfx.crack();
       const link = entry.rope.pointAtS(entry.rope.length / 2);
       debrisBurst(pool, link.x, link.y);
-      ui.toast.tip('啪嗒——晾衣绳被重量扯断了，文件摔在任务栏边上。', { warn: true });
       const hitBox = boxes.splashNear(link.x);
       if (hitBox) {
         runtime.triggerSurge(0.35, 8);
@@ -122,16 +136,20 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
     }
     for (const f of ropes.fallingPositions()) {
       sprites.get(f.id)?.container.position.set(f.x, f.y);
+      sprites.get(f.id)?.setScatterAngle(f.angle ?? 0);
     }
     for (const [id, sprite] of sprites) {
       if (!pinnedIds.has(id)) sprite.setPinned(false);
     }
+    deps.specialMushrooms.update(dtSec);
+    deps.harvest.update(dtSec);
 
     // 文件四阶段视觉 + 蘑菇根部锚点（图标上边框零间隙）
     for (const ent of runtime.entities) {
       const sprite = sprites.get(ent.node.id);
       if (!sprite) continue;
       sprite.update(ent.runtime, tSec);
+      sprite.setSwing(tSec, runtime.env().wind + (runtime.fanPlaced ? 0.7 : 0));
       const m = ent.runtime.mushroom;
       if (m) deps.ensureShroom(ent.node.id);
       const view = shrooms.get(ent.node.id);
@@ -144,6 +162,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
       const anchor = sprite.mushroomAnchor;
       view.container.position.set(anchor.x, anchor.y);
       if (!opening) view.update(m.growth, tSec, pointer.lastPos);
+      view.setCondition(m, tSec);
     }
 
     // 绳索渲染：平滑曲线 + 80%~99% 随机抖动/挂钩裂纹
@@ -153,7 +172,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
 
     pool.update(dtSec);
     glyphs.update(dtSec);
-    updateFileDebris(runtime, sprites, pool, glyphs, dtSec);
+    updateFileDebris(runtime, sprites, pool, glyphs, dtSec, { draggedId: pointer.draggedFileId, floorY: app.screen.height - 40 });
     hoverCard.update(pointer.lastPos.x, pointer.lastPos.y, runtime.locked);
     fpsWatch(dtSec);
     atmosphere.update(runtime, dtSec, tSec, pool, deps.getFan());

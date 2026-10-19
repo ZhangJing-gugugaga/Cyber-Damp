@@ -22,6 +22,7 @@ export interface FileNode {
   sizeBytes: number;
   /** 真实 mtime（epoch ms）；冷落度 = now - mtime */
   mtime: number;
+  lastOpenedAt?: number;
   /** 桌面网格单元左上角（100x110 单元） */
   x: number;
   y: number;

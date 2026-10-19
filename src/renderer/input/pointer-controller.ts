@@ -2,7 +2,7 @@
 import type { RopeEntry } from '../app/rope-manager';
 import type { PointerDeps, Tool } from './pointer-deps';
 import { ClickThrough } from './click-through';
-import { CircleWring, FULL_TURN, isClick } from './gestures';
+import { CircleWring, FULL_TURN } from './gestures';
 import { splashBurst } from './fx-burst';
 import { EDGE_ZONE, fileAt, mushroomAt, nearestRopePoint, worldHitAt } from './hit-tests';
 import { emitAction } from '../app/events';
@@ -20,8 +20,9 @@ export class PointerController {
   private downTime = 0;
   private lastX = 0;
   private lastY = 0;
-  /** 双击打开：同一文件 400ms 内二次按下 */
+  /** Double click follows the user's Windows interval. */
   private lastClick = { id: '', at: 0 };
+  private doubleClickMs = 500;
   /** 吹风机按住目标（game tick 每帧施热） */
   private heatTarget: string | null = null;
   private squeegeeing = false;
@@ -32,6 +33,12 @@ export class PointerController {
   private musicBoxAt = 0;
 
   constructor(private deps: PointerDeps) {
+    void window.damp?.window.getInputSettings().then(({ doubleClickMs }) => { this.doubleClickMs = doubleClickMs; });
+    window.damp?.window.onCursor(({ x, y }) => {
+      this.lastX = x; this.lastY = y;
+      if (this.drag || this.ropeDraw || this.boxDrag || this.squeegeeing || this.brooming || this.heatTarget) return;
+      this.clickThrough.update(this.deps.runtime.locked || worldHitAt(this.deps, x, y, window.innerWidth));
+    });
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerdown', (e) => this.onDown(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
@@ -54,6 +61,8 @@ export class PointerController {
       this.drag = null;
       const sprite = this.deps.sprites.get(id);
       if (sprite) {
+        sprite.setWring(0);
+        sprite.previewPin(null);
         sprite.container.position.set(ox, oy);
         sprite.node.x = ox;
         sprite.node.y = oy;
@@ -79,6 +88,7 @@ export class PointerController {
   get heatTargetId(): string | null {
     return this.heatTarget;
   }
+  get draggedFileId(): string | null { return this.drag?.id ?? null; }
 
   private onMove(e: PointerEvent): void {
     const x = e.clientX;
@@ -95,6 +105,22 @@ export class PointerController {
 
     // 拖拽中
     if (this.drag) {
+      if (this.wring.active && this.wringId) {
+        const angle = this.wring.feed(x, y);
+        this.deps.sprites.get(this.drag.id)?.setWring(this.wring.active ? angle : 0);
+        if (angle >= FULL_TURN * 3) {
+          const id = this.wringId;
+          this.wring.cancel();
+          this.wringId = null;
+          if (this.deps.runtime.wring(id)) {
+            this.deps.sprites.get(id)?.setWring(0, true);
+            splashBurst(this.deps.pool, x, y);
+            this.deps.sfx.splash();
+            emitAction('wring');
+            trackFirst('first_wring');
+          }
+        }
+      }
       const sprite = this.deps.sprites.get(this.drag.id);
       if (sprite) {
         const nx = x - this.drag.dx;
@@ -102,7 +128,11 @@ export class PointerController {
         sprite.container.position.set(nx, ny);
         sprite.node.x = nx;
         sprite.node.y = ny;
-        this.drag.moved = true;
+        if (Math.hypot(x - this.downPos.x, y - this.downPos.y) > 4) {
+          this.drag.moved = true;
+          this.lastClick = { id: '', at: 0 };
+        }
+        sprite.previewPin(nearestRopePoint(this.deps.ropes, x, y));
       }
       this.clickThrough.update(true);
       return;
@@ -133,32 +163,8 @@ export class PointerController {
       this.clickThrough.update(true);
       return;
     }
-    // 拧干画圈（按住的湿文件）
-    if (this.wring.active && this.wringId) {
-      const acc = this.wring.feed(x, y);
-      if (acc >= FULL_TURN) {
-        const id = this.wringId;
-        this.wring.cancel();
-        this.wringId = null;
-        if (this.deps.runtime.wring(id)) {
-          const sprite = this.deps.sprites.get(id);
-          if (sprite) splashBurst(this.deps.pool, sprite.container.position.x, sprite.container.position.y);
-          this.deps.sfx.splash();
-          emitAction('wring');
-          trackFirst('first_wring');
-        }
-      } else if (!this.wring.active) {
-        // 画偏自动取消，转入拖拽
-        const id = this.wringId;
-        this.wringId = null;
-        this.startDrag(id, x, y);
-      }
-      this.clickThrough.update(true);
-      return;
-    }
-
     // 成熟蘑菇 hover：剪刀光标（点击即采摘，与当前工具无关）
-    this.setScissorsCursor(!!mushroomAt(this.deps.sprites, this.deps.runtime, x, y));
+    this.setScissorsCursor(!!this.matureAt(x, y));
     // 音频类文件悬停：八音盒走调旋律（P1，6s 冷却）
     if (performance.now() - this.musicBoxAt > 6000 && fileAt(this.deps.sprites, x, y)?.node.category === 'audio') {
       this.musicBoxAt = performance.now();
@@ -170,6 +176,8 @@ export class PointerController {
 
   private onDown(e: PointerEvent): void {
     if (this.deps.runtime.locked || e.button !== 0) return;
+    // DOM controls own their click; do not capture it or begin a world gesture.
+    if (this.deps.domHit(e.clientX, e.clientY)) return;
     // 捕获指针：拖出窗口/快速移位时仍能收到 pointerup（防手势卡死）
     try {
       (e.target as Element | null)?.setPointerCapture?.(e.pointerId);
@@ -184,21 +192,23 @@ export class PointerController {
     // 世界内额外点击（蜗牛戳击优先消费）
     if (this.deps.consumeClick?.(x, y)) return;
 
-    // 成熟蘑菇优先：任意工具点击即剪下（hover 已切换剪刀光标）
-    const mature = mushroomAt(this.deps.sprites, this.deps.runtime, x, y);
+    const tool = this.deps.getTool();
+    // Hot air cooks an attached mushroom; the hand/scissors can harvest it.
+    const mature = this.matureAt(x, y);
     if (mature) {
+      if (tool === 'heat') { this.heatTarget = mature; return; }
       this.deps.onPick(mature);
       return;
     }
 
-    const tool = this.deps.getTool();
     const sprite = fileAt(this.deps.sprites, x, y);
     const fileId = sprite?.node.id ?? null;
+    if (fileId && (this.deps.runtime.byId.get(fileId)?.runtime.dryness || 0) >= 0.8) this.deps.sfx.dryLeaf();
 
     // 双击替身图标/回收站：打开真实文件（与当前工具无关）
     if (fileId) {
-      const now = performance.now();
-      if (this.lastClick.id === fileId && now - this.lastClick.at < 400) {
+      const now = e.timeStamp;
+      if (this.lastClick.id === fileId && now - this.lastClick.at <= this.doubleClickMs) {
         this.lastClick = { id: '', at: 0 };
         this.deps.onOpen?.(fileId);
         return;
@@ -245,13 +255,13 @@ export class PointerController {
     }
     if (fileId) {
       const rt = this.deps.runtime.byId.get(fileId)!.runtime;
-      if (rt.state === 'hung') return; // 已挂文件不可拖走
+      // Every icon starts following the pointer immediately, including wet
+      // and hung files. Wring detection runs alongside dragging, never ahead.
+      this.startDrag(fileId, x, y);
       if (rt.humidity > 0.3 && rt.state !== 'burnt') {
         this.wring.start(x, y);
         this.wringId = fileId;
-        return;
       }
-      this.startDrag(fileId, x, y);
       return;
     }
 
@@ -267,7 +277,9 @@ export class PointerController {
     if (!id) return;
     const sprite = this.deps.sprites.get(id);
     if (!sprite) return;
+    sprite.setScatterAngle(0);
     this.deps.ropes.releaseFile(id); // 残留挂载先解除
+    this.deps.runtime.markState(id, 'idle');
     this.drag = {
       id,
       dx: x - sprite.container.position.x,
@@ -277,14 +289,19 @@ export class PointerController {
       oy: sprite.node.y,
     };
   }
+  private matureAt(x: number, y: number): string | null {
+    return this.deps.mushroomHit ? this.deps.mushroomHit(x, y) : mushroomAt(this.deps.sprites, this.deps.runtime, x, y);
+  }
 
-  private onUp(e: PointerEvent): void {    if (this.deps.runtime.locked) return;
+  private onUp(e: PointerEvent): void {
+    if (this.deps.runtime.locked) return;
     this.heatTarget = null; // 吹风机松手停热
     this.squeegeeing = false;
     this.brooming = false;
     if (this.boxDrag) {
       const bid = this.boxDrag;
       this.boxDrag = null;
+      this.deps.boxMove?.(bid, e.clientX, e.clientY);
       this.deps.boxDrop?.(bid, e.clientX, e.clientY);
       return;
     }
@@ -305,20 +322,29 @@ export class PointerController {
       return;
     }
 
-    // 拧干中断 → 单击判定 / 拖拽落绳
-    if (this.wring.active && this.wringId) {
-      const id = this.wringId;
+    if (this.drag) {
+      const { id, dx, dy } = this.drag;
+      const moved = this.drag.moved || Math.hypot(x - this.downPos.x, y - this.downPos.y) > 4;
+      this.drag = null;
+      this.deps.sprites.get(id)?.setWring(0);
+      this.deps.sprites.get(id)?.previewPin(null);
       this.wring.cancel();
       this.wringId = null;
-      if (isClick(this.downPos.x, this.downPos.y, x, y, performance.now() - this.downTime)) return;
-      this.startDrag(id, x, y);
-    }
-
-    if (this.drag) {
-      const { id, moved, ox, oy } = this.drag;
-      this.drag = null;
-      if (!moved) return;
+      if (!moved) {
+        // Compare completed clicks using their native event timestamps. This
+        // tolerates press duration and delayed renderer delivery on a busy PC.
+        if (this.lastClick.id === id) this.lastClick.at = e.timeStamp;
+        return;
+      }
       const sprite = this.deps.sprites.get(id);
+      // Chromium may coalesce the final pointermove in a fast native drag.
+      // The release event is authoritative; do not strand the icon one frame back.
+      if (sprite) {
+        sprite.node.x = x - dx;
+        sprite.node.y = y - dy;
+        sprite.container.position.set(sprite.node.x, sprite.node.y);
+      }
+      this.lastClick = { id: '', at: 0 };
       const near = nearestRopePoint(this.deps.ropes, x, y);
       if (near && sprite && this.deps.ropes.hang(near.entry, sprite.node, { x: near.x, y: near.y })) {
         this.deps.runtime.markState(id, 'hung');
@@ -328,11 +354,14 @@ export class PointerController {
         trackFirst('first_hang');
         return;
       }
-      // 未进入 25px 吸附：回到桌面网格原位，进入 GRID
+      // Dropping on the desktop keeps the new position. Real Explorer icon
+      // positions remain untouched and are restored by revealing its list.
       if (sprite) {
-        sprite.container.position.set(ox, oy);
-        sprite.node.x = ox;
-        sprite.node.y = oy;
+        const nx = Math.max(0, Math.min(window.innerWidth - 100, sprite.node.x));
+        const ny = Math.max(0, Math.min(window.innerHeight - 110, sprite.node.y));
+        sprite.container.position.set(nx, ny);
+        sprite.node.x = nx;
+        sprite.node.y = ny;
       }
       this.deps.runtime.markState(id, 'idle');
     }

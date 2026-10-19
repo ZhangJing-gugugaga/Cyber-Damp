@@ -1,0 +1,8 @@
+[
+  {"tool":"Move","arguments":{"loc":[442,185]},"label":"rope-fixed-overload-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"rope-fixed-overload-ready"},
+  {"tool":"Move","arguments":{"from_loc":[442,185],"loc":[1020,680],"drag":true,"duration":0.15},"label":"rope-fixed-overload-hang","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Wait","arguments":{"duration":6},"label":"rope-fixed-overload-settle"},
+  {"tool":"Move","arguments":{"loc":[1300,900]},"label":"rope-fixed-overload-clear-hover"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"rope-fixed-overload-landed"}
+]

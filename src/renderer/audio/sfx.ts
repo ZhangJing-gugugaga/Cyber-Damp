@@ -128,6 +128,73 @@ export class Sfx {
     src.start(t);
   }
 
+  /** Tilting the full box: a sustained stream, with low bubbling underneath. */
+  pour(): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const duration = 1.2;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * duration), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const seconds = i / ctx.sampleRate;
+      data[i] = (Math.random() * 2 - 1) * (0.7 + 0.3 * Math.sin(seconds * 43) ** 2);
+    }
+    const source = ctx.createBufferSource(); source.buffer = buf;
+    const high = ctx.createBiquadFilter(); high.type = 'highpass'; high.frequency.value = 240;
+    const low = ctx.createBiquadFilter(); low.type = 'lowpass';
+    low.frequency.setValueAtTime(3200, t); low.frequency.linearRampToValueAtTime(1600, t + duration);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.23, t + 0.045);
+    gain.gain.setValueAtTime(0.2, t + 0.94);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    source.connect(high).connect(low).connect(gain).connect(ctx.destination);
+    source.start(t);
+    for (let i = 0; i < 6; i++) {
+      const bubble = ctx.createOscillator(), level = ctx.createGain();
+      const at = t + 0.08 + i * 0.16;
+      bubble.frequency.setValueAtTime(150 + i % 3 * 35, at);
+      bubble.frequency.exponentialRampToValueAtTime(420, at + 0.075);
+      level.gain.setValueAtTime(0.035, at);
+      level.gain.exponentialRampToValueAtTime(0.0001, at + 0.09);
+      bubble.connect(level).connect(ctx.destination); bubble.start(at); bubble.stop(at + 0.1);
+    }
+  }
+
+  /** A short, strained fibre squeak; repeated only while the rope is near its limit. */
+  creak(): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator(), band = ctx.createBiquadFilter(), gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(115, t);
+    osc.frequency.linearRampToValueAtTime(158, t + 0.21);
+    osc.frequency.linearRampToValueAtTime(103, t + 0.48);
+    band.type = 'bandpass'; band.frequency.value = 560; band.Q.value = 3.2;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(0.065, t + 0.05);
+    gain.gain.linearRampToValueAtTime(0.018, t + 0.13);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.24);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+    osc.connect(band).connect(gain).connect(ctx.destination); osc.start(t); osc.stop(t + 0.52);
+  }
+
+  /** Soft wooden hanger / paper bundle contact. */
+  knock(): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(230, t);
+    osc.frequency.exponentialRampToValueAtTime(85, t + 0.09);
+    gain.gain.setValueAtTime(0.11, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    osc.connect(gain).connect(ctx.destination); osc.start(t); osc.stop(t + 0.14);
+  }
+
   /** 绳崩断裂响（AC-12b 表现） */
   crack(): void {
     const ctx = this.ensure();
@@ -143,6 +210,43 @@ export class Sfx {
     osc.connect(g).connect(ctx.destination);
     osc.start(t);
     osc.stop(t + 0.24);
+  }
+
+  /** Crushed dry leaves: several irregular, high-passed paper transients. */
+  explosion(): void {
+    const ctx = this.ensure(); if (!ctx) return;
+    const t = ctx.currentTime, buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.85), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / d.length * 6);
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 240;
+    const gain = ctx.createGain(); gain.gain.value = 0.48;
+    noise.connect(low).connect(gain).connect(ctx.destination); noise.start(t);
+    const osc = ctx.createOscillator(), thump = ctx.createGain();
+    osc.frequency.setValueAtTime(95, t); osc.frequency.exponentialRampToValueAtTime(26, t + 0.5);
+    thump.gain.setValueAtTime(0.28, t); thump.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+    osc.connect(thump).connect(ctx.destination); osc.start(t); osc.stop(t + 0.7);
+  }
+
+  /** Crushed dry leaves: several irregular, high-passed paper transients. */
+  dryLeaf(): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const length = Math.floor(ctx.sampleRate * 0.24);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) {
+      const seconds = i / ctx.sampleRate;
+      const pulses = Math.exp(-seconds * 38) + (seconds > 0.045 ? 0.7 * Math.exp(-(seconds - 0.045) * 65) : 0)
+        + (seconds > 0.11 ? 0.45 * Math.exp(-(seconds - 0.11) * 80) : 0);
+      data[i] = (Math.random() * 2 - 1) * pulses;
+    }
+    const source = ctx.createBufferSource(); source.buffer = buffer;
+    const high = ctx.createBiquadFilter(); high.type = 'highpass'; high.frequency.value = 1700;
+    const gain = ctx.createGain(); gain.gain.value = 0.18;
+    source.connect(high).connect(gain).connect(ctx.destination);
+    source.start(t);
   }
 
   /** 迁徙风声（AC-03 切城音效）：带通噪声上扫 */

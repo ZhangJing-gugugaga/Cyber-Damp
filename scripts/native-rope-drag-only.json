@@ -1,0 +1,5 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"rope-armed"},
+  {"tool":"Move","arguments":{"from_loc":[5,380],"loc":[1750,380],"drag":true,"duration":1.2},"label":"rope-draw-once","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"rope-drawn-once"}
+]

@@ -1,0 +1,5 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"media-pin-before"},
+  {"tool":"Move","arguments":{"from_loc":[1050,430],"loc":[1050,624],"drag":true,"duration":0.15},"label":"media-pin-drag"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"media-pinned-native"}
+]

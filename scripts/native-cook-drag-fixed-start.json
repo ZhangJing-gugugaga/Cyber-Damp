@@ -1,0 +1,4 @@
+[
+  {"tool":"Wait","arguments":{"duration":5},"label":"cook-drag-fixed-opening-wait"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"cook-drag-fixed-start"}
+]

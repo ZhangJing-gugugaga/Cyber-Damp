@@ -82,6 +82,7 @@ export function createShopPanel(mount: HTMLElement, runtime: WorldRuntime, hooks
 
         // 吸湿盒：qty-stepper（1..9）+ 批量购买（P1）
         if (item.id === 'box-1') {
+          card.classList.add('shop-card--box');
           const info = document.createElement('div');
           info.className = 'shop-card__info';
           const name = document.createElement('span');

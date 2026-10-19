@@ -1,0 +1,5 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"before-desktop"},
+  {"tool":"Shortcut","arguments":{"shortcut":"win+d"},"label":"show-desktop"},
+  {"tool":"Screenshot","arguments":{},"label":"baseline-desktop"}
+]

@@ -1,9 +1,9 @@
 /**
  * 菌种定义与生长规则（world 纯领域层）
- * SPEC v1.0：MVP P0 = 平菇 N + 二进制金针菇 R；杂交形态搁置
+ * Ordinary category selection stays deterministic; special forms need physical conditions.
  */
 import type { MushroomSpecies } from '../shared/types/file-runtime';
-import type { ExtCategory } from '../shared/types/file-node';
+import type { ExtCategory, FileNode } from '../shared/types/file-node';
 
 export interface SpeciesDef {
   id: MushroomSpecies;
@@ -38,6 +38,20 @@ export const SPECIES: Record<MushroomSpecies, SpeciesDef> = {
     price: 400,
     allowedCategories: ['archive'],
   },
+  bolete: {
+    id: 'bolete',
+    name: '赛博见手青',
+    rarity: 'SR',
+    price: 120,
+    allowedCategories: ['doc-code', 'image-video'],
+  },
+  lava: {
+    id: 'lava',
+    name: '核爆毁灭菇',
+    rarity: 'SSR',
+    price: 300,
+    allowedCategories: ['doc-code', 'image-video', 'audio', 'archive'],
+  },
 };
 
 /**
@@ -49,4 +63,9 @@ export function pickSpecies(category: ExtCategory, rand: number): MushroomSpecie
   if (category === 'doc-code' && rand < 0.4) return 'enoki';
   if (category === 'archive' && rand >= 0.85) return 'shy';
   return 'oyster';
+}
+
+export function pickFileSpecies(file: Pick<FileNode, 'name' | 'kind' | 'category'>, rand: number): MushroomSpecies {
+  if (file.kind === 'dir' && /^(?:新建文件夹|new folder)(?:\s*\(\d+\))?$/iu.test(file.name)) return 'shy';
+  return pickSpecies(file.category, rand);
 }

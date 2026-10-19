@@ -1,0 +1,11 @@
+[
+  {"tool":"Move","arguments":{"loc":[155,956]},"label":"ink-broom-hover"},
+  {"tool":"Click","arguments":{"loc":[155,956]},"label":"ink-broom-select","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[48,1034]},"label":"ink-toolbox-close-hover"},
+  {"tool":"Click","arguments":{"loc":[48,1034]},"label":"ink-toolbox-close","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[430,1029]},"label":"ink-sweep-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"ink-sweep-ready"},
+  {"tool":"Move","arguments":{"from_loc":[430,1029],"loc":[490,1029],"drag":true,"duration":0.3},"label":"ink-native-sweep","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[1250,950]},"label":"ink-sweep-clear-hover"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"ink-after-sweep"}
+]

@@ -10,10 +10,11 @@ import type { NativeImage } from 'electron';
 import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createHash } from 'node:crypto';
+import { desktopUsageId, loadDesktopUsage } from './desktop-usage';
+import { folderSizeBytes } from './folder-size';
 import { extToCategory } from '../../shared/constants';
 import type { DesktopEntry } from '../../shared/types/desktop';
-import { extractShellIconPng } from '../native/win32-icons';
+import { extractShellIconImage } from '../native/win32-icons';
 
 export const RECYCLE_BIN_PATH = 'shell:RecycleBinFolder';
 export const RECYCLE_BIN_CLSID = '::{645FF040-5081-101B-9F08-00AA002F954E}';
@@ -37,7 +38,7 @@ function splitExt(name: string): string {
 }
 
 function hashPath(fullPath: string): string {
-  return createHash('sha1').update(fullPath.toLowerCase()).digest('hex').slice(0, 16);
+  return desktopUsageId(fullPath);
 }
 
 async function mapLimit<T, R>(
@@ -110,6 +111,10 @@ function trimDataUrlIcon(dataUrl: string): string {
 }
 
 async function nativeIcon(fullPath: string, fallback: string): Promise<string> {
+  // SHParseDisplayName retains Shell shortcut/folder semantics. Electron's
+  // extension-based lookup can return a blank .lnk page or a drive for folders.
+  const shellIcon = extractShellIconImage(fullPath);
+  if (shellIcon) return iconDataUrl(shellIcon);
   try {
     const image = await app.getFileIcon(fullPath, { size: 'large' });
     if (image.isEmpty()) return fallback;
@@ -150,16 +155,31 @@ interface Candidate {
   isDir: boolean;
 }
 
+/** Both locations contribute icons to the Windows desktop. */
+export function desktopRoots(): string[] {
+  const roots = [desktopRoot()];
+  if (process.platform === 'win32') roots.push(path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop'));
+  return [...new Set(roots.map((root) => path.resolve(root)))];
+}
+
+export function isDesktopPath(fullPath: string): boolean {
+  return desktopRoots().some((root) => {
+    const rel = path.relative(root, path.resolve(fullPath));
+    return rel !== '' && !rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel);
+  });
+}
+
 /** 扫描真实桌面；回收站固定排第一格 */
 export async function scanDesktop(): Promise<DesktopEntry[]> {
-  const root = desktopRoot();
+  const usage = await loadDesktopUsage();
   const now = Date.now();
   const fallback = await fallbackIcon();
-  const recycleRaw =
-    extractShellIconPng(RECYCLE_BIN_CLSID, ICON_SIZE) || fallback || '';
-  const recycleIcon = trimDataUrlIcon(recycleRaw);
+  const recycleRaw = extractShellIconImage(RECYCLE_BIN_CLSID);
+  const recycleIcon = recycleRaw ? iconDataUrl(recycleRaw) : trimDataUrlIcon(fallback);
 
   const candidates: Candidate[] = [];
+  const names = new Set<string>();
+  for (const root of desktopRoots()) {
   try {
     const dirents = await fs.readdir(root, { withFileTypes: true });
     for (const d of dirents) {
@@ -168,6 +188,8 @@ export async function scanDesktop(): Promise<DesktopEntry[]> {
       // Windows 桌面不显示以 $ 开头的系统卷目录
       if (d.name.startsWith('$')) continue;
       if (!d.isFile() && !d.isDirectory()) continue;
+      if (names.has(lower)) continue;
+      names.add(lower);
       candidates.push({
         name: d.name,
         fullPath: path.join(root, d.name),
@@ -177,6 +199,7 @@ export async function scanDesktop(): Promise<DesktopEntry[]> {
   } catch (err) {
     console.warn(`[desktop] 无法读取桌面目录 ${root}:`, err);
   }
+  }
 
   // Windows 资源管理器默认：文件夹优先，再按名称排序（中文按本地排序）
   candidates.sort((a, b) => {
@@ -184,17 +207,25 @@ export async function scanDesktop(): Promise<DesktopEntry[]> {
     return a.name.localeCompare(b.name, 'zh-CN');
   });
 
+  // Share a startup budget across folders. A huge/inaccessible tree must not
+  // prevent the real desktop from appearing; partial sizes stay lower bounds.
+  const folderDeadline = Date.now() + 3500;
   const entries = await mapLimit(candidates, ICON_CONCURRENCY, async (c): Promise<DesktopEntry | null> => {
     try {
       const stat = await fs.stat(c.fullPath);
+      const folderSize = c.isDir ? await folderSizeBytes(c.fullPath, { deadlineMs: folderDeadline }) : null;
+      if (folderSize && !folderSize.complete) {
+        console.warn(`[desktop] 文件夹大小仅计已访问内容 ${c.fullPath}: ${folderSize.sizeBytes} bytes, ${folderSize.files} files, ${folderSize.skippedEntries} skipped, limit=${folderSize.limit ?? 'access'}`);
+      }
       const ext = c.isDir ? '' : splitExt(c.name);
       return {
         id: `d-${hashPath(c.fullPath)}`,
         name: c.name,
         ext,
         category: c.isDir ? 'doc-code' : extToCategory(ext),
-        sizeBytes: stat.size,
+        sizeBytes: folderSize?.sizeBytes ?? stat.size,
         mtime: stat.mtimeMs,
+        lastOpenedAt: usage[hashPath(c.fullPath)],
         realPath: c.fullPath,
         kind: c.isDir ? 'dir' : 'file',
         iconDataUrl: await nativeIcon(c.fullPath, fallback),

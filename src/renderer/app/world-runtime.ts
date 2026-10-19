@@ -5,6 +5,7 @@
  */
 import { FileEntity } from '../../world/file-entity';
 import { stepEvolution } from '../../world/evolution';
+import { stopHeating } from '../../world/file-material';
 import type { Env } from '../../world/evolution';
 import { CITIES, simulateDay, humidityMultiplier, isSunny, dateToDayIndex } from '../../world/weather-simulator';
 import { SPECIES } from '../../world/mushroom-species';
@@ -47,6 +48,7 @@ export class WorldRuntime {
   onChange: (() => void) | null = null;
 
   cpu = 0;
+  microphoneWind = 0;
   /** 电扇锚点（AC-23：仅对 300px 内绳上文件加成；未放置为 null） */
   private fanAnchor: { x: number; y: number } | null = null;
   private cpuHighSec = 0;
@@ -80,7 +82,7 @@ export class WorldRuntime {
       const seed = stageSeed(ent.runtime.stage);
       ent.runtime.humidity = seed.humidity;
       ent.runtime.mold = seed.mold;
-      seedMoldyMushroom(ent.runtime, node.category, node.id);
+      seedMoldyMushroom(ent.runtime, node.category, node.id, node.name, node.kind);
       this.entities.push(ent);
       this.byId.set(node.id, ent);
     }
@@ -107,13 +109,14 @@ export class WorldRuntime {
       ent.runtime.humidity = clamp01(s.humidity);
       ent.runtime.mold = clamp01(s.mold);
       ent.runtime.char = clamp01(s.char);
+      ent.runtime.dryness = clamp01(s.dryness || 0);
       ent.runtime.state = s.state;
       ent.runtime.mushroom =
         s.mushroom && SPECIES[s.mushroom.species] ? { ...s.mushroom } : null;
     }
     // 开场演出需要所有 ΔT≥30d 文件有一朵可生长的菇（存档里已采摘的也重新破土）
     for (const ent of this.entities) {
-      seedMoldyMushroom(ent.runtime, ent.node.category, ent.node.id);
+      seedMoldyMushroom(ent.runtime, ent.node.category, ent.node.id, ent.node.name, ent.node.kind);
     }
   }
 
@@ -130,7 +133,7 @@ export class WorldRuntime {
     if (this.humidifierOn) humidity += 0.15;
     humidity -= this.boxAbsorb;
     if (this.surgeT > 0) humidity += this.surgeAmount; // 泼洒暴涨
-    const wind = isSunny(day.condition) ? 0.6 : 0.15;
+    const wind = Math.max(isSunny(day.condition) ? 0.6 : 0.15, this.microphoneWind);
     return { humidity: clamp01(humidity), heat: 0, wind };
   }
 
@@ -159,7 +162,7 @@ export class WorldRuntime {
         const d = Math.hypot(ent.node.x - this.fanAnchor.x, ent.node.y - this.fanAnchor.y);
         if (d <= 300) entEnv = { ...env, wind: Math.max(env.wind, 0.7) };
       }
-      stepEvolution(ent.runtime, entEnv, dtSec, ent.node.category, this.rnd());
+      stepEvolution(ent.runtime, entEnv, dtSec, ent.node.category, this.rnd(), ent.node);
     }
   }
 
@@ -198,6 +201,10 @@ export class WorldRuntime {
   applyHeat(id: string, dtSec: number): void {
     act.applyHeat(this, id, dtSec);
   }
+  stopHeat(id: string): void {
+    const ent = this.byId.get(id);
+    if (ent) stopHeating(ent.runtime);
+  }
   reduceMold(id: string, amt: number): void {
     act.reduceMold(this, id, amt);
   }
@@ -218,9 +225,13 @@ export class WorldRuntime {
   dryFile(id: string): boolean {
     const ent = this.byId.get(id);
     if (!ent) return false;
+    ent.node.lastOpenedAt = this.now;
+    ent.runtime.stage = 'fresh';
     ent.runtime.humidity = 0;
     ent.runtime.mold = 0;
     ent.runtime.char = 0;
+    ent.runtime.dryness = 0;
+    stopHeating(ent.runtime);
     ent.runtime.state = 'idle';
     ent.runtime.mushroom = null;
     this.onChange?.();
@@ -256,6 +267,7 @@ export class WorldRuntime {
         humidity: e.runtime.humidity,
         mold: e.runtime.mold,
         char: e.runtime.char,
+        dryness: e.runtime.dryness || 0,
         state: e.runtime.state,
         mushroom: e.runtime.mushroom ? { ...e.runtime.mushroom } : null,
       })),

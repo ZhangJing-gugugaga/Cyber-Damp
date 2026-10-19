@@ -1,0 +1,8 @@
+[
+  {"tool":"Move","arguments":{"loc":[1817,919]},"label":"fan-buy-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"fan-buy-ready"},
+  {"tool":"Click","arguments":{"loc":[1817,919]},"label":"fan-buy","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[1512,43]},"label":"fan-shop-close-hover"},
+  {"tool":"Click","arguments":{"loc":[1512,43]},"label":"fan-shop-close","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"fan-placed-013"}
+]

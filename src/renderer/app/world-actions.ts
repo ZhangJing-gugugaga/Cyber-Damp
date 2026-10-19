@@ -9,6 +9,8 @@ import { sellMushroom } from '../../world/economy';
 import { purchase, getItem } from '../../world/shop-catalog';
 import { pickSpecies, SPECIES } from '../../world/mushroom-species';
 import { clamp01 } from './clamp';
+import { heatFile, stopHeating } from '../../world/file-material';
+import { heatSpecialMushroom } from '../../world/special-mushrooms';
 
 import type { InventoryItem } from '../../world/economy';
 import type { PurchaseResult } from '../../world/shop-catalog';
@@ -102,6 +104,7 @@ export function useSpray(rt: WorldRuntime, id: string): boolean {
   if (!ent) return false;
   rt.sprayCharges -= 1;
   ent.runtime.char = 0;
+  stopHeating(ent.runtime);
   if (ent.runtime.state === 'burnt') ent.runtime.state = 'idle';
   ent.runtime.humidity = clamp01(ent.runtime.humidity + 0.3);
   emit(rt);
@@ -109,18 +112,11 @@ export function useSpray(rt: WorldRuntime, id: string): boolean {
 }
 
 /**
- * 吹风机按住施热（P1 局部热源）：湿度快速下降；humidity<0.3 后
- * char += dt×0.01（与演化同速率），>0.6 锁定 burnt。局部实现不走全局 env.heat。
+ * Held local hot air uses the same five-second grace period as a hot clip.
  */
 export function applyHeat(rt: WorldRuntime, id: string, dtSec: number): void {
   const ent = rt.byId.get(id);
-  if (!ent || ent.runtime.state === 'burnt') return;
-  const rtState = ent.runtime;
-  rtState.humidity = clamp01(rtState.humidity - dtSec * 0.25);
-  if (rtState.humidity < 0.3) {
-    rtState.char = clamp01(rtState.char + dtSec * 0.01);
-    if (rtState.char > 0.6) rtState.state = 'burnt';
-  }
+  if (ent) { heatSpecialMushroom(ent.runtime.mushroom, dtSec); heatFile(ent.runtime, dtSec); }
 }
 
 /** 蜗牛食苔免费清洁（AC-29）：连续过程不触发存档防抖（周期兜底落盘） */

@@ -1,6 +1,6 @@
 {
   "name": "cyber-damp",
-  "version": "0.1.0",
+  "version": "0.1.9",
   "description": "回南天 Cyber Damp - 桌面文件受潮发霉/拉绳晾晒/蘑菇养成的数字家务模拟器 MVP",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",
@@ -9,6 +9,7 @@
   ],
   "license": "MIT",
   "scripts": {
+    "test": "node scripts/test-all.mjs",
     "dev": "vite",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
@@ -31,6 +32,7 @@
   "dependencies": {
     "koffi": "^3.3.3",
     "lucide": "1.58.0",
+    "pixi-filters": "6.1.5",
     "pixi.js": "8.21.0"
   },
   "build": {

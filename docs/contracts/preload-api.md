@@ -1,7 +1,19 @@
 # IPC 契约：window.damp（Phase 2 唯一联调依据）
 
 > 本项目无 HTTP 服务端，故无 OpenAPI 面。本文件是前后端（main/preload ↔ renderer）的唯一契约，作用等同于 openapi.yaml：renderer 与 main 均按本表实现，变更必须走 Team Lead 同步并升版本号。
-> 契约版本：v1.0（2026-10-16）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+> 契约版本：v1.3（2026-10-18）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+
+## v1.3 原生输入补充
+
+| 通道 / API | 方向 | 载荷 / 返回 |
+| --- | --- | --- |
+| `window:cursor` / `window.damp.window.onCursor(cb)` | main → renderer | `{ x, y }`，相对主屏工作区的 DIP 坐标，约30Hz；返回卸载函数 |
+| `window:getInputSettings` / `window.damp.window.getInputSettings()` | renderer → main | `{ doubleClickMs }`，Windows `GetDoubleClickTime` 结果 |
+| `desktop:scan` | renderer → main | 用户与公共桌面条目；新增可选 `lastOpenedAt` 本地使用时间，原 `mtime` 保留真实值 |
+| `desktop:open` | renderer → main | 成功后更新路径哈希对应的本地使用时间；只允许两处桌面根目录内路径及回收站 |
+| `app:quit` | renderer → main | 先还原原生桌面，再异步等待存档 flush；后台监护停止重新挂载 |
+
+穿透仍仅在命中态变化时调用 `setIgnoreMouseEvents`。原生光标探针只补充 hover，不伪造 down/up，也不直接推进拖拽。
 
 ## 1. 通道总表
 
@@ -18,6 +30,8 @@
 | `app:beforeQuit` | M→R | event | — | 渲染层 500ms 内完成 `save:write` |
 
 ## 2. 类型（TS，renderer 侧消费）
+
+新增只读`desktop:wallpaper`（R→M invoke，无参数）：返回`DesktopWallpaper | null`，权威类型为`src/shared/types/wallpaper.ts`。只读取Windows IDesktopWallpaper选定的当前主屏壁纸、布局/背景色/显示区域并解码该图像；不接受任意路径、不截取其他窗口、不修改系统壁纸、不上传或保存壁纸。供生卖见手青期间的桌面水波使用，平时底图隐藏。字符串使用koffi.decode.string16读取，COM分配的字符串与接口均释放。
 
 ```ts
 // shared/types/save.ts（权威定义处）

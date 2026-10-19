@@ -1,0 +1,52 @@
+[
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        5,
+        300
+      ]
+    },
+    "label": "ripple-rope-edge-hover"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    },
+    "label": "ripple-rope-ready"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "from_loc": [
+        5,
+        300
+      ],
+      "loc": [
+        1750,
+        300
+      ],
+      "drag": true,
+      "duration": 0.15
+    },
+    "label": "ripple-rope-draw",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 5
+    },
+    "label": "ripple-rope-settle"
+  },
+  {
+    "tool": "Snapshot",
+    "arguments": {
+      "use_vision": true,
+      "use_annotation": false,
+      "use_ui_tree": false
+    },
+    "label": "ripple-rope-empty"
+  }
+]

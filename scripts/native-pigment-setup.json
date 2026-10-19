@@ -1,0 +1,9 @@
+[
+  {"tool":"Move","arguments":{"loc":[440,325]},"label":"pigment-document-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"pigment-document-ready"},
+  {"tool":"Move","arguments":{"from_loc":[440,325],"loc":[1100,500],"drag":true,"duration":0.15},"label":"pigment-document-place","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[440,190]},"label":"pigment-media-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"pigment-media-ready"},
+  {"tool":"Move","arguments":{"from_loc":[440,190],"loc":[1100,350],"drag":true,"duration":0.15},"label":"pigment-media-place","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"pigment-before-drips"}
+]

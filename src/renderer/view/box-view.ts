@@ -2,7 +2,9 @@
  * 氯化钙吸湿盒（view 层，程序化 Graphics）：盒体 + 颗粒 + 积水线
  * --box-cacl2 颗粒 / --box-cacl2-melt 积水；fill 0..1 涨满需倒掉
  */
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
+import { propTexture } from './mushroom-assets';
+import { BoxFillFilter } from './shaders/box-fill-filter';
 
 const GRANULE = 0xD8D2C0;      // --box-cacl2
 const MELT = 0xB7C9CE;         // --box-cacl2-melt
@@ -15,8 +17,18 @@ export class BoxView {
   private readonly water = new Graphics();
   private readonly frame = new Graphics();
   private readonly label = new Graphics();
+  private readonly material = new BoxFillFilter();
+  private readonly art: Sprite | null;
+  private dragging = false;
 
   constructor() {
+    const texture = propTexture('box');
+    this.art = texture ? new Sprite(texture) : null;
+    if (this.art) {
+      this.art.width = W; this.art.height = H;
+      this.art.filters = [this.material]; this.container.addChild(this.art, this.label);
+      this.container.eventMode = 'none'; return;
+    }
     this.drawStatic();
     this.container.addChild(this.water, this.frame, this.label);
     this.container.eventMode = 'none';
@@ -36,6 +48,7 @@ export class BoxView {
 
   /** fill 0..1 积水位；full 时水面高亮提示该倒了 */
   update(fill: number, tSec: number): void {
+    if (this.art) { this.material.update(fill, tSec, this.dragging); return; }
     this.water.clear();
     const h = Math.min(H - 4, fill * (H - 4));
     if (h > 0.5) {
@@ -48,6 +61,7 @@ export class BoxView {
 
   /** 拖动中视觉反馈：微抬升 */
   setDragging(on: boolean): void {
+    this.dragging = on;
     this.label.clear();
     if (on) this.label.roundRect(-2, -2, W + 4, H + 4, 5).stroke({ width: 1.5, color: 0xC0952F, alpha: 0.9 }); // sanctioned：选中描边
     this.container.alpha = on ? 0.85 : 1;

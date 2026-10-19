@@ -9,8 +9,19 @@ export type NeglectStage = 'fresh' | 'damp' | 'wet' | 'moldy';
 /** 动作态 */
 export type FileActionState = 'idle' | 'hung' | 'drying' | 'burnt';
 
-/** MVP 菌种：平菇 N + 二进制金针菇 R + 社恐胆小菇 SSR（杂交形态搁置） */
-export type MushroomSpecies = 'oyster' | 'enoki' | 'shy';
+/** Ordinary species retain their existing selection; hybrids need physical conditions. */
+export type MushroomSpecies = 'oyster' | 'enoki' | 'shy' | 'bolete' | 'lava';
+
+export interface MushroomState {
+  species: MushroomSpecies;
+  growth: number;
+  /** Bolete cooking progress 0..1; three seconds of hot air cooks it. */
+  cooking?: number;
+  /** Cut bolete oxidation age, clamped to 0..0.5 seconds. */
+  cutAgeSeconds?: number;
+  /** Mature lava countdown 0..12 seconds; absent until maturity. */
+  lavaSeconds?: number;
+}
 
 export interface FileRuntime {
   id: string;
@@ -20,9 +31,13 @@ export interface FileRuntime {
   mold: number;
   /** 焦化度 0..1 */
   char: number;
+  /** Sustained hot-air exposure, reset on release; intentionally not saved. */
+  heatSeconds?: number;
+  /** 0..1 parchment desiccation shared by shape, texture and click sound. */
+  dryness?: number;
   /** 派生：由 mtime 差推导（fresh<3d / damp 3-14d / wet 14-30d / moldy >30d） */
   stage: NeglectStage;
   state: FileActionState;
   /** growth 0..1，1 可采摘 */
-  mushroom: { species: MushroomSpecies; growth: number } | null;
+  mushroom: MushroomState | null;
 }

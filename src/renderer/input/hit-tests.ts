@@ -19,19 +19,23 @@ export interface HitSources {
   boxHit?(x: number, y: number): string | null;
   snailHit?(x: number, y: number): boolean;
   glyphHit?(x: number, y: number): boolean;
+  extraHit?(x: number, y: number): boolean;
+  mushroomHit?(x: number, y: number): string | null;
 }
 
 /** AC-26 悬停命中：DOM 控件 / 文件 / 蘑菇 / 绳 / 吸湿盒 / 蜗牛 / 边缘拉绳 */
 export function worldHitAt(s: HitSources, x: number, y: number, viewportW: number): boolean {
+  if (x < 0 || y < 0 || x >= viewportW || y >= window.innerHeight) return false;
   const edge = s.ropes.canSpawn() && (x <= EDGE_ZONE || x >= viewportW - EDGE_ZONE);
   return (
     s.domHit(x, y) ||
     !!fileAt(s.sprites, x, y) ||
-    !!mushroomAt(s.sprites, s.runtime, x, y) ||
+    !!(s.mushroomHit ? s.mushroomHit(x, y) : mushroomAt(s.sprites, s.runtime, x, y)) ||
     !!s.ropes.nearestPoint(x, y) ||
     !!s.boxHit?.(x, y) ||
     !!s.snailHit?.(x, y) ||
     !!s.glyphHit?.(x, y) ||
+    !!s.extraHit?.(x, y) ||
     edge
   );
 }

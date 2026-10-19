@@ -5,7 +5,7 @@
  */
 import { app, BrowserWindow } from 'electron';
 import * as path from 'node:path';
-import { createOverlayWindow, startDisplayTracker } from './window/create-overlay-window';
+import { createOverlayWindow, isOverlayReady, startDisplayTracker } from './window/create-overlay-window';
 import { registerHandlers } from './ipc/register-handlers';
 import { startCpuMonitor } from './system/cpu-monitor';
 import { installDesktopSafety, restoreDesktop } from './native/win32-desktop';
@@ -13,6 +13,12 @@ import { trackEvent } from './telemetry/event-log';
 
 let win: BrowserWindow | null = null;
 const startedAt = Date.now();
+
+// Native UAT can isolate game saves while still using the real Explorer
+// desktop and production window/input path. Ordinary startup is unchanged.
+if (process.env.CD_UAT === '1' && process.env.CD_UAT_DATA_DIR) {
+  app.setPath('userData', path.resolve(process.env.CD_UAT_DATA_DIR));
+}
 
 installDesktopSafety();
 
@@ -22,7 +28,9 @@ if (!app.requestSingleInstanceLock()) {
   // ASMR 场景：允许无用户手势自动播放（雨声/闷雷）
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
   app.on('second-instance', () => {
-    if (win && !win.isDestroyed()) win.show();
+    if (!win || win.isDestroyed()) return;
+    if (process.env.CD_QA === '1') win.show();
+    else if (isOverlayReady(win)) win.showInactive();
   });
 
   void app.whenReady().then(() => {

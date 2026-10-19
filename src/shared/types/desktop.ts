@@ -13,6 +13,7 @@ export interface DesktopEntry {
   sizeBytes: number;
   /** 真实最后修改时间 epoch ms */
   mtime: number;
+  lastOpenedAt?: number;
   realPath: string;
   kind: FileKind;
   /** 原生图标（PNG data URL） */

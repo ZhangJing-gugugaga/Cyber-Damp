@@ -1,0 +1,11 @@
+[
+  {
+    "label": "physiology-fixed-dry",
+    "arguments": {
+      "use_annotation": false,
+      "use_ui_tree": false,
+      "use_vision": true
+    },
+    "tool": "Snapshot"
+  }
+]

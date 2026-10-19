@@ -133,7 +133,7 @@
   --panel-bg: rgba(16, 19, 15, 0.90);          /* HUD / 抽屉 / 控制台统一 veil */
   --panel-border: var(--border);
   --panel-radius: var(--radius-md);
-  --panel-grain: url("texture/paper-grain.png"); /* 纸纹噪声，5% 不透明度 */
+  --panel-grain: none;
 
   --btn-primary-bg: var(--accent);
   --btn-primary-text: var(--accent-on);

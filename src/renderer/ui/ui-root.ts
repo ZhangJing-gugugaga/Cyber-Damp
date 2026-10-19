@@ -40,6 +40,7 @@ export function mountUi(
     onSell(): void;
     onBuy(itemId: string): void;
     onBuyBox(qty: number): void;
+    onMicrophoneToggle?(on: boolean): Promise<boolean>;
     sfx: { setEnabled(on: boolean): void; whoosh(): void };
     demo: DemoActions;
   },
@@ -78,7 +79,7 @@ export function mountUi(
     onBuyBox: hooks.onBuyBox,
   });
   const demo = createDemoConsole(mount, runtime, hooks.demo);
-  const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on) });
+  const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on), onMicrophoneToggle: hooks.onMicrophoneToggle });
 
   shopBtn.addEventListener('click', () => {
     emitAction('shop-open');

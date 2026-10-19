@@ -1,0 +1,5 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"material-before-show-desktop"},
+  {"tool":"Shortcut","arguments":{"shortcut":"win+d"},"label":"material-show-desktop"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"material-desktop"}
+]

@@ -66,7 +66,7 @@ export class Opening {
       const stage = ent.runtime.stage;
       if (stage === 'fresh') continue;
       const isMoldy = stage === 'moldy';
-      const popAt = 3.2 + Math.min(0.5, popIndex * 0.05);
+      const popAt = 5 + Math.min(0.25, popIndex * 0.025);
       if (isMoldy) popIndex++;
       this.targets.push({
         id: ent.node.id,
@@ -78,6 +78,8 @@ export class Opening {
       });
     }
     deps.sfx.setRain(0.85);
+    document.documentElement.classList.add('cursor-hygrometer');
+    for (const view of deps.shrooms.values()) view.container.scale.set(0.001);
     deps.sfx.thunder();
     this.skipHandler = () => this.skip();
     window.addEventListener('keydown', this.skipHandler);
@@ -92,19 +94,19 @@ export class Opening {
     const { atmosphere, pool, sfx } = this.deps;
 
     // 0-1s 起雾；5-6s 退雾，交还天气驱动
-    const fog = t < 1 ? smooth(0, 1, t) : t > 5 ? Math.max(0, 1 - (t - 5)) : 1;
+    const fog = smooth(1, 3, t);
     atmosphere.introFog = fog;
 
-    const droplet = smooth(1, 5, t);
+    const droplet = smooth(1, 3, t);
     for (const target of this.targets) {
       const moldy = target.stage === 'moldy';
       const wet = target.stage === 'wet';
       const droplets = droplet;
-      const mold = moldy ? smooth(1, 3.2, t) : wet ? smooth(1, 5, t) : 0;
+      const mold = moldy || wet ? smooth(3, 5, t) : 0;
       target.sprite.setIntro(droplets, mold);
 
       if (!target.shroom) continue;
-      const grow = smooth(target.popAt, target.popAt + 1.7, t);
+      const grow = smooth(target.popAt, target.popAt + 0.6, t);
       target.shroom.container.scale.set(Math.max(0.001, easeOutBack(grow)));
       if (!target.popped && t >= target.popAt) {
         target.popped = true;
@@ -148,6 +150,7 @@ export class Opening {
   private finish(): void {
     if (this.done) return;
     this.done = true;
+    document.documentElement.classList.remove('cursor-hygrometer');
     this.dropListeners();
     this.deps.atmosphere.introFog = -1;
     for (const target of this.targets) {

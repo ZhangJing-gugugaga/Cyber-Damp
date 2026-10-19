@@ -41,4 +41,6 @@ export interface PointerDeps {
   sweepGlyphs?(x: number, y: number): void;
   /** 滴落字符悬停命中（AC-26：可扫地必须拦截穿透） */
   glyphHit?(x: number, y: number): boolean;
+  extraHit?(x: number, y: number): boolean;
+  mushroomHit?(x: number, y: number): string | null;
 }

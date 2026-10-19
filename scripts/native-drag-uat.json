@@ -1,0 +1,5 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"drag-before"},
+  {"tool":"Move","arguments":{"from_loc":[65,180],"loc":[700,400],"drag":true,"duration":0.7},"label":"native-drag"},
+  {"tool":"Screenshot","arguments":{},"label":"drag-after"}
+]

@@ -1,0 +1,39 @@
+[
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        823,
+        560
+      ]
+    },
+    "label": "harvest-fixed-cut-hover"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    },
+    "label": "harvest-fixed-cut-ready"
+  },
+  {
+    "tool": "Click",
+    "arguments": {
+      "loc": [
+        823,
+        560
+      ]
+    },
+    "label": "harvest-fixed-native-cut",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Snapshot",
+    "arguments": {
+      "use_vision": true,
+      "use_annotation": false,
+      "use_ui_tree": false
+    },
+    "label": "harvest-fixed-after-cut"
+  }
+]

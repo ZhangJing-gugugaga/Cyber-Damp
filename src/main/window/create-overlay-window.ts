@@ -6,7 +6,40 @@
 import { BrowserWindow, screen } from 'electron';
 import type { WebContents } from 'electron';
 import * as path from 'node:path';
-import { isDesktopAttached, repositionOverlay } from '../native/win32-desktop';
+import { isDesktopAttached, repositionOverlay, shutdownDesktop } from '../native/win32-desktop';
+
+interface OverlayStartup {
+  painted: boolean;
+  failed: boolean;
+  revealed: boolean;
+  firstFrame: Promise<boolean>;
+  resolvePaint: (ok: boolean) => void;
+}
+const startups = new WeakMap<BrowserWindow, OverlayStartup>();
+
+/** Chromium may paint the empty document before the game finishes assembling. */
+export function waitForOverlayFirstFrame(win: BrowserWindow): Promise<boolean> {
+  const startup = startups.get(win);
+  return !startup || startup.failed || win.isDestroyed() ? Promise.resolve(false) : startup.firstFrame;
+}
+
+/** Called only after the renderer/world and native desktop takeover are ready. */
+export function revealDesktopOverlay(win: BrowserWindow): boolean {
+  const startup = startups.get(win);
+  if (!startup?.painted || startup.failed || win.isDestroyed()) return false;
+  if (process.env.CD_NO_ATTACH !== '1' && !isDesktopAttached()) return false;
+  win.showInactive();
+  startup.revealed = true;
+  console.info('[desktop] 首帧和桌面接管均已就绪，显示替身窗口');
+  return true;
+}
+
+/** A second-instance launch must never expose an unfinished top-level window. */
+export function isOverlayReady(win: BrowserWindow): boolean {
+  const startup = startups.get(win);
+  return Boolean(startup?.revealed && !startup.failed && !win.isDestroyed()
+    && (process.env.CD_NO_ATTACH === '1' || isDesktopAttached()));
+}
 
 /** 工作区 bounds（主屏，不含任务栏；桌面图标网格与舞台同尺寸） */
 export function getWorkArea(): { x: number; y: number; width: number; height: number } {
@@ -53,6 +86,7 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
     width: area.width,
     height: area.height,
     show: false,
+    paintWhenInitiallyHidden: true,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -62,12 +96,46 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
     },
   });
 
+  let resolvePaint!: (ok: boolean) => void;
+  const startup: OverlayStartup = {
+    painted: false, failed: false, revealed: false,
+    firstFrame: new Promise((resolve) => { resolvePaint = resolve; }),
+    resolvePaint: (ok) => resolvePaint(ok),
+  };
+  startups.set(win, startup);
+  const abortStartup = (reason: string): void => {
+    startup.failed = true;
+    startup.revealed = false;
+    startup.resolvePaint(false);
+    console.error('[desktop] 渲染初始化失败，保留原生桌面:', reason);
+    if (!win.isDestroyed()) win.hide();
+    shutdownDesktop();
+  };
+
   win.setSkipTaskbar(true);
+  // Native desktop remains usable while assets/IPC are still initializing.
+  win.setIgnoreMouseEvents(true, { forward: true });
   win.setBounds(area);
+  // Chromium's forwarded WM_MOUSEMOVE is unreliable for reparented layered
+  // child windows. Feed a native DIP cursor probe into hover hit testing so a
+  // pass-through window can become clickable again without a bootstrap click.
+  const cursorTimer = setInterval(() => {
+    if (win.isDestroyed() || win.webContents.isLoading()) return;
+    const point = screen.getCursorScreenPoint();
+    const work = getWorkArea();
+    win.webContents.send('window:cursor', { x: point.x - work.x, y: point.y - work.y });
+  }, 33);
+  cursorTimer.unref();
+  win.on('closed', () => { clearInterval(cursorTimer); startup.failed = true; startup.resolvePaint(false); });
   win.once('ready-to-show', () => {
-    // 不抢用户当前工作窗口焦点
-    win.showInactive();
+    // This is only the first Chromium paint, not the world's ready signal.
+    startup.painted = true;
+    startup.resolvePaint(!startup.failed);
   });
+  win.webContents.on('did-fail-load', (_event, code, description, _url, mainFrame) => {
+    if (mainFrame && code !== -3) abortStartup(`load ${code}: ${description}`);
+  });
+  win.webContents.on('preload-error', (_event, _preloadPath, error) => abortStartup(`preload: ${error.message}`));
 
   // 安全加固（AC-25 相邻）：禁止渲染层打开新窗口/导航到外部页面
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -78,18 +146,21 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
 
   // 渲染层日志转发（诊断/QA：控制台错误可见于进程 stdout）
   win.webContents.on('console-message', (event) => {
-    const msg = (event as unknown as { message?: string }).message;
+    const msg = event.message;
     if (msg) console.log('[renderer]', msg);
+    if (event.level === 'error' && !startup.revealed) abortStartup(msg);
   });
 
   // dev 模式加载 Vite dev server；生产加载构建产物
   const devUrl = process.env.VITE_DEV_SERVER_URL;
-  if (devUrl) {
-    win.loadURL(devUrl);
-  } else {
-    // 产物布局：dist/renderer/index.html（本模块编译在 dist/main/window/，需退两级到 dist）
-    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
-  }
+  // 产物布局：dist/renderer/index.html（本模块编译在 dist/main/window/，需退两级到 dist）
+  const loading = devUrl ? win.loadURL(devUrl) :
+    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'), {
+      query: process.env.CD_UAT === '1' ? { inspect: '1' } : {},
+    });
+  void loading.catch((error: Error & { code?: string }) => {
+    if (!win.isDestroyed() && error.code !== 'ERR_ABORTED') abortStartup(`navigation: ${error.message}`);
+  });
   return win;
 }
 

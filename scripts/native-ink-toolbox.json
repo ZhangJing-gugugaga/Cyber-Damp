@@ -1,0 +1,6 @@
+[
+  {"tool":"Move","arguments":{"loc":[48,1034]},"label":"ink-toolbox-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"ink-toolbox-ready"},
+  {"tool":"Click","arguments":{"loc":[48,1034]},"label":"ink-toolbox-open","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"ink-toolbox"}
+]

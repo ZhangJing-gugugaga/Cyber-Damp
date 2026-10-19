@@ -1,0 +1,5 @@
+[
+  {"tool":"Move","arguments":{"loc":[1740,900]},"label":"household-scroll-hover"},
+  {"tool":"Scroll","arguments":{"loc":[1740,900],"direction":"down","wheel_times":8},"label":"household-scroll-down","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"household-shop-bottom"}
+]

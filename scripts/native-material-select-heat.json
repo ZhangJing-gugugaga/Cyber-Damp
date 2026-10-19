@@ -1,0 +1,4 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"material-heat-selection-before"},
+  {"tool":"Click","arguments":{"loc":[155,826]},"label":"material-select-heat"}
+]

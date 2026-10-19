@@ -1,0 +1,18 @@
+[
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 20
+    },
+    "label": "final-017-opening-wait"
+  },
+  {
+    "tool": "Snapshot",
+    "arguments": {
+      "use_ui_tree": false,
+      "use_vision": true,
+      "use_annotation": false
+    },
+    "label": "final-017-clean-desktop"
+  }
+]

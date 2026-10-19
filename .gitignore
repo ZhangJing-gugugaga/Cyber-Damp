@@ -16,6 +16,8 @@ release/
 .DS_Store
 Thumbs.db
 *.log
+__pycache__/
+*.pyc
 
 # 编辑器
 .idea/

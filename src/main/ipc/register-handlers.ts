@@ -7,13 +7,18 @@ import { ipcMain, app, shell } from 'electron';
 import type { BrowserWindow, WebContents } from 'electron';
 import * as path from 'node:path';
 import { loadSave, writeSave } from '../save/save-store';
-import { getWorkArea } from '../window/create-overlay-window';
+import { getWorkArea, isOverlayReady, revealDesktopOverlay, waitForOverlayFirstFrame } from '../window/create-overlay-window';
 import { trackEvent } from '../telemetry/event-log';
-import { desktopDir, scanDesktop, RECYCLE_BIN_PATH } from '../desktop/desktop-scan';
+import { isDesktopPath, scanDesktop, RECYCLE_BIN_PATH } from '../desktop/desktop-scan';
+import { recordDesktopUse } from '../desktop/desktop-usage';
+import { readDesktopWallpaper } from '../native/win32-wallpaper';
 import {
   attachOverlayToDesktop,
   hideDesktopIcons,
   startDesktopHostMonitor,
+  shutdownDesktop,
+  restoreDesktop,
+  doubleClickInterval,
 } from '../native/win32-desktop';
 import type { SaveData } from '../../shared/types/save';
 
@@ -23,6 +28,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 let desktopReadyHandled = false;
+let desktopReadyTask: Promise<{ ok: boolean; error?: string; iconsHidden: boolean }> | null = null;
 
 export function registerHandlers(
   getWin: () => BrowserWindow | null,
@@ -40,9 +46,11 @@ export function registerHandlers(
   });
 
   ipcMain.handle('window:getWorkArea', () => getWorkArea());
+  ipcMain.handle('window:getInputSettings', () => ({ doubleClickMs: doubleClickInterval() }));
 
   // ---- 真实桌面 ----
   ipcMain.handle('desktop:scan', () => scanDesktop());
+  ipcMain.handle('desktop:wallpaper', () => readDesktopWallpaper());
 
   ipcMain.handle('desktop:open', async (_e, realPath: unknown) => {
     if (typeof realPath !== 'string' || realPath.length === 0) {
@@ -56,16 +64,17 @@ export function registerHandlers(
         return { ok: false, error: String(err) };
       }
     }
-    const root = desktopDir();
     const full = path.resolve(realPath);
-    const rel = path.relative(root, full);
-    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    if (!isDesktopPath(full)) {
       console.warn('[desktop] 拒绝打开桌面之外的路径:', full);
       return { ok: false, error: 'outside-desktop' };
     }
     const error = await shell.openPath(full);
     if (error) console.warn('[desktop] 打开失败', full, error);
-    else console.info('[desktop] 已打开真实文件:', full);
+    else {
+      console.info('[desktop] 已打开真实文件:', full);
+      await recordDesktopUse(full).catch((err) => console.warn('[desktop] Usage timestamp write failed:', err));
+    }
     return error ? { ok: false, error } : { ok: true };
   });
 
@@ -73,24 +82,43 @@ export function registerHandlers(
    * 渲染层完成世界装配后的就绪信号：
    * 此时才 SetParent 到 WorkerW 并隐藏原生图标；挂载失败则保持图标原样。
    */
-  ipcMain.handle('app:desktopReady', () => {
-    if (desktopReadyHandled) return { ok: true, already: true };
+  ipcMain.handle('app:desktopReady', async () => {
     const win = getWin();
     if (!win || win.isDestroyed()) return { ok: false, error: 'no-window' };
+    if (desktopReadyHandled && isOverlayReady(win)) return { ok: true, already: true };
     if (process.env.CD_QA === '1' || process.env.CD_NO_ATTACH === '1') {
       console.info('[desktop] QA/NO_ATTACH 模式：不挂 WorkerW、不隐藏原生图标');
+      if (process.env.CD_NO_ATTACH === '1' && process.env.CD_QA !== '1') {
+        if (!await waitForOverlayFirstFrame(win) || !revealDesktopOverlay(win)) return { ok: false, error: 'renderer-not-ready' };
+      }
       return { ok: true, skipped: true };
     }
-    const attached = attachOverlayToDesktop(win);
-    if (!attached) {
-      // 挂载失败不隐藏图标；监护器每 5s 重试（Explorer 尚未生成 WorkerW 时可自愈）
-      startDesktopHostMonitor(win);
-      return { ok: false, error: 'attach-failed', iconsHidden: false };
-    }
-    desktopReadyHandled = true;
-    const iconsHidden = hideDesktopIcons();
-    startDesktopHostMonitor(win);
-    return { ok: true, iconsHidden };
+    if (desktopReadyTask) return desktopReadyTask;
+    const task = (async () => {
+      try {
+        if (!await waitForOverlayFirstFrame(win) || win.isDestroyed()) return { ok: false, error: 'renderer-not-ready', iconsHidden: false };
+        if (!attachOverlayToDesktop(win, false)) {
+          console.warn('[desktop] 挂载失败，窗口保持隐藏，原生桌面继续可用');
+          return { ok: false, error: 'attach-failed', iconsHidden: false };
+        }
+        const iconsHidden = await hideDesktopIcons();
+        if (!iconsHidden || win.isDestroyed() || !revealDesktopOverlay(win)) {
+          restoreDesktop();
+          return { ok: false, error: iconsHidden ? 'renderer-not-ready' : 'desktop-protection-failed', iconsHidden: false };
+        }
+        desktopReadyHandled = true;
+        startDesktopHostMonitor(win);
+        return { ok: true, iconsHidden: true };
+      } catch (error) {
+        console.error('[desktop] 桌面接管失败，保留原生桌面:', error);
+        if (!win.isDestroyed()) win.hide();
+        restoreDesktop();
+        return { ok: false, error: 'desktop-ready-failed', iconsHidden: false };
+      }
+    })();
+    desktopReadyTask = task;
+    try { return await task; }
+    finally { if (desktopReadyTask === task) desktopReadyTask = null; }
   });
 
   // 存档
@@ -108,6 +136,7 @@ export function registerHandlers(
   // PRD §11 本地埋点（渲染层 trackEvent 通道）
   ipcMain.handle('app:track', (_e, name: unknown, props: unknown) => trackEvent(name, props));
   ipcMain.handle('app:quit', async () => {
+    shutdownDesktop();
     // 先广播 beforeQuit 给渲染层 flush，600ms 后退出（契约 §1）
     const wc = getWc();
     if (wc && !wc.isDestroyed()) wc.send('app:beforeQuit');

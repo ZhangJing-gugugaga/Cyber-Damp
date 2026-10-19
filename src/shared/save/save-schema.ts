@@ -8,6 +8,7 @@ import type { FileActionState } from '../types/file-runtime';
 
 const ACTION_STATES: ReadonlySet<FileActionState> = new Set(['idle', 'hung', 'drying', 'burnt']);
 const ROPE_TIERS = new Set(['rope-1', 'rope-2', 'rope-3']);
+const MUSHROOM_SPECIES = new Set(['oyster', 'enoki', 'shy', 'bolete', 'lava']);
 
 function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
@@ -45,11 +46,15 @@ export function validateSave(raw: unknown): SaveData | null {
     const fr = f as Record<string, unknown>;
     if (!fr || !isStr(fr.id)) return null;
     if (!isUnit(fr.humidity) || !isUnit(fr.mold) || !isUnit(fr.char)) return null;
+    if (fr.dryness !== undefined && !isUnit(fr.dryness)) return null;
     if (!isStr(fr.state) || !ACTION_STATES.has(fr.state as FileActionState)) return null;
-    // 蘑菇：null 或 { species: string, growth: 0..1 }
+    // Optional special-mushroom fields preserve legacy v1 saves.
     if (fr.mushroom !== null) {
       const m = fr.mushroom as Record<string, unknown> | undefined;
-      if (!m || !isStr(m.species) || !isUnit(m.growth)) return null;
+      if (!m || !isStr(m.species) || !MUSHROOM_SPECIES.has(m.species) || !isUnit(m.growth)) return null;
+      if (m.cooking !== undefined && !isUnit(m.cooking)) return null;
+      if (m.cutAgeSeconds !== undefined && (!isFiniteNumber(m.cutAgeSeconds) || m.cutAgeSeconds < 0 || m.cutAgeSeconds > 0.5)) return null;
+      if (m.lavaSeconds !== undefined && (!isFiniteNumber(m.lavaSeconds) || m.lavaSeconds < 0 || m.lavaSeconds > 12)) return null;
     }
   }
 

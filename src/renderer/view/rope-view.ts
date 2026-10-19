@@ -12,6 +12,9 @@ interface Pt {
   y: number;
 }
 
+// The released suction cup travels independently from the falling rope end.
+const cupReleaseTimes = new WeakMap<VerletRope, number>();
+
 /** 二次贝塞尔平滑穿过质点（中间点作为控制点，端点用折线收口） */
 function traceSmooth(g: Graphics, pts: Pt[]): void {
   if (pts.length === 0) return;
@@ -59,7 +62,7 @@ function sampleAlong(pts: Pt[], step: number): Array<{ x: number; y: number; nx:
 
 /**
  * 绘制一根绳。
- * @param warn 80%~99% 承重：中间质点每帧 ±1.5px 随机高频抖动 + 挂钩裂纹
+ * @param warn 80%~99% 承重：沿绳体2px高频颤动 + 吸盘表面裂纹
  */
 export function drawRope(
   g: Graphics,
@@ -73,10 +76,11 @@ export function drawRope(
 
   // 抖动只作用于绘制副本，不回写物理质点
   const pts: Pt[] = rope.points.map((p, i) => {
-    if (!warn || i < 7 || i > rope.points.length - 8) return { x: p.x, y: p.y };
+    if (!warn) return { x: p.x, y: p.y };
+    const amplitude = Math.sin(i / (rope.points.length - 1) * Math.PI);
     return {
-      x: p.x + (Math.random() - 0.5) * 3,
-      y: p.y + (Math.random() - 0.5) * 3,
+      x: p.x + Math.sin(tSec * 85 + i * 0.7) * amplitude * 0.8,
+      y: p.y + Math.cos(tSec * 85 + i * 0.7) * amplitude * 2,
     };
   });
 
@@ -111,16 +115,22 @@ export function drawRope(
     }
   }
 
-  // 两端吸盘挂钩（断裂后跟着绳端走）
+  // Left cup follows its end after release. The right cup first pops outward.
   const left = rope.attachedLeft ? { x: rope.ax, y: rope.ay } : pts[0];
-  const right = rope.attachedRight ? { x: rope.bx, y: rope.by } : pts[pts.length - 1];
   drawSuctionCup(g, left.x, left.y, warn, tSec);
-  drawSuctionCup(g, right.x, right.y, warn, tSec + 1.7);
+  if (rope.attachedRight) {
+    drawSuctionCup(g, rope.bx, rope.by, warn, tSec + 1.7);
+  } else {
+    if (!cupReleaseTimes.has(rope)) cupReleaseTimes.set(rope, tSec);
+    const flight = tSec - cupReleaseTimes.get(rope)!;
+    if (flight < 1.1) drawSuctionCup(g, rope.bx + flight * 150,
+      rope.by - flight * 160 + flight * flight * 550, false, tSec);
+  }
 
   // 左端裂缝（右侧超过 100% 后已经断开，不再画右端裂纹）
   if (warn) {
     drawCracks(g, left.x, left.y, tSec);
-    if (rope.attachedRight) drawCracks(g, right.x, right.y, tSec + 0.8);
+    if (rope.attachedRight) drawCracks(g, rope.bx, rope.by, tSec + 0.8);
   }
   if (rope.broken && !rope.attachedRight) {
     // 右侧断口：散开的绳股
@@ -141,18 +151,17 @@ function drawSuctionCup(g: Graphics, x: number, y: number, warn: boolean, tSec: 
     .stroke({ width: 1.4, color: 0xc9cdd3, alpha: 0.8 });
 }
 
-/** 80% 预警：吸盘边缘裂纹（物理反馈，替代文字胶囊） */
+/** 80%预警：裂纹从吸盘中心分叉到杯沿，全部位于杯面内。 */
 function drawCracks(g: Graphics, x: number, y: number, tSec: number): void {
-  const base = tSec * 24;
-  for (let i = 0; i < 4; i++) {
-    const ang = base + (i * Math.PI) / 2 + 0.4;
-    const r0 = 8;
-    const r1 = 13 + (i % 2) * 4;
-    const mx = x + Math.cos(ang + 0.25) * (r0 + r1) * 0.5;
-    const my = y + Math.sin(ang + 0.25) * (r0 + r1) * 0.5;
-    g.moveTo(x + Math.cos(ang) * r0, y + Math.sin(ang) * r0)
-      .lineTo(mx, my)
-      .lineTo(x + Math.cos(ang - 0.1) * r1, y + Math.sin(ang - 0.1) * r1)
-      .stroke({ width: 1.3, color: ENV_COLOR.warn, alpha: 0.9 });
+  for (let i = 0; i < 6; i++) {
+    const angle = 0.4 + i * Math.PI / 3;
+    const mx = x + Math.cos(angle + 0.2) * 4.1;
+    const my = y + Math.sin(angle + 0.2) * 4.1;
+    g.moveTo(x + Math.cos(angle) * 1.2, y + Math.sin(angle) * 1.2)
+      .lineTo(mx,my)
+      .lineTo(x + Math.cos(angle - 0.13) * 7.1, y + Math.sin(angle - 0.13) * 7.1)
+      .stroke({width:0.75,color:0xffffff,alpha:0.9});
+    g.moveTo(mx,my).lineTo(x + Math.cos(angle + 0.55) * 6.3,y + Math.sin(angle + 0.55) * 6.3)
+      .stroke({width:0.55,color:0xffffff,alpha:0.8});
   }
 }

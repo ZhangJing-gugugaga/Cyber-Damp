@@ -1,0 +1,39 @@
+[
+  {
+    "label": "physiology-tools-hover",
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        48,
+        1015
+      ]
+    }
+  },
+  {
+    "label": "physiology-tools-ready",
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    }
+  },
+  {
+    "label": "physiology-tools-open",
+    "tool": "Click",
+    "targetWindowTitle": "回南天 Cyber Damp",
+    "arguments": {
+      "loc": [
+        48,
+        1015
+      ]
+    }
+  },
+  {
+    "label": "physiology-tools",
+    "tool": "Snapshot",
+    "arguments": {
+      "use_annotation": false,
+      "use_ui_tree": false,
+      "use_vision": true
+    }
+  }
+]

@@ -5,6 +5,9 @@
    ========================================================================== */
 
 /* ---------- HUD 根与常驻元素 ---------- */
+html.cursor-hygrometer, html.cursor-hygrometer * {
+  cursor: var(--hygrometer-cursor, progress) !important;
+}
 #ui-hud {
   position: fixed;
   inset: 0;
@@ -328,6 +331,13 @@
   min-width: 0;
   pointer-events: none;
 }
+.shop-card--box {
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+.shop-card--box .shop-card__info { grid-column: 1 / -1; }
+.shop-card--box .qty-stepper { justify-self: start; }
+.shop-card--box .buy-btn { justify-self: end; }
 .shop-card__name {
   font-size: var(--text-sm);
   font-weight: 500;
@@ -361,7 +371,7 @@
 }
 .buy-btn--primary:hover { background: var(--btn-primary-hover); }
 .buy-btn--primary:active { background: var(--btn-primary-active); }
-.buy-btn:hover { background: var(--btn-secondary-hover-bg); }
+.buy-btn:not(.buy-btn--primary):hover { background: var(--btn-secondary-hover-bg); }
 .buy-btn:focus-visible { box-shadow: var(--focus-ring); outline: none; }
 .buy-btn:disabled {
   background: var(--btn-primary-disabled-bg);

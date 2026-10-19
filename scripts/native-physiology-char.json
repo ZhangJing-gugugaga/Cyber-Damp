@@ -1,0 +1,97 @@
+[
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        155,
+        826
+      ]
+    },
+    "label": "physiology-char-heat-select-hover"
+  },
+  {
+    "tool": "Click",
+    "arguments": {
+      "loc": [
+        155,
+        826
+      ]
+    },
+    "label": "physiology-char-heat-select",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        48,
+        1015
+      ]
+    },
+    "label": "physiology-char-heat-close-tools-hover"
+  },
+  {
+    "tool": "Click",
+    "arguments": {
+      "loc": [
+        48,
+        1015
+      ]
+    },
+    "label": "physiology-char-heat-close-tools",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        442,
+        325
+      ]
+    },
+    "label": "physiology-char-heat-target-hover"
+  },
+  {
+    "tool": "Wait",
+    "arguments": {
+      "duration": 1
+    },
+    "label": "physiology-char-heat-target-ready"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "from_loc": [
+        442,
+        325
+      ],
+      "loc": [
+        442,
+        325
+      ],
+      "drag": true,
+      "duration": 6.8
+    },
+    "label": "physiology-char-native-heat-hold",
+    "targetWindowTitle": "回南天 Cyber Damp"
+  },
+  {
+    "tool": "Move",
+    "arguments": {
+      "loc": [
+        1500,
+        800
+      ]
+    },
+    "label": "physiology-char-heat-clear-hover"
+  },
+  {
+    "tool": "Snapshot",
+    "arguments": {
+      "use_vision": true,
+      "use_annotation": false,
+      "use_ui_tree": false
+    },
+    "label": "physiology-char-after-heat"
+  }
+]

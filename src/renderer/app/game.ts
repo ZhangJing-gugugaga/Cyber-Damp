@@ -17,6 +17,7 @@ import { createGameActions } from './game-actions';
 import { WorldLayers } from '../view/layers';
 import { FileSprite, loadNativeIcon } from '../view/file-sprite';
 import { MushroomView } from '../view/mushroom-view';
+import { loadMushroomAssets } from '../view/mushroom-assets';
 import { ParticlePool } from '../view/particles';
 import { GlyphPool } from '../view/glyph-pool';
 import { FanView } from '../view/fan-view';
@@ -31,6 +32,11 @@ import { createFpsWatch } from './fps-watch';
 import { wireSystemEvents } from './system-wiring';
 import { trackError } from './telemetry';
 import { Sfx } from '../audio/sfx';
+import { MicrophoneWind } from '../audio/microphone-wind';
+import { SpecialMushroomController } from './special-mushroom-controller';
+import { HarvestController } from './harvest-controller';
+import { RopeAudio } from './rope-audio';
+import { uiHitAt } from '../ui/interactive-surface';
 import { SaveController } from '../save/save-controller';
 import { loadSave } from './save-bridge';
 import { loadDesktopEntries, openRealPath } from './desktop-bridge';
@@ -39,6 +45,14 @@ import { buildFileNodes } from '../../world/desktop-layout';
 const AUTOSAVE_SEC = 30;
 
 export async function createGame(app: Application): Promise<void> {
+  const inputTrace: Array<{ type: string; x?: number; y?: number; buttons?: number; at: number }> = [];
+  if (location.search.includes('inspect=1')) {
+    for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'blur']) window.addEventListener(type, (event) => {
+      const p = event as PointerEvent;
+      inputTrace.push({ type, x: p.clientX, y: p.clientY, buttons: p.buttons, at: performance.now() });
+      if (inputTrace.length > 30) inputTrace.shift();
+    }, true);
+  }
   // 1. 真实桌面 + 存档并行读取；绝不生成 Mock 文件
   const [loaded, entries] = await Promise.all([loadSave(), loadDesktopEntries()]);
   const nodes = buildFileNodes(entries, app.screen.width, app.screen.height);
@@ -60,6 +74,7 @@ export async function createGame(app: Application): Promise<void> {
   );
 
   // 2. 视图图层 + 原生图标纹理（并发解码）
+  await loadMushroomAssets();
   const layers = new WorldLayers();
   app.stage.addChild(layers.root);
   const pool = new ParticlePool();
@@ -77,7 +92,10 @@ export async function createGame(app: Application): Promise<void> {
   function ensureShroom(id: string): void {
     const ent = runtime.byId.get(id);
     const m = ent?.runtime.mushroom;
-    if (!ent || !m || shrooms.has(id)) return;
+    if (!ent || !m) return;
+    const previous = shrooms.get(id);
+    if (previous?.species === m.species) return;
+    previous?.container.destroy({ children: true });
     const view = new MushroomView(m.species);
     layers.shroomLayer.addChild(view.container);
     shrooms.set(id, view);
@@ -98,6 +116,8 @@ export async function createGame(app: Application): Promise<void> {
 
   const atmosphere = new Atmosphere(app, layers);
   const sfx = new Sfx();
+  const microphone = new MicrophoneWind();
+  const ropeAudio = new RopeAudio(ropes, sfx);
   const saver = new SaveController(runtime, ropes);
   runtime.onChange = () => saver.schedule();
 
@@ -110,6 +130,8 @@ export async function createGame(app: Application): Promise<void> {
     return { x: s.container.position.x + 18, y: s.container.position.y + FILE_ICON_TOP, w: 64, h: 64 };
   };
   const boxes = new BoxController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }), recycleRect);
+  const specialMushrooms = new SpecialMushroomController({ runtime, ropes, sprites, layer: layers.fogLayer, pool, sfx });
+  let harvest: HarvestController;
 
   // 5. 动作 + UI
   const actions = createGameActions({
@@ -128,6 +150,7 @@ export async function createGame(app: Application): Promise<void> {
     retierRopes: () => ropes.setTierAll(runtime.equipped.rope),
     registerRope: (entry) => addRopeEntry(entry),
     getTool: () => ui.getTool(),
+    harvestSpecial: (id) => harvest?.pick(id) ?? false,
   });
   const ui = mountUi(document.getElementById('ui-root') ?? document.body, runtime, {
     onSell: actions.onSell,
@@ -150,8 +173,10 @@ export async function createGame(app: Application): Promise<void> {
     },
     sfx,
     demo: actions.demo,
+    onMicrophoneToggle: (on) => microphone.setEnabled(on),
   });
   const uiRefresh = runtime.onChange;
+  harvest = new HarvestController({ app, runtime, shrooms, sfx, pool, layer: layers.shroomLayer, getTool: () => ui.getTool(), refresh: () => ui.refresh() });
   runtime.onChange = () => {
     uiRefresh?.();
     saver.schedule();
@@ -170,18 +195,19 @@ export async function createGame(app: Application): Promise<void> {
     pool,
     sfx,
     getTool: () => ui.getTool(),
-    domHit: (x, y) => {
-      const el = document.elementFromPoint(x, y);
-      return !!el && el.closest('[data-ui-interactive]') !== null;
+    extraHit: (x, y) => harvest.hit(x, y),
+    mushroomHit: (x, y) => {
+      for (const [id, view] of shrooms) if ((runtime.byId.get(id)?.runtime.mushroom?.growth ?? 0) >= 1 && view.hit(x, y)) return id;
+      return null;
     },
+    domHit: uiHitAt,
     onPick: (id) => actions.pickMushroom(id),
     onOpen: (id) => {
       const ent = runtime.byId.get(id);
       if (!ent) return;
-      ropes.releaseFile(id);
-      runtime.dryFile(id);
       void openRealPath(ent.node.realPath).then((ok) => {
-        ui.toast.tip(ok ? `打开「${ent.node.name}」，桌面上的潮气被带走了。` : `「${ent.node.name}」打不开，但湿气已经散了。`);
+        if (ok) { ropes.releaseFile(id); runtime.dryFile(id); sprites.get(id)?.clearPaintStains(); }
+        else ui.toast.tip(`「${ent.node.name}」暂时打不开。`);
       });
       sfx.pop(1.2);
     },
@@ -196,7 +222,7 @@ export async function createGame(app: Application): Promise<void> {
     boxDrop: (id, x, y) => {
       const res = boxes.dropAt(id, x, y);
       if (res === 'emptied') {
-        sfx.splash();
+        sfx.pour();
         ui.toast.tip('积水倒进了回收站，盒里颗粒又能接着干了。');
       }
       return res;
@@ -207,7 +233,7 @@ export async function createGame(app: Application): Promise<void> {
     },
     ropePreview: (ax, ay, bx, by) => {
       previewG.clear();
-      if (by !== null) previewG.moveTo(ax, ay).lineTo(bx, by).stroke({ width: 3, color: 0xa88b5f, alpha: 0.5 });
+      if (by !== null) previewG.moveTo(ax, ay).quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + Math.abs(bx - ax) * 0.08, bx, by).stroke({ width: 3, color: 0xa88b5f, alpha: 0.5 });
     },
   });
   for (const btn of document.querySelectorAll('#ui-hud button')) btn.setAttribute('data-ui-interactive', '1');
@@ -240,6 +266,7 @@ export async function createGame(app: Application): Promise<void> {
     runtime.setFanAnchor(fan.container.position.x, fan.container.position.y);
   }
   const fpsWatch = createFpsWatch(app);
+  let desktopReady = false;
   const gameTick = createGameTick({
     app,
     runtime,
@@ -262,6 +289,10 @@ export async function createGame(app: Application): Promise<void> {
     getOpening: () => opening,
     getFan: () => fan,
     autosaveSec: AUTOSAVE_SEC,
+    microphone,
+    specialMushrooms,
+    harvest,
+    ropeAudio,
   });
   startGameLoop({
     app,
@@ -271,17 +302,36 @@ export async function createGame(app: Application): Promise<void> {
         err instanceof Error ? err.message : String(err),
         err instanceof Error ? err.stack : undefined,
       ),
-    tick: gameTick,
+    tick: (dt) => { if (desktopReady) gameTick(dt); },
   });
 
   // 首帧渲染后挂 WorkerW + 隐藏原生图标（失败则保持图标显示）
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      void window.damp?.app.desktopReady();
+      void window.damp?.app.desktopReady().then((result) => {
+        desktopReady = result.ok;
+        if (!result.ok) console.error('[cyber-damp] 桌面接管未就绪，开场保持暂停');
+      }).catch((error) => console.error('[cyber-damp] 桌面接管失败:', error));
     });
   });
 
-  // QA 只读探针（仅 ?qa=1）：自动化验收用于定位蘑菇/绳/图标，不进入正常发布路径
+  if (location.search.includes('inspect=1')) {
+    (window as unknown as Record<string, unknown>).__CD_INSPECT__ = () => ({
+      locked: runtime.locked,
+      files: [...sprites.values()].map((s) => ({ id: s.node.id, name: s.node.name, kind: s.node.kind, sizeBytes:s.node.sizeBytes, x: s.container.x, y: s.container.y, alpha: s.container.alpha, runtime: { ...runtime.byId.get(s.node.id)?.runtime } })),
+      ropes: ropes.snapshot(),
+      ropePhysics: ropes.entries.map(e=>({broken:e.broken,load:ropes.loadState(e),bytes:ropes.totalBytes(e),
+        attachedLeft:e.rope.attachedLeft,attachedRight:e.rope.attachedRight,
+        points:e.rope.points.map(p=>({x:p.x,y:p.y})),pins:e.rope.pins.map(p=>({...p}))})),
+      harvest: harvest.snapshot(),
+      boxes: boxes.snapshot(),
+      fan: fan?.snapshot() ?? null,
+      coins: runtime.coins,
+      tool: ui.getTool(),
+      input: inputTrace.slice(),
+    });
+  }
+  // QA probe for the separate window mode.
   if (location.search.includes('qa=1')) {
     (window as unknown as Record<string, unknown>).__CD_DEBUG__ = {
       runtime,

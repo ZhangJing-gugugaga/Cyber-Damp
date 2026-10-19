@@ -1,0 +1,94 @@
+[
+  {
+    "arguments": {
+      "loc": [
+        823,
+        560
+      ]
+    },
+    "label": "ripple-sale-hover",
+    "tool": "Move"
+  },
+  {
+    "arguments": {
+      "duration": 1
+    },
+    "label": "ripple-sale-ready",
+    "tool": "Wait"
+  },
+  {
+    "arguments": {
+      "duration": 0.15,
+      "drag": true,
+      "loc": [
+        1730,
+        45
+      ],
+      "from_loc": [
+        823,
+        560
+      ]
+    },
+    "targetWindowTitle": "回南天 Cyber Damp",
+    "label": "ripple-raw-sale",
+    "tool": "Move"
+  },
+  {
+    "arguments": {
+      "loc": [
+        1500,
+        800
+      ]
+    },
+    "label": "ripple-sale-clear-hover",
+    "tool": "Move"
+  },
+  {
+    "arguments": {
+      "duration": 1
+    },
+    "label": "ripple-active-wait1",
+    "tool": "Wait"
+  },
+  {
+    "arguments": {
+      "use_vision": true,
+      "use_ui_tree": false,
+      "use_annotation": false
+    },
+    "label": "ripple-active-one",
+    "tool": "Snapshot"
+  },
+  {
+    "arguments": {
+      "duration": 2
+    },
+    "label": "ripple-active-wait2",
+    "tool": "Wait"
+  },
+  {
+    "arguments": {
+      "use_vision": true,
+      "use_ui_tree": false,
+      "use_annotation": false
+    },
+    "label": "ripple-active-two",
+    "tool": "Snapshot"
+  },
+  {
+    "arguments": {
+      "duration": 6
+    },
+    "label": "ripple-finish-wait",
+    "tool": "Wait"
+  },
+  {
+    "arguments": {
+      "use_vision": true,
+      "use_ui_tree": false,
+      "use_annotation": false
+    },
+    "label": "ripple-after-finish",
+    "tool": "Snapshot"
+  }
+]

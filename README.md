@@ -1,64 +1,60 @@
 # 回南天 Cyber Damp
 
-Windows 透明置顶桌面玩具：桌面文件按冷落度受潮发霉、拉绳晾晒、采蘑菇卖币升级。
-技术栈：Electron 44 + Pixi.js 8 + Matter.js + TypeScript（零后端、零网络、零真实文件访问）。
+Windows 桌面玩具：真实桌面文件受潮、发霉，拖动替身拉绳晾晒，采蘑菇升级家务装备。
 
-## 快速开始
+当前修复版 **0.1.9**。技术栈：Electron 44、Pixi.js 8、TypeScript、koffi / Win32，材质变形使用 PixiJS Filters 6。
 
-```bash
+## 启动与构建
+
+```powershell
 npm install
-npm run typecheck      # 类型门（renderer + main）
-npm run test:constants # 常量锚点断言
-npm run test:world     # 领域层单测（18 项）
-npm run build          # dist/renderer + dist/main
-npm start              # 启动（读取 dist 产物）
+npm run typecheck
+npm test
+npm run test:world
+npm run test:constants
+npm run build
+npm start
+npm run dist:win
 ```
 
-## Windows 打包
+便携版：`release/Cyber Damp 0.1.9.exe`。未签名；完整终极 UAT 仍未通过，逐项状态见下方验收记录。
 
-```bash
-npm run dist:win       # release/Cyber Damp 0.1.0.exe（portable 单文件）
+设置面板中的“退出回南天”会恢复原生桌面；正常退出与强杀恢复已分别做原生可见性计时测试。程序不移动、不改写真实文件和 Explorer 的图标坐标。
+
+## 真实桌面与本地数据
+
+- 扫描用户桌面（支持重定向）和公共桌面，追加回收站。同名项按用户桌面优先去重。
+- 优先从 Windows Shell 获取256px图标原画；旧图标提供者回退到系统小图，再失败才使用 Electron 接口。
+- 双击替身通过系统默认程序打开原文件，清除受潮，并本地记录最近使用时间。
+- 存档和匿名本地事件保存在 `%APPDATA%/cyber-damp/`；`desktop-usage.json` 只保存路径哈希与打开时间，不保存文件内容。
+- 尚无使用记录的文件以最后修改时间估算冷落程度，不能据此声称掌握了历史真实打开时间。
+
+旧 MVP 文档中的“合成桌面 / 禁止真实文件访问 / 透明置顶”范围已被本次用户 UAT 的真实桌面与桌面图层要求取代。当前宿主为 `SHELLDLL_DefView`，普通应用窗口应完整遮挡桌面玩具。
+
+## 项目级工具与原生验收
+
+`.codex/config.toml` 配置了 CursorTouch Windows-MCP 0.8.8。项目技能位于 `.agents/skills/cyber-damp-uat/SKILL.md`。
+
+当前会话未热加载 MCP 配置时，可通过同一 stdio 服务运行：
+
+```powershell
+uvx --from windows-mcp==0.8.8 python scripts/windows-mcp-client.py scripts/native-drag-uat.json
 ```
 
-> 未代码签名：首次运行可能出现 SmartScreen 提示，选择“更多信息 → 仍要运行”。
-> 打包产物已包含 koffi（Win32 全屏检测原生依赖）。
+原生鼠标、截图和错误结果留在 `logs/native-uat/`（不纳入 Git）。遇到 MCP 用户控制权抢占时，驱动会停止后续依赖动作。
 
-## 数据与隐私
-
-- 存档：`%APPDATA%\cyber-damp\save.json`（tmp+rename 原子写；写入前过 schema 校验）
-- 本地埋点：`%APPDATA%\cyber-damp\events.jsonl`（匿名 uid，无网络、无原始堆栈）
-- 虚拟桌面为纯合成数据，不读取/修改任何真实文件；无遥测上传
-
-## 验收与 QA 工具
-
-透明置顶窗无法被常规窗口截图工具捕获，项目内置 QA 脚本与**可捕获 QA 模式**（仅开发用）：
-
-```bash
-# QA 模式：不透明普通窗口（可被 CursorTouch/Windows-MCP 截屏与点击）；
-# 关闭穿透与全屏自动隐藏；Demo 台额外出现「胆小菇测试」按钮（AC-30 现场验收）
-CD_QA=1 ./node_modules/electron/dist/electron.exe .
-
-# 常规模式 + 调试端口（真实渲染层输入 + 页面截图）
-./node_modules/electron/dist/electron.exe --remote-debugging-port=9222 .
-
-# 派发鼠标/键盘步骤（JSON：click/drag/circle/key/eval/shot/quit）
-node scripts/qa-cdp.mjs '[{"type":"click","x":760,"y":760}]'
-
-# 读取主窗口可见性 / 穿透态（AC-26/28 断言）
-node scripts/qa-window.mjs
-
-# 沿地面扫描定位并戳蜗牛（AC-29）
-node scripts/qa-poke.mjs
+```powershell
+./node_modules/electron/dist/electron.exe scripts/check-desktop.cjs
+node scripts/test-desktop-restore.mjs normal
+node scripts/test-desktop-restore.mjs
 ```
 
-## 功能范围
+恢复测试需要已运行的生产桌面实例；normal 模式另需 `--remote-debugging-port=9222`。最后一个命令会有意终止当前项目的桌面实例。
 
-- P0 五模块全部实现（含 AC-28 全屏/锁屏暂停、新手引导、本地埋点）
-- P1 已实现：304 钢杆、胆小菇缩头、绳断裂/滑落、吹风机/过热/喷雾、刮水器、Demo 控制台、
-  80% 承重预警、音频类八音盒走调旋律、压缩包假碎片、字符滴落 + 小扫把清扫
-- 明确不做：真实文件访问、网络、UGC、多人联机、macOS（见 SPEC §3）
+CDP 只作为诊断辅助，不能替代原生桌面 UAT。完整标准：[用户原文](docs/UAT-SOURCE.md)；执行结果与尚未完成的功能：[修复及验收记录](docs/REPAIR-UAT.md)。
 
-## 已知边界
+## 视觉资产
 
-- 无自动更新（portable 目标）；未签名，首启可能触发 SmartScreen
-- `npm audit` 剩余 moderate 项均在 electron-builder 构建链（dev 依赖，不进产物）
+两张透明 PNG 图集、完整菌柄见手青及电扇分层素材由内置 image_gen 生成，已随构建打包。提示词和消费位置见 `src/renderer/assets/PROVENANCE.json`、`bolete-intact.provenance.json`、`fan-parts.provenance.json`。电扇底座固定，扇头和叶轮分别活动；文件图标仍来自 Windows Shell。
+
+**完整终极 UAT 尚未通过。** 0.1.9修复吸湿盒倾斜时透明角落被涂成矩形蓝块的问题，保留沙漠干燥、壁纸/状态栏水波及此前修复。68项机械检查与单列12种原生WebGL2边界组合通过；源码真实拖动可见水面波动，倾倒后颗粒恢复并重新积水。最终便携包实启29项、无测试夹具，正常退出13ms、强杀65ms恢复，24项打包资源一致。清澈水流观感、声音/吹气、拧干及独立Computer Use截图/鼠标等仍待完成。源码玩法录像不冒充所有玩法均在最终包重测，详见[验收记录](docs/REPAIR-UAT.md)。

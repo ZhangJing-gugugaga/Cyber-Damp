@@ -1,0 +1,11 @@
+[
+  {
+    "tool": "Snapshot",
+    "label": "ripple-visible-baseline",
+    "arguments": {
+      "use_vision": true,
+      "use_ui_tree": false,
+      "use_annotation": false
+    }
+  }
+]

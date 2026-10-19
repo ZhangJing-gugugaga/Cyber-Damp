@@ -1,0 +1,6 @@
+[
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"portable-native"},
+  {"tool":"Move","arguments":{"loc":[1808,44]},"label":"portable-settings-hover"},
+  {"tool":"Click","arguments":{"loc":[1808,44]},"label":"portable-settings-click"},
+  {"tool":"Screenshot","arguments":{},"label":"portable-settings"}
+]

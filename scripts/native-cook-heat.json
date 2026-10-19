@@ -1,0 +1,11 @@
+[
+  {"tool":"Move","arguments":{"loc":[155,826]},"label":"cook-heat-select-hover"},
+  {"tool":"Click","arguments":{"loc":[155,826]},"label":"cook-heat-select","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[48,1034]},"label":"cook-heat-close-tools-hover"},
+  {"tool":"Click","arguments":{"loc":[48,1034]},"label":"cook-heat-close-tools","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[1315,978]},"label":"cook-heat-target-hover"},
+  {"tool":"Wait","arguments":{"duration":1},"label":"cook-heat-target-ready"},
+  {"tool":"Move","arguments":{"from_loc":[1315,978],"loc":[1315,978],"drag":true,"duration":4.2},"label":"cook-native-heat-hold","targetWindowTitle":"回南天 Cyber Damp"},
+  {"tool":"Move","arguments":{"loc":[1500,800]},"label":"cook-heat-clear-hover"},
+  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"cook-after-heat"}
+]

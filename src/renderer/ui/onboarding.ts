@@ -79,7 +79,7 @@ export function createGuide(toast: ToastHost): Guide {
       active = true;
       step = 0;
       trackEvent('onboarding_start');
-      tip('湿气已经钻进文件里了。把鼠标悬停在最湿的文件上看看状态，然后按住它顺时针画两圈——像拧毛巾一样。');
+      tip('湿气已经钻进文件里了。把鼠标悬停在最湿的文件上看看状态，然后按住它顺时针画三圈——像拧毛巾一样。');
       off = onAction(advance);
     },
     dispose: () => {
