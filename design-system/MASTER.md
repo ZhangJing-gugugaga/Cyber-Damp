@@ -1,5 +1,7 @@
 # MASTER.md — 回南天 Cyber Damp 全局设计源（机器可读优先）
 
+> **2026-10-19 下一版设计更新：** [护理、经济与桌面融合设计](../docs/superpowers/specs/2026-10-19-care-and-desktop-design.md) 优先于本文的冲突条款。已确定平滑漫画风、独立管理窗口、清洁度收益/游戏内损坏、3–5 秒每次启动回放、55% 遮挡上限及严格保持原生图标大小与布局。旧版写实/核爆/蜗牛护理/固定六秒/网格重排等要求不再作为下一版目标。开发暂停；这些是待实现设计，本文历史实现与测试记录不代表新标准已通过。
+
 > 人类可读契约见上级目录 `DESIGN.md`；本文件是页面级覆盖（`pages/<page>.md`）的合并基准。
 > 写入规则：只追加/修正具体条目，禁止整篇重写。变更在文末记录表追加一行。
 > 上游对齐：docs/architecture.md v1.0（2026-10-17 对齐锁定）
@@ -10,11 +12,11 @@
 - 寄存器：Product（chrome 安静可预测；个性由 in-world 拟物层承担）
 - 平台轴：Windows desktop overlay；适配维度 = 多显示器 / DPI(100-200%) / 点击穿透 / 任务栏避让，非移动断点
 - 三轴：VARIANCE=7 / MOTION=6 / DENSITY=5
-- 风格：湿墨拟物（宣纸受潮 + 生锈铁 + 长霉木 + 磨亮铜）；禁科技风渐变/霓虹/装饰毛玻璃
+- 下一版风格：与原生图标融合的平滑漫画风，连续受潮和生长、柔和体积、克制纹理，避免过度写实不适。以 [ART-DIRECTION.md](ART-DIRECTION.md) 为准；下方旧 token 仍为当前实现记录，本次未更改运行时样式。
 
 ## 实现分工（架构 §3/§8 锁定）
 - DOM 覆盖层（`src/renderer/ui/`）：气象牌 weather-sign.ts / 商店 shop-panel.ts / 工具箱 toolbox.ts / Demo 控制台 demo-console.ts / HUD 骨架 ui-root.ts / Lucide 注册 icons.ts；plain CSS + 设计 token，无 CSS 框架
-- Pixi 画布（`src/renderer/view/`）：文件替身/绳/蘑菇/粒子/Shader，实体全部程序化 Graphics 绘制，不用图标贴图
+- Pixi 画布（`src/renderer/view/`）：文件替身/绳/蘑菇/粒子/Shader。原生图标使用真实图像；下一版素材与程序化形变结合，不再要求实体全部用 Graphics 绘制。显示尺寸和位置服从原生桌面，不由素材像素尺寸决定。
 - 工程红线：滤镜只挂 Sprite 不挂 stage；同屏粒子 <= 300；DPR <= 2；document.hidden 暂停 ticker
 
 ## 颜色（唯一真相源：design-tokens.css / design-tokens.json）
@@ -71,3 +73,4 @@
 | 2026-10-17 | v1.4 锚点固化 + 断言清单 | sizeToMass 锚点表两位小数固化（1GB→5.22 精度修正：1048576KB 的 log10=6.0206 非整 6）；新增 POINTER-EVENTS.md（AC-36 元素级断言表 + QA 配方） | 全部 |
 | 2026-10-17 | v1.5 同步调参包络 | 架构 §5.2 新增 mass_eff=sizeToMass^p（p=2）物理驱动与验收包络；sag 参考曲线对应 p=2 落在包络内；重文件 2-3 夹多点挂载视觉；Demo 一键挂满容量预检 + 深 V 禁不锈钢杆 | 全部 |
 | 2026-10-17 | v1.6 指数化根因 + 同构声明 | §6.3 补：线性对数跨度 5.3 倍给不出 PRD 对比度（根因）；sag 平方式与物理 p=2 同构按构造一致；绳链 0.5/链与两条挂载判据；锚点表附 5GB/25GB 根因对 | 全部 |
+| 2026-10-19 | 下一版平滑漫画风与原生尺寸约束 | 用户新决策；详见 ART-DIRECTION.md，原始 token 未改 | 美术、窗口与素材标准 |

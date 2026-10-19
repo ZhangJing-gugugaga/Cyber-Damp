@@ -1,5 +1,7 @@
 # 《回南天 Cyber Damp》设计规范 DESIGN.md v1.6
 
+> **2026-10-19 下一版设计更新：** [护理、经济与桌面融合设计](docs/superpowers/specs/2026-10-19-care-and-desktop-design.md) 优先于本文的冲突条款。已确定平滑漫画风、独立管理窗口、清洁度收益/游戏内损坏、3–5 秒每次启动回放、55% 遮挡上限及严格保持原生图标大小与布局。旧版写实/核爆/蜗牛护理/固定六秒/网格重排等要求不再作为下一版目标。开发暂停；这些是待实现设计，本文历史实现与测试记录不代表新标准已通过。
+
 > 生成日期：2026-10-17 | 设计师：颜好看 | 基于：PRD v1.0（立项版）+ 架构文档 v1.0（docs/architecture.md，已锁定）
 > v1.1 变更：对齐架构锁定——Lucide 1.58.0 + data-lucide/createIcons 渲染约定；DOM 层 plain CSS 无框架；阶段命名对齐 fresh/damp/wet/moldy；天气源改本地种子模拟器（ADR-007）；水珠折射诚实约束（不采样桌面背景，滤镜只挂 Sprite）；焦化 MVP 用 scale/skew 近似；蘑菇范围按验收优先级分级
 > v1.2 变更：绳索崩断判定改**字节制**（麻绳 5GB / 红塑料绳 25GB / 不锈钢杆 ≥100GB），sizeToMass 仅用于下垂深度与配重表现、禁止用作崩断阈值；写入陈铜金强调色域隔离规则（仅 DOM chrome + 三处 sanctioned crossing + --success 不进画布）

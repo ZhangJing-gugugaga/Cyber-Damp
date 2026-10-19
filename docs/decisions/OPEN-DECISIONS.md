@@ -17,3 +17,18 @@
 | 2026-10-17 | Phase 3 验收 | AC-13 晾晒速率超标（总监首验算有误已撤回） | frontend-3 报警正确：指数趋向模型 K=0.2/s 实测 65%/min ≫ PRD 5-15%/min | hung 分支趋向系数改 DRY_RATE=0.0034/s（h 0.8→0.68/分钟 ≈ 12%/min，PRD 中档）；非 hung 受潮速率保持 0.2（受潮是快过程） | 无（总监已裁决参数，代码由 frontend-3 修改） | 2026-10-17 frontend-3 d2588d4 调参完成，总监验收全绿（12/12+typecheck 0） | RESOLVED |
 > 汇总：1 未决 + 7 已决（截至 2026-10-17 AC-28 关闭）
 > 每次 Phase 开始时复现本表到工作上下文最前面，逐条判断能否关闭。
+
+## 2026-10-19 下一版决策补充
+
+此前阶段的 OPEN 项保留为历史，不代表本轮待用户确认的事项。[当前设计](../superpowers/specs/2026-10-19-care-and-desktop-design.md) 明确区分已确认规则与以下建议；开发继续暂停。
+
+| ID | 类型 | 待决事项 | 状态 |
+| --- | --- | --- | --- |
+| D01 | design-decision-to-evaluate | 重启重算、护理存档、改名/修改后的换新基线 | OPEN |
+| D02 | design-decision-to-evaluate | 清洁度汇总、损坏文件参与方式与可达成的 100% | OPEN |
+| D03 | design-decision-to-evaluate | 三天在线计时、暂停/清零、单次或重复损坏 | OPEN |
+| D04 | design-decision-to-evaluate | 免费基础护理、双击行为、机器/耗材作用和费用 | OPEN |
+| D05 | design-decision-to-evaluate | 每日结算、离线收入、品相售价与经济平衡 | OPEN |
+| D06 | design-decision-to-evaluate | 开场提示、可否跳过、快捷键动作与窗口流程 | OPEN |
+
+已解决：A 照料为主；平滑漫画风；低频纯场景蜗牛；无核爆；特殊菇用 PVZ 铲子；3–5 秒每次启动回放；55% 遮挡；严格原生大小和布局。它们不应再次作为未选方向询问。
