@@ -43,6 +43,18 @@ export class IconMaterialSurface {
     return this.icon.toGlobal({ x: this.bottom.u * this.icon.texture.orig.width, y: this.bottom.v * this.icon.texture.orig.height });
   }
 
+  /** Reuse the cached native-alpha sample to attach roots to actual icon pixels. */
+  nearestOpaque(u: number, v: number): { u: number; v: number } | null {
+    if (!this.pixels) return null;
+    let distance = Infinity, nearest: { u: number; v: number } | null = null;
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      if (this.pixels[(y * 64 + x) * 4 + 3] <= 128) continue;
+      const px = (x + .5) / 64, py = (y + .5) / 64, d = (px - u) ** 2 + (py - v) ** 2;
+      if (d < distance) { distance = d; nearest = { u: px, v: py }; }
+    }
+    return nearest;
+  }
+
   hit(x: number, y: number): { u: number; v: number } | null {
     if (!this.icon || !this.pixels) return null;
     const local = this.icon.toLocal({ x, y });

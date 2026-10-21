@@ -31,6 +31,7 @@ export interface UiRoot {
   toast: ToastHost;
   getTool(): Tool;
   refresh(): void;
+  reposition(): void;
 }
 
 export function mountUi(
@@ -49,11 +50,34 @@ export function mountUi(
   mount.id = 'ui-hud';
   parent.appendChild(mount);
 
+  const dock = document.createElement('div'); dock.className = 'rain-dock';
+  const toggle = document.createElement('button'); toggle.className = 'rain-dock__toggle';
+  toggle.type = 'button'; toggle.setAttribute('aria-label', '打开雨季工具柜');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.innerHTML = '<img src="./brand/rain-mushroom.svg" alt="">';
+  const cabinet = document.createElement('div'); cabinet.className = 'rain-dock__cabinet'; cabinet.hidden = true;
+  cabinet.dataset.uiInteractive = '1';
+  cabinet.id = 'rain-cabinet'; toggle.setAttribute('aria-controls', cabinet.id);
+  toggle.onclick = () => {
+    cabinet.hidden = !cabinet.hidden;
+    toggle.setAttribute('aria-expanded', String(!cabinet.hidden));
+    toggle.setAttribute('aria-label', cabinet.hidden ? '打开雨季工具柜' : '收起雨季工具柜');
+  };
+  dock.append(cabinet, toggle); mount.append(dock);
+  function reposition(): void {
+    void window.damp?.window.getWorkArea().then(area => {
+      dock.style.right = `${Math.max(0, window.innerWidth - area.x - area.width) + 16}px`;
+      dock.style.bottom = `${Math.max(0, window.innerHeight - area.y - area.height) + 16}px`;
+      cabinet.style.maxHeight = `${Math.max(100, area.height - 100)}px`; cabinet.style.overflowY = 'auto';
+    }).catch(() => { /* Preserve the current entry until desktop recovery completes. */ });
+  }
+  reposition();
+
   // 金币 pill（top-right 第一席，纯读数 none）
   const coinPill = document.createElement('div');
   coinPill.className = 'coin-pill';
   coinPill.innerHTML = `${icon('coins', 16)}<b class="coin-pill__value">0</b>`;
-  mount.appendChild(coinPill);
+  cabinet.appendChild(coinPill);
 
   // 商店 / 设置入口（44x44）
   const shopBtn = document.createElement('button');
@@ -61,17 +85,18 @@ export function mountUi(
   shopBtn.className = 'hud-btn hud-btn--shop';
   shopBtn.setAttribute('aria-label', '杂货铺');
   shopBtn.innerHTML = icon('store', 24);
-  mount.appendChild(shopBtn);
+  cabinet.appendChild(shopBtn);
 
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'hud-btn hud-btn--settings';
   settingsBtn.setAttribute('aria-label', '设置（音效开关）');
   settingsBtn.innerHTML = icon('settings', 24);
-  mount.appendChild(settingsBtn);
+  cabinet.appendChild(settingsBtn);
 
-  const weather = createWeatherSign(mount, runtime, () => hooks.sfx.whoosh());
-  const toolbox = createToolbox(mount, runtime);
+  const weather = createWeatherSign(cabinet, runtime, () => hooks.sfx.whoosh());
+  const toolbox = createToolbox(cabinet, runtime);
+  toolbox.el.style.display = '';
   const toast = createToastHost(mount);
   const shop = createShopPanel(mount, runtime, {
     onSell: hooks.onSell,
@@ -84,9 +109,9 @@ export function mountUi(
   shopBtn.addEventListener('click', () => {
     emitAction('shop-open');
     trackEvent('shop_opened');
-    shop.toggle();
+    void window.damp?.management.command({ action: 'navigate', value: 'shop' });
   });
-  settingsBtn.addEventListener('click', () => settings.toggle());
+  settingsBtn.addEventListener('click', () => void window.damp?.management.command({ action: 'navigate', value: 'settings' }));
 
   // Demo 控制台快捷键（AC-31）
   window.addEventListener('keydown', (e) => {
@@ -121,5 +146,6 @@ export function mountUi(
     toast,
     getTool: () => toolbox.getTool(),
     refresh,
+    reposition,
   };
 }

@@ -7,9 +7,10 @@
 export type ExtCategory = 'doc-code' | 'image-video' | 'audio' | 'archive';
 
 /** 节点来源：普通文件 / 文件夹 / 系统桌面特殊项（回收站） */
-export type FileKind = 'file' | 'dir' | 'recycle';
+export type FileKind = 'file' | 'dir' | 'recycle' | 'shell';
 
 export interface FileNode {
+  fileIdentity?: string;
   /** 稳定 id（真实路径哈希；存档主键） */
   id: string;
   /** 真实文件名，如「会议纪要.docx」 */
@@ -31,4 +32,6 @@ export interface FileNode {
   kind: FileKind;
   /** 主进程原生 API 提取的高清图标 PNG data URL */
   iconDataUrl: string;
+  geometry?: import('./desktop').DesktopGeometry;
+  displayName?: string;
 }

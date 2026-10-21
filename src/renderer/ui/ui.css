@@ -1,3 +1,4 @@
+@import './rain-cabinet.css';
 /* ==========================================================================
    《回南天 Cyber Damp》DOM 覆盖层样式
    全部颜色/字号/间距/圆角引用 var(--token)（tokens.css，唯一例外 #fff/#000）
@@ -630,3 +631,19 @@ html.cursor-scissors canvas {
   font-variant-numeric: tabular-nums;
   color: var(--mist, #c8e2e8);
 }
+
+/* One quiet desktop entry; reuse the existing weather, wallet and tool controls. */
+.rain-dock{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.rain-dock__toggle{pointer-events:auto;width:52px;height:52px;padding:0;border:0;background:transparent;cursor:pointer;filter:drop-shadow(0 3px 3px #263e4740)}
+.rain-dock__toggle img{width:100%;height:100%}.rain-dock__toggle:hover{transform:translateY(-2px)}.rain-dock__toggle:focus-visible{outline:2px solid #9bc2cb;border-radius:50%}
+.rain-dock__cabinet{width:290px;padding:12px;background:#dce5de;color:var(--cabinet-ink);border-radius:12px;box-shadow:0 6px 20px #263e4730;border-bottom:4px solid #b59a73;display:flex;gap:7px;flex-wrap:wrap;pointer-events:auto}
+.rain-dock__cabinet[hidden]{display:none!important}
+.rain-dock__cabinet .hud-btn{position:static;width:auto;height:36px;flex:1;border:0;background:#c4d4c9;color:var(--cabinet-ink)}
+.rain-dock__cabinet .hud-btn--toolbox{display:none}
+.rain-dock__cabinet .coin-pill{position:static;width:100%;border:0;padding:0;background:transparent;color:#5d4c25}
+.rain-dock__cabinet .coin-pill__value{color:inherit}
+.rain-dock__cabinet .weather-sign{position:static;transform:none;padding:4px 0;min-width:0;width:100%;background:transparent;border:0;box-shadow:none;font-size:11px;gap:5px;color:var(--cabinet-ink)}
+.rain-dock__cabinet .weather-sign::before{display:none}.rain-dock__cabinet .weather-sign__readout{gap:8px}
+.rain-dock__cabinet .toolbox{position:static;width:100%;background:transparent;padding:0;border:0;gap:2px}
+.rain-dock__cabinet .tool-cell{width:100%;min-height:36px;color:var(--cabinet-ink);font-size:11px;border-radius:4px}
+.rain-dock__cabinet .tool-cell--active{background:#bdcec1;border-color:#6d8d76}.rain-dock__cabinet .tool-cell:hover{background:#ccd9cf}

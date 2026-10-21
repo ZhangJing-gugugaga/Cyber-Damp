@@ -50,11 +50,12 @@ export function buildFileNodes(
   viewW: number,
   viewH: number,
 ): FileNode[] {
-  const cells = layoutDesktopCells(entries.length, viewW, viewH);
-  return cells.map((cell, i) => {
-    const e = entries[i];
+  return entries.map((e) => {
+    if (!e.geometry) throw new Error('缺少原生桌面布局，不能重排图标');
+    const cell = { x: e.geometry.x - 18, y: e.geometry.y - 4 };
     return {
       id: e.id,
+      fileIdentity: e.fileIdentity,
       name: e.name,
       ext: e.ext,
       category: e.category,
@@ -66,6 +67,8 @@ export function buildFileNodes(
       realPath: e.realPath,
       kind: e.kind,
       iconDataUrl: e.iconDataUrl,
+      geometry: e.geometry,
+      displayName: e.displayName,
     };
   });
 }

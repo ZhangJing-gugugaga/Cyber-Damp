@@ -1,6 +1,6 @@
 {
   "name": "cyber-damp",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "description": "回南天 Cyber Damp - 桌面文件受潮发霉/拉绳晾晒/蘑菇养成的数字家务模拟器 MVP",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",
@@ -20,7 +20,8 @@
     "test:constants": "node --test scripts/check-shared.mjs",
     "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs",
     "qa:cdp": "node scripts/qa-cdp.mjs",
-    "qa:window": "node scripts/qa-window.mjs"
+    "qa:window": "node scripts/qa-window.mjs",
+    "qa:dox": "node scripts/check-dox.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
@@ -43,6 +44,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "src/renderer/public/brand/rain-mushroom.ico",
       "target": "portable"
     },
     "directories": {

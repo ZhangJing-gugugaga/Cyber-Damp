@@ -104,16 +104,20 @@ export function createGameActions(ctx: GameActionContext): GameActions {
   /** 剪下成熟蘑菇：立即入账，视图沿贝塞尔飞向金币栏后销毁 */
   function pickMushroom(id: string): void {
     if (ctx.harvestSpecial?.(id)) return;
+    const coinsBefore = runtime.coins;
     const item = runtime.pickMushroom(id);
     if (!item) return; // 未成熟无效且无提示
+    const earned = runtime.coins - coinsBefore;
     const def = SPECIES[item.species];
     emitAction('pick');
     trackFirst('first_pick');
 
     const view = shrooms.get(id);
     shrooms.delete(id);
-    if (!view) {
-      toast.tip(`剪下一朵${def.name}（${def.rarity}），入账 ${def.price} 币。`);
+    if (!view || !view.container.visible) {
+      view?.container.destroy({ children: true });
+      sfx.snip(); sfx.coin();
+      toast.tip(`采下一朵${def.name}，入账 ${earned} 币。`);
       return;
     }
 
@@ -153,7 +157,7 @@ export function createGameActions(ctx: GameActionContext): GameActions {
       }));
     };
     app.ticker.add(fly);
-    toast.tip(`剪下一朵${def.name}（${def.rarity}），+${def.price} 币。`);
+    toast.tip(`剪下一朵${def.name}（${def.rarity}），+${earned} 币。`);
   }
 
   /** Demo 一键挂满：容量预检贪心截断，沿弧长均匀挂载（随后物理自动聚拢） */

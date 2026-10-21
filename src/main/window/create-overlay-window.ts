@@ -6,7 +6,23 @@
 import { BrowserWindow, screen } from 'electron';
 import type { WebContents } from 'electron';
 import * as path from 'node:path';
-import { isDesktopAttached, repositionOverlay, shutdownDesktop } from '../native/win32-desktop';
+import { desktopPointerState, fitOverlayScreenRect, overlayScreenRect, isDesktopAttached, restoreDesktop, suspendDesktopHost, shutdownDesktop } from '../native/win32-desktop';
+import type { DesktopCursor } from '../../shared/types/desktop';
+import { unionScreenRects } from '../../shared/desktop-viewport';
+import { reportDisplayError } from './management-window';
+const canvasScales = new WeakMap<BrowserWindow, number>();
+export function setOverlayCanvasScale(win: BrowserWindow, value: number): void { canvasScales.set(win, value); }
+export function getOverlayCanvasScale(win: BrowserWindow): number { return canvasScales.get(win) ?? screen.getPrimaryDisplay().scaleFactor; }
+export function getOverlayWorkArea(win: BrowserWindow): { x: number; y: number; width: number; height: number } {
+  const area = screen.dipToScreenRect(null, screen.getPrimaryDisplay().workArea), origin = overlayScreenRect(win);
+  if (!origin) throw new Error('桌面画布尚未就绪');
+  const scale = getOverlayCanvasScale(win);
+  return { x: (area.x - origin.x) / scale, y: (area.y - origin.y) / scale, width: area.width / scale, height: area.height / scale };
+}
+function fitAllDisplays(win: BrowserWindow): void {
+  const rect = unionScreenRects(screen.getAllDisplays().map(display => screen.dipToScreenRect(null, display.workArea)));
+  if (!fitOverlayScreenRect(win, rect)) throw new Error('无法设置多屏桌面画布');
+}
 
 interface OverlayStartup {
   painted: boolean;
@@ -41,10 +57,9 @@ export function isOverlayReady(win: BrowserWindow): boolean {
     && (process.env.CD_NO_ATTACH === '1' || isDesktopAttached()));
 }
 
-/** 工作区 bounds（主屏，不含任务栏；桌面图标网格与舞台同尺寸） */
+/** Initial Electron DIP bounds; native placement subsequently uses physical rectangles. */
 export function getWorkArea(): { x: number; y: number; width: number; height: number } {
-  const area = screen.getPrimaryDisplay().workArea;
-  return { x: area.x, y: area.y, width: area.width, height: area.height };
+  return unionScreenRects(screen.getAllDisplays().map(display => display.workArea));
 }
 
 export function createOverlayWindow(preloadPath: string): BrowserWindow {
@@ -73,6 +88,7 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
   }
 
   const win = new BrowserWindow({
+    icon: path.join(__dirname, '..', '..', 'renderer', 'brand', 'rain-mushroom.ico'),
     transparent: true,
     frame: false,
     hasShadow: false,
@@ -116,14 +132,17 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
   // Native desktop remains usable while assets/IPC are still initializing.
   win.setIgnoreMouseEvents(true, { forward: true });
   win.setBounds(area);
+  fitAllDisplays(win);
   // Chromium's forwarded WM_MOUSEMOVE is unreliable for reparented layered
   // child windows. Feed a native DIP cursor probe into hover hit testing so a
   // pass-through window can become clickable again without a bootstrap click.
   const cursorTimer = setInterval(() => {
     if (win.isDestroyed() || win.webContents.isLoading()) return;
-    const point = screen.getCursorScreenPoint();
-    const work = getWorkArea();
-    win.webContents.send('window:cursor', { x: point.x - work.x, y: point.y - work.y });
+    const point = screen.dipToScreenPoint(screen.getCursorScreenPoint());
+    const work = overlayScreenRect(win); if (!work) return;
+    const scale = getOverlayCanvasScale(win);
+    const cursor: DesktopCursor = { x: (point.x - work.x) / scale, y: (point.y - work.y) / scale, ...desktopPointerState() };
+    win.webContents.send('window:cursor', cursor);
   }, 33);
   cursorTimer.unref();
   win.on('closed', () => { clearInterval(cursorTimer); startup.failed = true; startup.resolvePaint(false); });
@@ -169,12 +188,23 @@ export function startDisplayTracker(
   getWin: () => BrowserWindow | null,
   getWc: () => WebContents | null,
 ): void {
-  screen.on('display-metrics-changed', () => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const changed = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
     const win = getWin();
     if (!win || win.isDestroyed()) return;
+    try {
+    suspendDesktopHost(true); restoreDesktop(); win.hide();
     const area = getWorkArea();
     win.setBounds(area);
-    if (isDesktopAttached()) repositionOverlay(win);
-    getWc()?.send('system:displayChanged', { width: area.width, height: area.height });
-  });
+    fitAllDisplays(win);
+    const [width, height] = win.getContentSize();
+    getWc()?.send('system:displayChanged', { width, height });
+    } catch (error) { void reportDisplayError(error instanceof Error ? error.message : '显示配置刷新失败，请重启回南天。'); }
+    }, 200);
+  };
+  screen.on('display-metrics-changed', changed);
+  screen.on('display-added', changed);
+  screen.on('display-removed', changed);
 }

@@ -9,6 +9,7 @@ export default defineConfig({
     // 相对 src/renderer 回溯两级 = 项目根 dist/renderer（与 package.json main 入口约定一致）
     outDir: '../../dist/renderer',
     emptyOutDir: true,
+    rolldownOptions: { input: { main: 'src/renderer/index.html', manage: 'src/renderer/manage.html' } },
   },
   server: {
     port: 5173,

@@ -1,0 +1,9 @@
+/* Shared game menu and desktop controls; legacy panels retain their existing tokens. */
+:root{
+  --cabinet-ink:#273e46;
+  --cabinet-backdrop:#c5d2d4;
+  --cabinet-face:#e8eeeb;
+  --cabinet-shell:#8ca5a7;
+  --cabinet-active:#476f65;
+  --cabinet-wood:#c5a77f;
+}

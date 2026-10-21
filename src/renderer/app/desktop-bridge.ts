@@ -6,11 +6,11 @@ import type { DesktopEntry } from '../../shared/types/desktop';
 
 export async function loadDesktopEntries(): Promise<DesktopEntry[]> {
   try {
-    const entries = await window.damp?.desktop.scan();
+    const entries = await window.damp?.desktop.scan({ scaleFactor: window.devicePixelRatio, width: window.innerWidth, height: window.innerHeight });
     return Array.isArray(entries) ? entries : [];
   } catch (err) {
     console.warn('[desktop] 扫描失败:', err);
-    return [];
+    throw err;
   }
 }
 

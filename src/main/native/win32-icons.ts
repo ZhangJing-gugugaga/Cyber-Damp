@@ -73,6 +73,7 @@ function ensureTypes() {
 }
 
 interface IconApi {
+  SHDefExtractIconW(name: string, index: number, flags: number, large: unknown[], small: unknown, size: number): number;
   SHParseDisplayName(name: unknown, pbc: unknown, out: unknown[], sfgaoIn: number, outAttrs: number[]): number;
   SHGetFileInfoW(pidl: unknown, attrs: number, sfi: unknown, size: number, flags: number): number;
   GetIconInfo(icon: unknown, out: unknown): boolean;
@@ -98,6 +99,7 @@ function loadIconApi(): IconApi | null {
     const gdi32 = koffi.load('gdi32.dll');
     const ole32 = koffi.load('ole32.dll');
     iconApi = {
+      SHDefExtractIconW: shell32.func('long SHDefExtractIconW(str16 name, int index, uint32 flags, _Out_ void **large, void *small, uint32 size)'),
       SHParseDisplayName: shell32.func(
         'long SHParseDisplayName(str16 pszName, void *pbc, _Out_ void **ppidl, uint32 sfgaoIn, _Out_ uint32 *psfgaoOut)',
       ),
@@ -127,7 +129,7 @@ function loadIconApi(): IconApi | null {
  * 提取 Shell 命名空间项的图标 PNG。
  * @param shellName 例如回收站 '::{645FF040-5081-101B-9F08-00AA002F954E}'
  */
-export function extractShellIconImage(shellName: string): NativeImage | null {
+export function extractShellIconImage(shellName: string, jumbo = true, resourceIndex?: number): NativeImage | null {
   const api = loadIconApi();
   if (!api) return null;
   const t = ensureTypes();
@@ -142,6 +144,12 @@ export function extractShellIconImage(shellName: string): NativeImage | null {
   let dc: unknown = null;
 
   try {
+    if (resourceIndex !== undefined) {
+      const large: unknown[] = [null];
+      const result = api.SHDefExtractIconW(shellName, resourceIndex, 0, large, null, jumbo ? 256 : 64);
+      hIcon = large[0];
+      if (result !== 0 || !hIcon) return null;
+    } else {
     const outPidl: unknown[] = [null];
     const outAttrs = [0];
     const hr = api.SHParseDisplayName(shellName, null, outPidl, 0, outAttrs);
@@ -158,10 +166,11 @@ export function extractShellIconImage(shellName: string): NativeImage | null {
     const res = api.SHGetFileInfoW(pidl, 0, sfi, sizeSfi, SHGFI_ICON | SHGFI_PIDL | SHGFI_LARGEICON | SHGFI_SYSICONINDEX);
     if (!res || !sfi.hIcon) return null;
     hIcon = sfi.hIcon;
-    const largeIcon = largeShellIcon(Number(sfi.iIcon));
+    const largeIcon = largeShellIcon(Number(sfi.iIcon), jumbo);
     if (largeIcon) {
       api.DestroyIcon(hIcon);
       hIcon = largeIcon;
+    }
     }
 
     const info: Record<string, unknown> = {
@@ -220,6 +229,18 @@ export function extractShellIconImage(shellName: string): NativeImage | null {
 
     const image = nativeImage.createFromBitmap(pixels, { width, height });
     if (image.isEmpty()) return null;
+    // Legacy providers put a small icon in the corner of a JUMBO canvas.
+    // Ask Shell for its regular artwork instead of cropping genuine margins.
+    if (jumbo && width >= 256) {
+      let right = -1, bottom = -1;
+      for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        if (pixels[(y * width + x) * 4 + 3] < 16) continue;
+        right = Math.max(right, x); bottom = Math.max(bottom, y);
+      }
+      if (right < width * .4 && bottom < height * .4) {
+        return extractShellIconImage(shellName, false, resourceIndex);
+      }
+    }
     return image;
   } catch (err) {
     console.warn('[desktop] 提取 Shell 图标失败:', err);

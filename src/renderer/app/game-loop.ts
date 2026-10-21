@@ -12,7 +12,7 @@ const MAX_STEPS_PER_FRAME = 6;
 export interface GameLoopOptions {
   app: Application;
   /** 每个固定步调用（演化/物理/视图同步），dtSec = 固定步长（秒） */
-  tick: (dtSec: number) => void;
+  tick: (dtSec: number, render: boolean) => void;
   /** AC-27：单帧未捕获异常上报（循环继续运行） */
   onError?: (err: unknown) => void;
 }
@@ -39,7 +39,9 @@ export function startGameLoop(opts: GameLoopOptions): GameLoopHandle {
     while (acc >= fixedStep && steps < MAX_STEPS_PER_FRAME) {
       steps++;
       try {
-        tick(fixedStep / 1000);
+        // Physics stays fixed-step; expensive visual work runs once per frame,
+        // even when a slow frame needs several simulation catch-up steps.
+        tick(fixedStep / 1000, acc < fixedStep * 2 || steps === MAX_STEPS_PER_FRAME);
       } catch (err) {
         errorCount++;
         console.error('[cyber-damp] tick 异常（循环继续）:', err);

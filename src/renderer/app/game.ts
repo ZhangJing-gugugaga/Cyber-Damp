@@ -5,6 +5,7 @@
 import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
 import { startGameLoop } from './game-loop';
+import { installDisplayRefresh } from './display-refresh';
 import { WorldRuntime } from './world-runtime';
 import { RopeManager } from './rope-manager';
 import type { RopeEntry } from './rope-manager';
@@ -42,6 +43,7 @@ import { loadSave } from './save-bridge';
 import { loadDesktopEntries, openRealPath } from './desktop-bridge';
 import { restoreRopes } from './rope-restore';
 import { buildFileNodes } from '../../world/desktop-layout';
+import { connectManagement } from './management-bridge';
 const AUTOSAVE_SEC = 30;
 
 export async function createGame(app: Application): Promise<void> {
@@ -127,7 +129,7 @@ export async function createGame(app: Application): Promise<void> {
     if (!recycleNode) return null;
     const s = sprites.get(recycleNode.node.id);
     if (!s) return null;
-    return { x: s.container.position.x + 18, y: s.container.position.y + FILE_ICON_TOP, w: 64, h: 64 };
+    return s.iconRect;
   };
   const boxes = new BoxController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }), recycleRect);
   const specialMushrooms = new SpecialMushroomController({ runtime, ropes, sprites, layer: layers.fogLayer, pool, sfx });
@@ -152,10 +154,7 @@ export async function createGame(app: Application): Promise<void> {
     getTool: () => ui.getTool(),
     harvestSpecial: (id) => harvest?.pick(id) ?? false,
   });
-  const ui = mountUi(document.getElementById('ui-root') ?? document.body, runtime, {
-    onSell: actions.onSell,
-    onBuy: actions.onBuy,
-    onBuyBox: (qty) => {
+  const buyBoxes = (qty: number): void => {
       const want = Math.min(qty, boxes.freeSlots());
       if (want === 0) {
         ui.toast.tip('墙角放不下了（最多 4 只），倒掉一只满盒再来。');
@@ -170,7 +169,11 @@ export async function createGame(app: Application): Promise<void> {
       if (placed < want) runtime.chargeCoins(-(want - placed) * boxes.price);
       sfx.coin();
       ui.toast.tip(placed < qty ? `墙角只塞得下 ${placed} 只吸湿盒，已按实收币。` : `${placed} 只吸湿盒在墙角上岗。积水涨满记得拖去回收站倒掉。`);
-    },
+  };
+  const ui = mountUi(document.getElementById('ui-root') ?? document.body, runtime, {
+    onSell: actions.onSell,
+    onBuy: actions.onBuy,
+    onBuyBox: buyBoxes,
     sfx,
     demo: actions.demo,
     onMicrophoneToggle: (on) => microphone.setEnabled(on),
@@ -197,6 +200,10 @@ export async function createGame(app: Application): Promise<void> {
     getTool: () => ui.getTool(),
     extraHit: (x, y) => harvest.hit(x, y),
     mushroomHit: (x, y) => {
+      for (const [id, sprite] of sprites) {
+        const m = runtime.byId.get(id)?.runtime.mushroom;
+        if (m && m.growth > 0 && (m.species === 'oyster' || m.species === 'enoki') && sprite.mushroomHit(x, y)) return id;
+      }
       for (const [id, view] of shrooms) if ((runtime.byId.get(id)?.runtime.mushroom?.growth ?? 0) >= 1 && view.hit(x, y)) return id;
       return null;
     },
@@ -206,7 +213,7 @@ export async function createGame(app: Application): Promise<void> {
       const ent = runtime.byId.get(id);
       if (!ent) return;
       void openRealPath(ent.node.realPath).then((ok) => {
-        if (ok) { ropes.releaseFile(id); runtime.dryFile(id); sprites.get(id)?.clearPaintStains(); }
+        if (ok) { /* Opening a real file does not perform free cleaning. */ }
         else ui.toast.tip(`「${ent.node.name}」暂时打不开。`);
       });
       sfx.pop(1.2);
@@ -238,12 +245,19 @@ export async function createGame(app: Application): Promise<void> {
   });
   for (const btn of document.querySelectorAll('#ui-hud button')) btn.setAttribute('data-ui-interactive', '1');
   wireSystemEvents(runtime, saver);
-  window.damp?.system.onDisplayChanged(({ width, height }) => {
-    ropes.setViewport(width, height);
+  let opening: Opening | null = null, displayRefreshing = false;
+  connectManagement(app, runtime, saver, sprites, { ...actions, onPauseChange: (paused) => opening?.setPaused(paused || displayRefreshing), onBuy: (id) => {
+    if (id === 'box-1') buyBoxes(1); else actions.onBuy(id);
+  } });
+  installDisplayRefresh({ app, runtime, ropes, sprites, layer: layers.fileLayer,
+    textures: new Map(nodes.map((node, index) => [node.id, textures[index]])),
+    before: () => pointer.cancelForDisplayChange(), opening: () => opening,
+    busy: value => { displayRefreshing = value; opening?.setPaused(value || runtime.paused); if (!value) ui.reposition(); },
+    ready: value => { desktopReady = value; },
   });
 
   // 7. 6 秒开场（锁拖拽 + 按真实 mtime 分档腐化）
-  let opening: Opening | null = new Opening({
+  opening = new Opening({
     runtime,
     atmosphere,
     pool,
@@ -254,7 +268,7 @@ export async function createGame(app: Application): Promise<void> {
     onFinish: () => {
       opening = null;
       pointer.clickThrough.update(false);
-      if (!loaded) guide.start();
+      // Basic care is discoverable in the independent management window.
       ui.refresh();
     },
   });
@@ -302,7 +316,7 @@ export async function createGame(app: Application): Promise<void> {
         err instanceof Error ? err.message : String(err),
         err instanceof Error ? err.stack : undefined,
       ),
-    tick: (dt) => { if (desktopReady) gameTick(dt); },
+    tick: (dt, render) => { if (desktopReady && !runtime.paused && !displayRefreshing) gameTick(dt, render); },
   });
 
   // 首帧渲染后挂 WorkerW + 隐藏原生图标（失败则保持图标显示）

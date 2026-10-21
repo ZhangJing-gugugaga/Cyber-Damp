@@ -1,5 +1,7 @@
 # OPEN-DECISIONS — 回南天 Cyber Damp MVP
 
+> 2026-10-21 当前方向见 [目标与计划](../superpowers/specs/2026-10-21-experience-direction-and-plan.md)。下方历史决策不覆盖用户最新规则。
+
 > 悬而未决登记册。铁律：只追加 + 就地关闭（OPEN → RESOLVED，补 Resolution 字段）。
 > 三类固定 slug：waiting-on-external-condition / design-decision-to-evaluate / existing-design-boundary
 
@@ -20,17 +22,27 @@
 
 ## 2026-10-19 下一版决策补充
 
-此前阶段的 OPEN 项保留为历史，不代表本轮待用户确认的事项。[当前设计](../superpowers/specs/2026-10-19-care-and-desktop-design.md) 明确区分已确认规则与以下建议；开发继续暂停。
+此前阶段的 OPEN 项保留为历史，不代表本轮待用户确认的事项。[当前设计](../superpowers/specs/2026-10-19-care-and-desktop-design.md) 明确区分已确认规则与以下建议；当前按用户授权及最新目标推进。
 
 | ID | 类型 | 待决事项 | 状态 |
 | --- | --- | --- | --- |
-| D01 | design-decision-to-evaluate | 重启重算、护理存档、改名/修改后的换新基线 | OPEN |
+| D01 | design-decision-to-evaluate | Resolution：2026-10-19 用户接受补充建议，重启保留护理成果并合并新文件信息；改名/修改按换新处理，身份识别算法在实现时确定 | RESOLVED |
 | D02 | design-decision-to-evaluate | 清洁度汇总、损坏文件参与方式与可达成的 100% | OPEN |
 | D03 | design-decision-to-evaluate | 三天在线计时、暂停/清零、单次或重复损坏 | OPEN |
 | D04 | design-decision-to-evaluate | 免费基础护理、双击行为、机器/耗材作用和费用 | OPEN |
 | D05 | design-decision-to-evaluate | 每日结算、离线收入、品相售价与经济平衡 | OPEN |
 | D06 | design-decision-to-evaluate | 开场提示、可否跳过、快捷键动作与窗口流程 | OPEN |
 
-已解决：平滑漫画风；低频纯场景蜗牛；无核爆；特殊菇用 PVZ 铲子；3–5 秒每次启动回放；55% 遮挡；严格原生大小和布局。它们不应再次作为未选方向询问。
+已解决：平滑漫画风；低频纯场景蜗牛；无核爆；特殊菇用 PVZ 铲子；3–5 秒每次启动回放；90% 遮挡且仍可辨认；严格原生大小和布局。它们不应再次作为未选方向询问。
 
 2026-10-19 用户进一步澄清：丰富桌面、“没什么用但是很好玩”才是目标，把发霉做好即可；此前“A 照料为主”的产品主线解读撤回。D01–D06 保留为相关辅助功能的细节登记，不阻塞发霉视觉样片，不再优先开展经济系统设计。具体旧规则未被擅自删除。
+
+## 2026-10-21 用户体验决策（已确认）
+
+| ID | 决策 | 状态 |
+| --- | --- | --- |
+| E01 | 旧版代码与资产先盘点复用，Codex 仅开发缺口，编码前先查 GitHub | RESOLVED |
+| E02 | 当前性能与发霉正常表现已获用户体验认可，专项优化不再阻塞当前迭代 | RESOLVED |
+| E03 | 商城/设置/桌面按钮统一为游戏式 UI，桌面入口收拢，恢复单击选中等原生交互感 | RESOLVED |
+| E04 | 动态样片扩充为主线，含发霉/缩水/焦化卷边/皱褶及可删改实验；上限由 55% 放宽至 90%，仍须辨认原图 | RESOLVED |
+| E05 | 彩蛋优先既有资产及网上原图，保留来源和许可信息 | RESOLVED |

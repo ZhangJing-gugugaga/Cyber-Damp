@@ -9,14 +9,23 @@ import type { DesktopWallpaper } from '../../shared/types/wallpaper';
 declare global {
   interface Window {
     damp?: {
+      management: {
+        get(): Promise<{ status: import('../../shared/types/management').SceneStatus; snapshot: import('../../shared/types/management').ManagementSnapshot }>;
+        open(): Promise<void>;
+        command(command: import('../../shared/types/management').ManagementCommand): Promise<{ ok: boolean; error?: string }>;
+        publish(snapshot: import('../../shared/types/management').ManagementSnapshot): void;
+        onCommand(cb: (value: import('../../shared/types/management').ManagementCommand) => void): () => void;
+        onStatus(cb: (value: import('../../shared/types/management').SceneStatus) => void): () => void;
+        onSnapshot(cb: (value: import('../../shared/types/management').ManagementSnapshot) => void): () => void;
+      };
       window: {
-        onCursor(cb: (point: { x: number; y: number }) => void): () => void;
+        onCursor(cb: (point: import('../../shared/types/desktop').DesktopCursor) => void): () => void;
         setIgnoreMouseEvents(ignore: boolean, forward?: boolean): Promise<void>;
         getWorkArea(): Promise<{ x: number; y: number; width: number; height: number }>;
         getInputSettings(): Promise<{ doubleClickMs: number }>;
       };
       desktop: {
-        scan(): Promise<DesktopEntry[]>;
+        scan(viewport?: import('../../shared/types/desktop').DesktopViewportRequest): Promise<DesktopEntry[]>;
         wallpaper(): Promise<DesktopWallpaper | null>;
         open(realPath: string): Promise<{ ok: boolean; error?: string }>;
       };
@@ -26,7 +35,7 @@ declare global {
       };
       system: {
         onCpu(cb: (usage: number) => void): () => void;
-        onDisplayChanged(cb: (size: { width: number; height: number }) => void): () => void;
+        onDisplayChanged(cb: (size: import('../../shared/types/desktop').DisplayChangedNotice) => void): () => void;
       };
       app: {
         version(): Promise<string>;
@@ -35,6 +44,7 @@ declare global {
         track(name: string, props: Record<string, string | number | boolean>): Promise<void>;
         /** 世界装配完成 → 主进程挂 WorkerW + 隐藏原生图标 */
         desktopReady(): Promise<{ ok: boolean; iconsHidden?: boolean; skipped?: boolean }>;
+        viewportReady(result: { requestId: number; ok: boolean }): Promise<{ ok: boolean }>;
         onBeforeQuit(cb: () => void): () => void;
       };
     };

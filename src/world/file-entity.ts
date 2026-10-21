@@ -25,12 +25,12 @@ export class FileEntity {
 
   /** 冷落天数（now - mtime） */
   neglectDays(now: number): number {
-    return (now - Math.max(this.node.mtime, this.node.lastOpenedAt || 0)) / 86400000;
+    return (now - Math.max(this.node.mtime, this.runtime.refreshedAt || 0)) / 86400000;
   }
 
   /** 由 mtime 差推导的阶段（四阶段映射的唯一真相） */
   stageAt(now: number): FileRuntime['stage'] {
-    return deriveStage(Math.max(this.node.mtime, this.node.lastOpenedAt || 0), now);
+    return deriveStage(Math.max(this.node.mtime, this.runtime.refreshedAt || 0), now);
   }
 
   /** 每帧同步派生阶段到 runtime（渲染层读 runtime.stage） */

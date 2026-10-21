@@ -10,7 +10,7 @@ let api: {
 } | null | undefined;
 
 /** Returns an owned HICON; the caller must DestroyIcon. Null retains old fallback. */
-export function largeShellIcon(index: number): unknown {
+export function largeShellIcon(index: number, jumbo = true): unknown {
   if (process.platform !== 'win32' || !Number.isInteger(index) || index < 0) return null;
   if (api === undefined) {
     try {
@@ -23,7 +23,7 @@ export function largeShellIcon(index: number): unknown {
   }
   if (!api) return null;
   // SHIL_JUMBO is 256px. EXTRALARGE supports older Shell providers.
-  for (const size of [4, 2]) {
+  for (const size of jumbo ? [4, 2] : [2]) {
     const output: unknown[] = [null];
     let list: unknown = null;
     try {

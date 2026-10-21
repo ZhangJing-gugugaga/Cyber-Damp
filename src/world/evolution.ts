@@ -48,7 +48,7 @@ export function stepEvolution(
 
   // 湿度趋向目标；绳上晾晒趋向干爽（AC-13 速率），大风加速。
   // 冷落度 <3 天的新鲜文件对回南天不敏感，保持基本干燥（与开局 ΔT 分档一致）。
-  const hung = rt.state === 'hung';
+  const hung = rt.state === 'hung' || rt.dryCare === true;
   const target = hung ? 0.15 : env.humidity * (rt.stage === 'fresh' ? 0.15 : 0.9);
   let rate = dtSec * (hung ? DRY_RATE : 0.2);
   if (hung && env.wind > 0.5) rate *= 1.8;
@@ -56,19 +56,19 @@ export function stepEvolution(
   rt.humidity = clamp01(rt.humidity + delta * Math.min(rate, 1));
 
   // 霉变蔓延（高湿加速）；速度按真实 mtime 阶段分档，避免新文件也迅速长满霉
-  if (env.humidity > 0.55) {
+  if (!rt.dryCare && rt.humidity > 0.55) {
     const moldRate =
       rt.stage === 'fresh' ? 0.0002 : rt.stage === 'damp' ? 0.001 : rt.stage === 'wet' ? 0.0025 : 0.004;
-    rt.mold = clamp01(rt.mold + dtSec * moldRate * env.humidity);
+    rt.mold = clamp01(rt.mold + dtSec * moldRate * rt.humidity / 120);
   }
 
   // 蘑菇：mold > 0.6 萌生；生长三阶段由 growth 0..1 表达
-  if (!rt.mushroom && rt.mold > 0.6 && rand < 0.5) {
+  if (!rt.dryCare && !rt.mushroom && rt.mold > 0.6 && rand < 0.001 * dtSec) {
     const species: MushroomSpecies = file ? pickFileSpecies(file, rand * 2 % 1) : pickSpecies(category, rand * 2 % 1);
     rt.mushroom = { species, growth: 0 };
   }
   if (rt.mushroom && rt.mushroom.species !== 'bolete' && rt.mushroom.species !== 'lava') {
-    rt.mushroom.growth = clamp01(rt.mushroom.growth + dtSec * 0.01);
+    rt.mushroom.growth = clamp01(rt.mushroom.growth + dtSec * 0.00005 * (rt.dryCare ? 0 : 1));
   }
 
   // 过热烘烤焦化

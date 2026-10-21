@@ -13,6 +13,10 @@ export interface PlayerState {
 }
 
 export interface FileRuntimeSave {
+  sourceMtime?: number;
+  fileIdentity?: string;
+  dryCare?: boolean;
+  refreshedAt?: number;
   id: string;
   humidity: number;
   mold: number;
@@ -35,7 +39,7 @@ export interface RopeSave {
 }
 
 export interface SaveData {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   savedAt: number;
   player: PlayerState;
   weather: { city: string; migratedOn: string };

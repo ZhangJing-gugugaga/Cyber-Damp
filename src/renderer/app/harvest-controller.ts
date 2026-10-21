@@ -1,4 +1,4 @@
-import { Graphics, Sprite, type Application, type Container } from 'pixi.js';
+import { Graphics, type Application, type Container } from 'pixi.js';
 import type { WorldRuntime } from './world-runtime';
 import type { MushroomView } from '../view/mushroom-view';
 import type { ParticlePool } from '../view/particles';
@@ -63,6 +63,7 @@ export class HarvestController {
     const entity = this.deps.runtime.byId.get(id);
     const mushroom = entity?.runtime.mushroom;
     if (!mushroom || mushroom.species !== 'bolete' && mushroom.species !== 'lava') return false;
+    if (mushroom.species === 'lava' && !this.deps.runtime.owned.includes('pvz-shovel')) return true;
     if (this.deps.runtime.locked || this.detached.length >= 16) return true;
     const item = cutMushroom(mushroom), view = this.deps.shrooms.get(id);
     if (!item || !view || !entity) return true;
@@ -134,12 +135,7 @@ export class HarvestController {
   }
 
   private contains(target: Detached, x: number, y: number): boolean {
-    // A MushroomView's mask is intentionally wider than its artwork. Do not
-    // let that invisible clipping rectangle steal neighbouring file clicks.
-    const art = target.view.container.children.find((child) => child instanceof Sprite);
-    const bounds = (art ?? target.view.container).getBounds();
-    return x >= bounds.x - 8 && x <= bounds.x + bounds.width + 8
-      && y >= bounds.y - 8 && y <= bounds.y + bounds.height + 8;
+    return target.view.hit(x, y);
   }
 
   private readonly onDown = (event: PointerEvent): void => {

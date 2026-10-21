@@ -35,3 +35,10 @@ __pycache__/
 logs/
 .claude/logs/
 .claude/data/
+
+# Project-local external tools, dependencies, credentials and optimizer runs
+/.tools/prompt-optimizer/
+/.tools/pnpm/
+/.tools/pnpm-store/
+/.tools/prompt-optimizer-runtime/
+/.local/prompt-optimizer/

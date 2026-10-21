@@ -44,6 +44,7 @@ export class WorldRuntime {
 
   /** 演出期间输入锁定（6 秒开场延时腐化） */
   locked = true;
+  paused = false;
   /** 状态变化信号（UI 刷新 + 存档防抖） */
   onChange: (() => void) | null = null;
 
@@ -105,7 +106,14 @@ export class WorldRuntime {
     const saved = new Map(save.files.map((f) => [f.id, f]));
     for (const ent of this.entities) {
       const s = saved.get(ent.node.id);
+      const renamed = !s && ent.node.fileIdentity && save.files.some(f => f.fileIdentity === ent.node.fileIdentity);
+      if (renamed || (s?.sourceMtime !== undefined && s.sourceMtime !== ent.node.mtime)) {
+        ent.runtime.refreshedAt = now; ent.runtime.humidity = 0; ent.runtime.mold = 0;
+        ent.runtime.char = 0; ent.runtime.mushroom = null; ent.syncStage(now); continue;
+      }
       if (!s) continue;
+      ent.runtime.dryCare = s.dryCare ?? false;
+      ent.runtime.refreshedAt = s.refreshedAt;
       ent.runtime.humidity = clamp01(s.humidity);
       ent.runtime.mold = clamp01(s.mold);
       ent.runtime.char = clamp01(s.char);
@@ -114,10 +122,7 @@ export class WorldRuntime {
       ent.runtime.mushroom =
         s.mushroom && SPECIES[s.mushroom.species] ? { ...s.mushroom } : null;
     }
-    // 开场演出需要所有 ΔT≥30d 文件有一朵可生长的菇（存档里已采摘的也重新破土）
-    for (const ent of this.entities) {
-      seedMoldyMushroom(ent.runtime, ent.node.category, ent.node.id, ent.node.name, ent.node.kind);
-    }
+    // Saved harvesting and care are authoritative; no forced reseeding on restart.
   }
 
   /** 当日天气（确定性） */
@@ -144,6 +149,7 @@ export class WorldRuntime {
 
   /** 固定步推进（game-loop 每步调用） */
   tick(dtSec: number): void {
+    if (this.paused) return;
     this.timeSec += dtSec;
     if (this.cpu > 0.8) this.cpuHighSec += dtSec;
     else this.cpuHighSec = 0;
@@ -258,12 +264,14 @@ export class WorldRuntime {
 
   toSave(ropes: RopeSave[]): SaveData {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       savedAt: Date.now(),
       player: { coins: this.coins, owned: this.owned.slice(), equipped: { ...this.equipped } },
       weather: { city: this.city, migratedOn: this.migratedOn },
       files: this.entities.map((e) => ({
         id: e.node.id,
+        sourceMtime: e.node.mtime, fileIdentity: e.node.fileIdentity,
+        dryCare: e.runtime.dryCare ?? false, refreshedAt: e.runtime.refreshedAt,
         humidity: e.runtime.humidity,
         mold: e.runtime.mold,
         char: e.runtime.char,

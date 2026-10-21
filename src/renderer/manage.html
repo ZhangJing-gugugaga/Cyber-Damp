@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"><title>回南天 · 桌面管理</title></head><body><main>
+<header><img class="brand" src="./brand/rain-mushroom.svg" alt=""><div><h1>回南天</h1><p>雨季工具柜</p></div><output id="wallet" aria-label="余额">0 币</output></header>
+<div class="tabs" role="tablist" aria-label="管理页面"><button role="tab" aria-selected="true" aria-controls="care-page" id="care-tab" data-page="care">桌面</button><button role="tab" aria-selected="false" aria-controls="shop-page" id="shop-tab" data-page="shop" tabindex="-1">雨天小铺</button><button role="tab" aria-selected="false" aria-controls="settings-page" id="settings-tab" data-page="settings" tabindex="-1">偏好设置</button></div>
+<section id="intro"><h2>桌面准备好了</h2><p>接下来用 4 秒，呈现每个文件各自的受潮与霉变状态。你的原生桌面在准备期间仍可操作。</p><button id="start">开始 4 秒回放</button></section>
+<nav><button data-action="show">显示场景</button><button data-action="hide">隐藏并暂停</button><button id="pause" data-action="pause">暂停</button><button data-action="quit">退出整个程序</button></nav>
+<p id="status" role="status"></p><p id="feedback" role="status"></p><p id="scene-error" role="alert"></p>
+<section id="care-page" role="tabpanel" aria-labelledby="care-tab"><h2>桌面物件</h2><p>选择物件进行护理。干燥留斑，清洗复原；放着也没关系。</p><div id="files"></div></section>
+<section id="shop-page" role="tabpanel" aria-labelledby="shop-tab" hidden><h2>雨天小铺</h2><p id="coins"></p><div class="shop-layout"><div id="shop" aria-label="道具列表"></div><aside id="item-detail" aria-live="polite"></aside></div></section>
+<section id="settings-page" role="tabpanel" aria-labelledby="settings-tab" hidden><h2>设置</h2><label for="shortcut">管理窗口快捷键</label><input id="shortcut" placeholder="Control+Alt+M"><button id="save-shortcut">保存快捷键</button><p id="shortcut-status" role="status"></p><p>关闭这个窗口，桌面仍会慢慢变化。<br>从托盘或快捷键，可以随时回来。</p><dl><dt>暂停</dt><dd>停在此刻，场景仍然可见。</dd><dt>隐藏</dt><dd>收起场景，同时暂停演进。</dd><dt>退出</dt><dd>结束回南天，恢复原生桌面。</dd></dl></section>
+<p id="error" role="alert"></p>
+</main><script type="module" src="./management.ts"></script></body></html>

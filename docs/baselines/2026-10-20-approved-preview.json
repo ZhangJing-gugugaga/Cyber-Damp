@@ -1,0 +1,92 @@
+{
+  "approvedDate": "2026-10-20",
+  "root": "previews/mildew-lifecycle",
+  "playback": "node previews/mildew-lifecycle/serve.cjs; http://127.0.0.1:4179; full 24s / intro 4s",
+  "files": [
+    {
+      "path": "check-preview.cjs",
+      "bytes": 1877,
+      "sha256": "4115E070A4A95EE3E1FF4BCC34DA3E7C409131350A3679A1E21B09AC135AE511"
+    },
+    {
+      "path": "extract-icon.cjs",
+      "bytes": 1493,
+      "sha256": "327C54404B8AE84463C0736F283643A41431AC1F6DC851092D4B664FE96934FC"
+    },
+    {
+      "path": "icon.png",
+      "bytes": 8991,
+      "sha256": "5E09CBA5CA3CB0EBE6734E638BAC7B990B0008D23451BDB6508E037A4833FA83"
+    },
+    {
+      "path": "index.html",
+      "bytes": 5152,
+      "sha256": "EDEDEE86239DB9BAACEA484EA7DB5E1DFBEFD382C7D31E66AE90F3B78A4B2A6E"
+    },
+    {
+      "path": "meta.js",
+      "bytes": 188,
+      "sha256": "A73B5B54975AE2675BE7370920CB5BCE7102FAFF2E6727B4A390ADF3C1A23C53"
+    },
+    {
+      "path": "preview.js",
+      "bytes": 8869,
+      "sha256": "D283ADD8E2D7B41A356FECCE8284DC4E83673535A6A24F7949BF531BE9ABA9D1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1837,
+      "sha256": "9084742A801CE4BD76BFFBCA99085504BD247B4EFA4DD8F870E53E7DA36869AC"
+    },
+    {
+      "path": "review/checks.json",
+      "bytes": 3077,
+      "sha256": "306A8A32DA70D7FCF16CE0BE67C7D0BD635A6FA1AB6781E812EE4122387F9BB0"
+    },
+    {
+      "path": "review/stage-0.png",
+      "bytes": 325002,
+      "sha256": "9CB2629D95B9B3500A06C6812CE6EF136CD8C5AD367314AA4220D6550CF7DEC1"
+    },
+    {
+      "path": "review/stage-100.png",
+      "bytes": 326552,
+      "sha256": "30764B457C09EEAA4731DAA0A6B0CB0A9B01B8569BD3D952A988F6F7E9D7D69D"
+    },
+    {
+      "path": "review/stage-17.png",
+      "bytes": 333858,
+      "sha256": "0CFA0D7E86828D09064D97E52F81EFEC90238809516045FA31CF14CF2DE82490"
+    },
+    {
+      "path": "review/stage-32.png",
+      "bytes": 332001,
+      "sha256": "319679B5F98545AF4ACB5A6693519F755DD6BB7F7403297BE57B80BC0EB71F8D"
+    },
+    {
+      "path": "review/stage-46.png",
+      "bytes": 338356,
+      "sha256": "2A01A8F0C185E8D25C899B9C522A95A4E88ED72FD3F19C1CB403ADA90C7F4468"
+    },
+    {
+      "path": "review/stage-58.png",
+      "bytes": 338293,
+      "sha256": "022A01317DDBBC139A0DC5F7A7FF9EAA3312CEF782985E7E3E27E873D1E0D361"
+    },
+    {
+      "path": "review/stage-74.png",
+      "bytes": 342374,
+      "sha256": "4122898D8459B9B737768E451580094354AEDAD9E0557D408DF6B6589D121E6D"
+    },
+    {
+      "path": "review/stage-84.png",
+      "bytes": 341635,
+      "sha256": "13999A7F308124E26393C7FB03492E15A5706C813DBA989EF2BC797A95B14E33"
+    },
+    {
+      "path": "serve.cjs",
+      "bytes": 678,
+      "sha256": "5FB907F5A8458D2BCB317CC5A5D71D3F832E904B85C95EED9084CF7C5DCA6152"
+    }
+  ]
+}

@@ -55,7 +55,7 @@ export interface GameTickDeps {
   ropeAudio: RopeAudio;
 }
 
-export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
+export function createGameTick(deps: GameTickDeps): (dtSec: number, render?: boolean) => void {
   const {
     app,
     runtime,
@@ -81,10 +81,10 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
   const overheatWarned = new Set<string>();
   let lastHeatTarget: string | null = null;
 
-  return (dtSec: number): void => {
+  return (dtSec: number, render = true): void => {
     tSec += dtSec;
     const opening = deps.getOpening();
-    opening?.update(dtSec);
+    if (render) opening?.update(dtSec);
 
     const landed = ropes.update(dtSec);
     deps.ropeAudio.update(dtSec);
@@ -99,7 +99,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
       sprites.get(f.id)?.setScatterAngle(f.angle);
     }
     runtime.microphoneWind = deps.microphone.update(dtSec);
-    runtime.tick(dtSec);
+    if (!opening) runtime.tick(dtSec);
 
     const hid = pointer.heatTargetId;
     if (lastHeatTarget && lastHeatTarget !== hid) runtime.stopHeat(lastHeatTarget);
@@ -141,11 +141,11 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
     for (const [id, sprite] of sprites) {
       if (!pinnedIds.has(id)) sprite.setPinned(false);
     }
-    deps.specialMushrooms.update(dtSec);
+    if (!opening) deps.specialMushrooms.update(dtSec);
     deps.harvest.update(dtSec);
 
     // 文件四阶段视觉 + 蘑菇根部锚点（图标上边框零间隙）
-    for (const ent of runtime.entities) {
+    if (render) for (const ent of runtime.entities) {
       const sprite = sprites.get(ent.node.id);
       if (!sprite) continue;
       sprite.update(ent.runtime, tSec);
@@ -161,12 +161,16 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number) => void {
       }
       const anchor = sprite.mushroomAnchor;
       view.container.position.set(anchor.x, anchor.y);
-      if (!opening) view.update(m.growth, tSec, pointer.lastPos);
+      view.container.visible = m.species !== 'oyster' && m.species !== 'enoki' && (!opening || opening.mushroomReveal > .001);
+        // Ordinary fungi are drawn inside the icon's lifecycle surface.
+        // Their legacy view must not redraw invisible Graphics every frame.
+        if (!view.container.visible) continue;
+      view.update(m.growth * (opening?.mushroomReveal ?? 1), tSec, opening ? undefined : pointer.lastPos);
       view.setCondition(m, tSec);
     }
 
     // 绳索渲染：平滑曲线 + 80%~99% 随机抖动/挂钩裂纹
-    for (const [entry, g] of ropeGfx) {
+    if (render) for (const [entry, g] of ropeGfx) {
       drawRope(g, entry.rope, entry.tier, tSec, ropes.loadState(entry) === 'warn');
     }
 

@@ -31,11 +31,27 @@ export class PointerController {
   private brooming = false;
   /** 八音盒旋律冷却（音频类悬停，P1） */
   private musicBoxAt = 0;
+  private readonly selected = new Set<string>();
+  private focused = true;
+  private nativeLeftDown = false;
+
+  private refreshSelection(x = this.lastX, y = this.lastY): void {
+    const hover = fileAt(this.deps.sprites, x, y)?.node.id;
+    for (const [id, sprite] of this.deps.sprites) sprite.setSelection(this.selected.has(id), id === hover, this.focused);
+  }
 
   constructor(private deps: PointerDeps) {
     void window.damp?.window.getInputSettings().then(({ doubleClickMs }) => { this.doubleClickMs = doubleClickMs; });
-    window.damp?.window.onCursor(({ x, y }) => {
+    window.damp?.window.onCursor(({ x, y, leftDown, desktopActive }) => {
       this.lastX = x; this.lastY = y;
+      const pressed = leftDown && !this.nativeLeftDown;
+      this.nativeLeftDown = leftDown;
+      this.focused = desktopActive;
+      if (pressed && desktopActive && !this.deps.runtime.locked && !worldHitAt(this.deps, x, y, window.innerWidth)) {
+        this.selected.clear();
+        this.lastClick = { id: '', at: 0 };
+      }
+      this.refreshSelection(x, y);
       if (this.drag || this.ropeDraw || this.boxDrag || this.squeegeeing || this.brooming || this.heatTarget) return;
       this.clickThrough.update(this.deps.runtime.locked || worldHitAt(this.deps, x, y, window.innerWidth));
     });
@@ -44,7 +60,11 @@ export class PointerController {
     window.addEventListener('pointerup', (e) => this.onUp(e));
     // 指针在窗外松开/失焦：取消全部手势，避免热风/拖拽/穿透卡死
     window.addEventListener('pointercancel', () => this.cancelGestures());
-    window.addEventListener('blur', () => this.cancelGestures());
+    window.addEventListener('blur', () => { this.cancelGestures(); this.focused = false; this.refreshSelection(); });
+    window.addEventListener('focus', () => { this.focused = true; this.refreshSelection(); });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { this.selected.clear(); this.refreshSelection(); }
+    });
   }
 
   /** 手势兜底取消（AC-14/26：防 pointerup 丢失后的持续施热与穿透锁死） */
@@ -89,12 +109,14 @@ export class PointerController {
     return this.heatTarget;
   }
   get draggedFileId(): string | null { return this.drag?.id ?? null; }
+  cancelForDisplayChange(): void { this.cancelGestures(); }
 
   private onMove(e: PointerEvent): void {
     const x = e.clientX;
     const y = e.clientY;
     this.lastX = x;
     this.lastY = y;
+    this.refreshSelection(x, y);
 
     // 演出期间：整窗拦截点击以便“点击跳过”，不做命中测试
     if (this.deps.runtime.locked) {
@@ -203,10 +225,20 @@ export class PointerController {
 
     const sprite = fileAt(this.deps.sprites, x, y);
     const fileId = sprite?.node.id ?? null;
+    if (fileId) {
+      if (e.ctrlKey) {
+        if (this.selected.has(fileId)) this.selected.delete(fileId);
+        else this.selected.add(fileId);
+      } else {
+        this.selected.clear(); this.selected.add(fileId);
+      }
+    } else if (!e.ctrlKey) this.selected.clear();
+    this.focused = true;
+    this.refreshSelection(x, y);
     if (fileId && (this.deps.runtime.byId.get(fileId)?.runtime.dryness || 0) >= 0.8) this.deps.sfx.dryLeaf();
 
     // 双击替身图标/回收站：打开真实文件（与当前工具无关）
-    if (fileId) {
+    if (fileId && !e.ctrlKey && !e.shiftKey) {
       const now = e.timeStamp;
       if (this.lastClick.id === fileId && now - this.lastClick.at <= this.doubleClickMs) {
         this.lastClick = { id: '', at: 0 };
@@ -217,6 +249,7 @@ export class PointerController {
     }
     // 回收站是系统特殊项：只响应双击，不参与网格拖拽
     if (sprite?.node.kind === 'recycle') return;
+    if (e.ctrlKey || e.shiftKey) { this.lastClick = { id: '', at: 0 }; return; }
 
     if (tool === 'scissors') {
       return;

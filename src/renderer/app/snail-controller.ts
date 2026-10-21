@@ -12,8 +12,8 @@ import type { WorldRuntime } from './world-runtime';
 import type { RopeManager } from './rope-manager';
 import type { RopeEntry } from './rope-manager';
 
-const MAX_SNAILS = 2;
-const SPAWN_COOLDOWN = 25;
+const MAX_SNAILS = 1;
+const SPAWN_COOLDOWN = 600;
 const CRAWL_SPEED = 18;        // px/s
 const EAT_RADIUS = 46;         // 食苔判定半径
 const SLIME_INTERVAL = 0.35;
@@ -38,7 +38,7 @@ interface Snail {
 
 export class SnailController {
   private snails: Snail[] = [];
-  private cooldown = 8; // 首只较快登场
+  private cooldown = 300;
 
   constructor(
     private layers: WorldLayers,
@@ -48,6 +48,8 @@ export class SnailController {
 
   /** 戳一下：缩壳并掉落；命中返回 true（pointer 消费本次点击） */
   poke(x: number, y: number): boolean {
+    return false;
+    /* Decorative only.
     for (const s of this.snails) {
       if (s.state !== 'crawl' && s.state !== 'shell') continue;
       if (Math.hypot(s.x - x, s.y - y) <= HIT_RADIUS) {
@@ -56,16 +58,18 @@ export class SnailController {
         return true;
       }
     }
-    return false;
+    return false; */
   }
 
   /** 悬停命中（AC-26：世界里可交互物必须拦截穿透） */
   hit(x: number, y: number): boolean {
+    return false;
+    /* Decorative only.
     for (const s of this.snails) {
       if (s.state !== 'crawl' && s.state !== 'shell') continue;
       if (Math.hypot(s.x - x, s.y - y) <= HIT_RADIUS) return true;
     }
-    return false;
+    return false; */
   }
 
   update(runtime: WorldRuntime, ropes: RopeManager, dtSec: number, tSec: number): void {
@@ -166,6 +170,7 @@ export class SnailController {
     }
 
     // 食苔：附近 mold 文件免费清洁（AC-29）；以图标中心计距
+    /* No automatic care: decorative snail never changes file state.
     for (const ent of runtime.entities) {
       if (ent.runtime.mold <= 0.05) continue;
       const cx = ent.node.x + 50;
@@ -174,7 +179,7 @@ export class SnailController {
         Math.hypot(cx - s.x, cy - s.y) <= EAT_RADIUS ||
         (ent.runtime.state === 'hung' && Math.hypot(cx - s.x, cy - s.y) <= EAT_RADIUS + 20);
       if (near) runtime.reduceMold(ent.node.id, dtSec * 0.05);
-    }
+    } */
 
     // 银色黏液印
     s.slimeAcc += dtSec;

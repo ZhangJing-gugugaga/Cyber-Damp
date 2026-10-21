@@ -44,6 +44,9 @@ interface Point {
 }
 
 interface Win32 {
+  GetAsyncKeyState(key: number): number;
+  GetForegroundWindow(): unknown;
+  GetClassNameW(hwnd: unknown, buffer: Buffer, count: number): number;
   GetDoubleClickTime(): number;
   FindWindowW(cls: unknown, title: unknown): unknown;
   FindWindowExW(parent: unknown, after: unknown, cls: unknown, title: unknown): unknown;
@@ -69,6 +72,9 @@ function win32(): Win32 | null {
   try {
     const user32 = koffi.load('user32.dll');
     api = {
+      GetAsyncKeyState: user32.func('int16 GetAsyncKeyState(int vKey)'),
+      GetForegroundWindow: user32.func('void *GetForegroundWindow()'),
+      GetClassNameW: user32.func('int GetClassNameW(void *hWnd, void *lpClassName, int nMaxCount)'),
       GetDoubleClickTime: user32.func('uint32 GetDoubleClickTime()'),
       FindWindowW: user32.func('void *FindWindowW(str16 lpClassName, str16 lpWindowName)'),
       FindWindowExW: user32.func(
@@ -126,6 +132,19 @@ const state: DesktopState = {
   iconsHidden: false,
 };
 
+/** Read only the button and desktop focus needed for clearing surrogate selection.
+ * Polling never synthesizes a click or captures input from another application. */
+export function desktopPointerState(): { leftDown: boolean; desktopActive: boolean } {
+  const native = win32();
+  if (!native) return { leftDown: false, desktopActive: false };
+  const foreground = native.GetForegroundWindow();
+  const buffer = Buffer.alloc(128);
+  const length = native.GetClassNameW(foreground, buffer, 64);
+  const cls = buffer.toString('utf16le', 0, Math.max(0, length) * 2);
+  return { leftDown: (native.GetAsyncKeyState(1) & 0x8000) !== 0,
+    desktopActive: toHwnd(foreground) === state.overlay || ['Progman', 'WorkerW', 'SHELLDLL_DefView', 'SysListView32'].includes(cls) };
+}
+
 function toHwnd(value: unknown): Hwnd | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'bigint') return value === 0n ? null : value;
@@ -146,6 +165,30 @@ function windowHandle(win: BrowserWindow): Hwnd | null {
   } catch {
     return null;
   }
+}
+
+/** Existing borderless overlay bounds in physical desktop pixels. */
+export function overlayScreenRect(win: BrowserWindow): { x: number; y: number; width: number; height: number } | null {
+  const a = win32(), hwnd = windowHandle(win);
+  if (!a || !hwnd) return null;
+  const rect: Rect = { left: 0, top: 0, right: 0, bottom: 0 };
+  if (!a.GetWindowRect(hwnd, rect)) return null;
+  return { x: rect.left, y: rect.top, width: rect.right - rect.left, height: rect.bottom - rect.top };
+}
+
+/** Keep one existing scene; size its native surface to all monitor work areas. */
+export function fitOverlayScreenRect(win: BrowserWindow, rect: { x: number; y: number; width: number; height: number }): boolean {
+  const a = win32(), hwnd = windowHandle(win);
+  if (!a || !hwnd) return false;
+  const point = { x: rect.x, y: rect.y };
+  if (state.attached && state.host) a.ScreenToClient(state.host, point);
+  // Electron enforces fixed min/max through WM_GETMINMAXINFO when non-resizable.
+  // Temporarily release those existing constraints while resizing our hidden surface.
+  const resizable = win.isResizable();
+  try {
+    if (!resizable) win.setResizable(true);
+    return Boolean(a.SetWindowPos(hwnd, null, Math.round(point.x), Math.round(point.y), Math.round(rect.width), Math.round(rect.height), SWP_NOACTIVATE | 0x0004));
+  } finally { if (!resizable) win.setResizable(false); }
 }
 
 interface FoundDesktop {
@@ -346,6 +389,8 @@ export function repositionOverlay(win: BrowserWindow): void {
 
 let monitorStarted = false;
 let shuttingDown = false;
+let hostSuspended = false;
+export function suspendDesktopHost(value: boolean): void { hostSuspended = value; }
 
 export function shutdownDesktop(): void {
   shuttingDown = true;
@@ -357,7 +402,7 @@ export function startDesktopHostMonitor(win: BrowserWindow): void {
   if (monitorStarted) return;
   monitorStarted = true;
   const timer = setInterval(() => {
-    if (shuttingDown) return;
+    if (shuttingDown || hostSuspended) return;
     if (win.isDestroyed()) return;
     const a = win32();
     if (!a) return;

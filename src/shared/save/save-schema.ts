@@ -29,7 +29,7 @@ export function validateSave(raw: unknown): SaveData | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const d = raw as Record<string, unknown>;
 
-  if (d.schemaVersion !== 1) return null;
+  if (d.schemaVersion !== 1 && d.schemaVersion !== 2) return null;
   if (!isFiniteNumber(d.savedAt)) return null;
 
   const player = d.player as Record<string, unknown> | undefined;
@@ -45,6 +45,10 @@ export function validateSave(raw: unknown): SaveData | null {
   for (const f of d.files as unknown[]) {
     const fr = f as Record<string, unknown>;
     if (!fr || !isStr(fr.id)) return null;
+    if (fr.sourceMtime !== undefined && !isFiniteNumber(fr.sourceMtime)) return null;
+    if (fr.refreshedAt !== undefined && !isFiniteNumber(fr.refreshedAt)) return null;
+    if (fr.fileIdentity !== undefined && !isStr(fr.fileIdentity)) return null;
+    if (fr.dryCare !== undefined && typeof fr.dryCare !== 'boolean') return null;
     if (!isUnit(fr.humidity) || !isUnit(fr.mold) || !isUnit(fr.char)) return null;
     if (fr.dryness !== undefined && !isUnit(fr.dryness)) return null;
     if (!isStr(fr.state) || !ACTION_STATES.has(fr.state as FileActionState)) return null;

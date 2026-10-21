@@ -10,6 +10,7 @@ import { registerHandlers } from './ipc/register-handlers';
 import { startCpuMonitor } from './system/cpu-monitor';
 import { installDesktopSafety, restoreDesktop } from './native/win32-desktop';
 import { trackEvent } from './telemetry/event-log';
+import { installManagement, openManagement } from './window/management-window';
 
 let win: BrowserWindow | null = null;
 const startedAt = Date.now();
@@ -28,6 +29,7 @@ if (!app.requestSingleInstanceLock()) {
   // ASMR 场景：允许无用户手势自动播放（雨声/闷雷）
   app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
   app.on('second-instance', () => {
+    openManagement();
     if (!win || win.isDestroyed()) return;
     if (process.env.CD_QA === '1') win.show();
     else if (isOverlayReady(win)) win.showInactive();
@@ -38,6 +40,7 @@ if (!app.requestSingleInstanceLock()) {
     // 产物布局：dist/main/index.js + dist/preload/index.js（rootDir=src 平铺）
     const created = createOverlayWindow(path.join(__dirname, '..', 'preload', 'index.js'));
     win = created;
+    installManagement(() => win, path.join(__dirname, '..', 'preload', 'index.js'));
     registerHandlers(
       () => win,
       () => (win && !win.isDestroyed() ? win.webContents : null),

@@ -62,7 +62,7 @@ test('cut oxidises in0.5s; raw sale hallucination lasts8s; three seconds cooking
   assert.equal(mushroomSaleEffect({ species: 'oyster', growth: 1 }), null);
 });
 
-test('lava needs at least1GiB and neglect; countdown starts only when growth completes', () => {
+test('lava needs at least1GiB and neglect; maturity never starts a countdown', () => {
   const files = [file('large', { sizeBytes: GB }), file('small', { sizeBytes: GB - 1 }),
     file('fresh', { sizeBytes: 2 * GB, runtime: { stage: 'fresh' } }),
     file('folder', { kind: 'dir', sizeBytes: GB }),
@@ -75,10 +75,10 @@ test('lava needs at least1GiB and neglect; countdown starts only when growth com
   assert.equal(files[4].runtime.mushroom, null);
   assert.equal(lavaCountdown(files[0].runtime.mushroom), null);
   tickSpecialMushrooms(files, [], 0.2);
-  assert.ok(Math.abs(lavaCountdown(files[0].runtime.mushroom) - 11.9) < 1e-8);
+  assert.equal(lavaCountdown(files[0].runtime.mushroom), null);
 });
 
-test('lava blast fires once, leaves200px crater and chars/throws only nearby surrogate files', () => {
+test('legacy lava fuse is discarded without explosion, scorching or impulses', () => {
   const source = file('lava', { sizeBytes: GB, x: 200, y: 200,
     runtime: { mushroom: { species: 'lava', growth: 1, lavaSeconds: 0.1 } } });
   const near = file('near', { x: 380, y: 200 });
@@ -86,19 +86,16 @@ test('lava blast fires once, leaves200px crater and chars/throws only nearby sur
   const recycle = file('recycle', { x: 200, y: 200, kind: 'recycle' });
   const files = [source, near, far, recycle];
   const events = tickSpecialMushrooms(files, [], 0.1);
-  assert.equal(events.length, 1);
-  const blast = events[0];
-  assert.equal(blast.type, 'explosion');
-  assert.equal(blast.craterDiameter, 200);
-  assert.deepEqual(blast.impulses.map((v) => v.id), ['lava', 'near']);
-  assert.ok(blast.impulses.find((v) => v.id === 'near').vx > 0);
-  assert.ok(near.runtime.char >= 0.9);
-  assert.equal(near.runtime.state, 'burnt');
-  assert.equal(near.runtime.humidity, 0);
+  assert.deepEqual(events, []);
+  assert.equal(source.runtime.mushroom.lavaSeconds, undefined);
+  assert.equal(source.runtime.mushroom.species, 'lava');
+  assert.equal(near.runtime.char, 0);
+  assert.equal(near.runtime.state, 'hung');
+  assert.equal(near.runtime.humidity, .9);
   assert.equal(far.runtime.char, 0);
   assert.equal(recycle.runtime.char, 0);
   assert.deepEqual(tickSpecialMushrooms(files, [], 100), [], 'burnt source cannot respawn / explode repeatedly');
-  const reloaded = JSON.parse(JSON.stringify(near.runtime));
+  const reloaded = { ...JSON.parse(JSON.stringify(near.runtime)), state: 'burnt' };
   seedMoldyMushroom(reloaded, 'doc-code', near.id);
   assert.equal(reloaded.mushroom, null, 'startup seeding must not resurrect fungi on persisted burnt files');
   const heatBurnt = file('heat', { runtime: { state: 'burnt', char: 0.8 } }).runtime;
@@ -121,7 +118,8 @@ test('legacy saves load; special timers persist and malformed species/progress a
   assert.equal(loaded.files[0].mushroom.lavaSeconds, 6.2);
   const restored = file('restored', { sizeBytes: GB, runtime: { mushroom: loaded.files[0].mushroom } });
   tickSpecialMushrooms([restored], [], 1);
-  assert.ok(Math.abs(lavaCountdown(restored.runtime.mushroom) - 5.2) < 1e-8, 'reload must resume rather than reset the fuse');
+  assert.equal(lavaCountdown(restored.runtime.mushroom), null, 'legacy fuse must never resume');
+  assert.equal(restored.runtime.mushroom.lavaSeconds, undefined);
   assert.ok(validateSave(saveWith({ species: 'bolete', growth: 1, cooking: 0.6, cutAgeSeconds: 0.25 })));
   for (const mushroom of [
     { species: 'unknown', growth: 1 }, { species: 'lava', growth: 1, lavaSeconds: 12.1 },

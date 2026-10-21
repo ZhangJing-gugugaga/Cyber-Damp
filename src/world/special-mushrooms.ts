@@ -83,10 +83,7 @@ export function tickSpecialMushrooms(
     if (!m || m.species !== 'bolete' && m.species !== 'lava') continue;
     const untilMature = Math.max(0, 1 - m.growth) * SPECIAL_GROW_SECONDS;
     m.growth = Math.min(1, m.growth + dtSec / SPECIAL_GROW_SECONDS);
-    if (m.species === 'lava' && m.growth >= 1) {
-      m.lavaSeconds = Math.max(0, (m.lavaSeconds ?? LAVA_COUNTDOWN_SECONDS) - Math.max(0, dtSec - untilMature));
-      if (m.lavaSeconds === 0) exploding.push(file);
-    }
+    if (m.species === 'lava') delete m.lavaSeconds;
   }
   for (const file of exploding) events.push(explodeLava(file, files));
   return events;
@@ -145,5 +142,5 @@ export function mushroomSaleEffect(m: MushroomState): { type: 'hallucination'; s
 }
 
 export function lavaCountdown(m: MushroomState): number | null {
-  return m.species === 'lava' && m.growth >= 1 ? m.lavaSeconds ?? LAVA_COUNTDOWN_SECONDS : null;
+  return null;
 }

@@ -38,10 +38,11 @@ export function wring(rt: WorldRuntime, id: string): boolean {
 export function pickMushroom(rt: WorldRuntime, id: string): InventoryItem | null {
   const ent = rt.byId.get(id);
   const m = ent?.runtime.mushroom;
-  if (!ent || !m || m.growth < 1) return null;
+  if (!ent || !m || m.growth <= 0) return null;
+  if ((m.species === 'shy' || m.species === 'lava') && !rt.owned.includes('pvz-shovel')) return null;
   ent.runtime.mushroom = null;
   const item = { species: m.species, growth: m.growth };
-  const price = SPECIES[m.species]?.price ?? 0;
+  const price = Math.max(1, Math.round((SPECIES[m.species]?.price ?? 0) * (0.25 + 0.75 * ent.runtime.humidity) * Math.max(.1, m.growth)));
   rt.coins += price;
   rt.stats.harvested += 1;
   rt.stats.earned += price;

@@ -5,7 +5,6 @@
  */
 import { Sprite, Texture } from 'pixi.js';
 import type { Application } from 'pixi.js';
-import { FogFilter } from '../view/shaders/fog-filter';
 import { FanView } from '../view/fan-view';
 import type { WorldLayers } from '../view/layers';
 import type { ParticlePool } from '../view/particles';
@@ -17,7 +16,6 @@ const FOG_ONSET = 0.65;
 
 export class Atmosphere {
   private readonly fogSprite: Sprite;
-  private readonly fogFilter = new FogFilter();
   private readonly fan: FanView | null = null;
   private sweatAcc = 0;
   /** 开场演出强制雾强度覆盖（0..1，演出结束归 -1 交还天气驱动） */
@@ -27,11 +25,26 @@ export class Atmosphere {
 
   constructor(private app: Application, private layers: WorldLayers) {
     // 全屏雾 Sprite：Texture.WHITE 拉伸（滤镜只挂单个 Sprite——R3 纪律）
-    this.fogSprite = new Sprite(Texture.WHITE);
+    // Fog has no sharp detail. Bake the stable edge texture once instead of
+    // running a full-resolution offscreen noise filter on every frame.
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = Math.max(1, Math.round(512 * app.screen.height / app.screen.width));
+    const context = canvas.getContext('2d')!;
+    const pixels = context.createImageData(canvas.width, canvas.height);
+    for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+      const px = x / canvas.width * app.screen.width, py = y / canvas.height * app.screen.height;
+      const distance = Math.min(px, py, app.screen.width - px, app.screen.height - py);
+      const t = Math.min(1, distance / 80), edge = 1 - t * t * (3 - 2 * t);
+      const noise = .5 + .25 * Math.sin(x * .039 + Math.sin(y * .021)) + .25 * Math.cos(y * .049 - x * .017);
+      const i = (y * canvas.width + x) * 4;
+      pixels.data[i] = 223; pixels.data[i + 1] = 233; pixels.data[i + 2] = 234;
+      pixels.data[i + 3] = Math.round(edge * (.18 + noise * .22) * 255);
+    }
+    context.putImageData(pixels, 0, 0);
+    this.fogSprite = new Sprite(Texture.from(canvas));
     this.fogSprite.width = app.screen.width;
     this.fogSprite.height = app.screen.height;
     this.fogSprite.eventMode = 'none';
-    this.fogSprite.filters = [this.fogFilter]; // 强度全走 uFog uniform（滤镜不消费 vColor）
     this.layers.fogLayer.addChild(this.fogSprite);
   }
 
@@ -54,7 +67,7 @@ export class Atmosphere {
     const day = rt.dayWeather();
     const weatherFog = Math.max(0, Math.min(1, (day.humidity - FOG_ONSET) / (1 - FOG_ONSET)));
     const fog = (this.introFog >= 0 ? this.introFog : weatherFog) * this.fogOverride;
-    this.fogFilter.setFog(fog, tSec);
+    this.fogSprite.alpha = fog * (.96 + .04 * Math.sin(tSec * .08));
     this.fogSprite.visible = fog > 0.01;
 
     // CPU 出汗：顶框汗珠滴落（AC-05；预算内限频）

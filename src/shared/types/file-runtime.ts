@@ -24,6 +24,8 @@ export interface MushroomState {
 }
 
 export interface FileRuntime {
+  dryCare?: boolean;
+  refreshedAt?: number;
   id: string;
   /** 湿度 0..1 */
   humidity: number;

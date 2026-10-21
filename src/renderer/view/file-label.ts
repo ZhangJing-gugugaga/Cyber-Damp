@@ -1,4 +1,4 @@
-import { BlurFilter, Container, Sprite, Text, Texture } from 'pixi.js';
+import { Container, Sprite, Text, Texture } from 'pixi.js';
 import { scorchedCharacters } from '../../world/file-material';
 import type { FileNode } from '../../shared/types/file-node';
 
@@ -7,25 +7,26 @@ export class FileLabel extends Container {
   private readonly clean: Text;
   private readonly ink: Text;
   private readonly carbon = new Sprite(Texture.EMPTY);
-  private readonly blur = new BlurFilter({ strength: 0.7, quality: 2, resolution: 1 });
   private pinned = false;
   private renderedKey = '';
+  private get nativeScale(): number { return this.node.geometry?.labelScale ?? 1; }
 
   constructor(private node: FileNode) {
     super();
     const style = {
-      fontFamily: '"Microsoft YaHei", "Noto Sans SC", sans-serif', fontSize: 11,
-      fill: 0xffffff, align: 'center' as const, wordWrap: true, wordWrapWidth: 92,
-      lineHeight: 14, breakWords: true,
+      fontFamily: '"Segoe UI", "Microsoft YaHei", sans-serif', fontSize: 12 * this.nativeScale,
+      fill: 0xffffff, align: 'center' as const, wordWrap: true, wordWrapWidth: node.geometry?.labelWidth ?? 92,
+      lineHeight: 14 * this.nativeScale, breakWords: true,
       dropShadow: { color: 0x000000, alpha: 0.9, blur: 1, distance: 1, angle: Math.PI / 2 },
     };
-    const name = node.name.replace(/\.(lnk|url)$/i, '');
+    const name = node.displayName ?? node.name.replace(/\.(lnk|url)$/i, '');
     this.clean = new Text({ text: name, style });
     this.ink = new Text({ text: name, style: this.clean.style.clone() });
     this.clean.anchor.set(0.5, 0);
     this.ink.anchor.set(0.5, 0);
     this.ink.position.set(0.8, 0.65);
-    this.ink.filters = [this.blur];
+    // The text texture already has a baked soft shadow. A per-label GPU blur
+    // adds two offscreen passes per wet icon and harms native-size readability.
     this.ink.visible = false;
     this.carbon.anchor.set(0.5, 0);
     this.carbon.visible = false;
@@ -36,9 +37,9 @@ export class FileLabel extends Container {
     if (this.pinned === pinned) return;
     this.pinned = pinned;
     for (const text of [this.clean, this.ink]) {
-      text.style.fontSize = pinned ? 10 : 11;
-      text.style.lineHeight = pinned ? 12 : 14;
-      text.style.wordWrapWidth = pinned ? 68 : 92;
+      text.style.fontSize = (pinned ? 10 : 12) * this.nativeScale;
+      text.style.lineHeight = (pinned ? 12 : 14) * this.nativeScale;
+      text.style.wordWrapWidth = pinned ? 68 * this.nativeScale : this.node.geometry?.labelWidth ?? 92;
     }
     this.renderedKey = '';
   }
@@ -56,8 +57,8 @@ export class FileLabel extends Container {
     if (key === this.renderedKey) return;
     this.renderedKey = key;
     const parts = scorchedCharacters(this.node.name, this.node.id, char);
-    const font = this.pinned ? 10 : 11, lineHeight = this.pinned ? 12 : 14;
-    const maxWidth = this.pinned ? 68 : 92;
+    const font = (this.pinned ? 10 : 11) * this.nativeScale, lineHeight = (this.pinned ? 12 : 14) * this.nativeScale;
+    const maxWidth = this.pinned ? 68 * this.nativeScale : this.node.geometry?.labelWidth ?? 92;
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;

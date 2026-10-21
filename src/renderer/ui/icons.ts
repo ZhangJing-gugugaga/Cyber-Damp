@@ -9,7 +9,7 @@ const NAMES = [
   'map-pin', 'cloud-rain', 'cloud-sun', 'sun', 'cloud-fog', 'cloud', 'cloud-lightning',
   'droplets', 'plane', 'scissors', 'wind', 'fan', 'coins', 'store', 'wrench',
   'x', 'terminal', 'history', 'triangle-alert', 'thermometer', 'package-open',
-  'settings', 'hand', 'spray-can', 'eraser', 'brush',
+  'settings', 'hand', 'spray-can', 'eraser', 'brush', 'shovel', 'cable',
 ] as const;
 
 function pascal(name: string): string {

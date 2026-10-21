@@ -2,7 +2,8 @@
  * 蘑菇渲染（view 层）—— P0 平菇 N + 金针菇 R；complex杂交形态搁置
  * 三帧破土动画（土壤隆起 → 菌盖顶开 → 抖落孢子），由 growth 0..1 驱动
  */
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
+import { RootedMushroomArt } from './rooted-mushroom-art';
 import { mushroomTexture } from './mushroom-assets';
 import type { MushroomSpecies, MushroomState } from '../../shared/types/file-runtime';
 import { SHROOM } from './token-colors';
@@ -65,10 +66,11 @@ export class MushroomView {
   /** 胆小菇缩头进度 0..1（1=缩回） */
   private retract = 0;
   private lastT = 0;
-  private farSince = 0;
-  private readonly art: Sprite | null;
+  private farSince = -Infinity;
+  private readonly art: RootedMushroomArt | null;
   private readonly stemMask = new Graphics().rect(-64, -128, 128, 128).fill(0xffffff);
-  private readonly fuse = new Graphics();
+  private anger = 0;
+  private detached = false;
   private readonly artHeight: number;
   private hitPixels: { data: Uint8ClampedArray; width: number; height: number } | null | undefined;
 
@@ -76,9 +78,8 @@ export class MushroomView {
     this.artHeight = species === 'lava' ? 68 : species === 'bolete' ? 42 : species === 'shy' ? 46 : 36;
     this.container.addChild(this.g);
     const texture = mushroomTexture(species);
-    this.art = texture ? new Sprite(texture) : null;
+    this.art = texture ? new RootedMushroomArt(texture) : null;
     if (this.art) {
-      this.art.anchor.set(0.5, 1);
       const height = this.artHeight;
       this.art.height = height;
       this.art.width = height * this.art.texture.width / this.art.texture.height;
@@ -86,7 +87,6 @@ export class MushroomView {
       this.art.mask = this.stemMask;
       this.container.addChild(this.stemMask);
     }
-    this.container.addChild(this.fuse);
     this.update(1, 0);
   }
 
@@ -109,9 +109,12 @@ export class MushroomView {
 
     if (this.art) {
       const grown = Math.max(0.02, Math.min(1, growth));
-      this.art.scale.set(this.artHeight / this.art.texture.height * grown);
+      if (this.species === 'lava') {
+        const near = !this.detached && !!pointer && Math.hypot(pointer.x - this.container.x, pointer.y - this.container.y) < 120;
+        this.anger += ((near ? 1 : 0) - this.anger) * Math.min(1, dt * (near ? 3 : 1.5));
+      }
+      this.art.updateShape(grown, tSec, this.anger);
       this.art.y = this.species === 'shy' ? this.retract * Math.max(0, 46 * grown - 2) : 0;
-      this.art.rotation = growth >= 1 ? Math.sin(tSec * 1.8) * 0.035 : 0;
       return;
     }
 
@@ -134,18 +137,8 @@ export class MushroomView {
 
   setCondition(m: MushroomState, time: number): void {
     if (this.art && m.species === 'bolete') this.art.tint = (m.cooking ?? 0) >= 1 ? 0xc09062 : 0xffffff;
-    this.fuse.clear();
-    if (m.species !== 'lava' || m.growth < 1) return;
-    const remaining = m.lavaSeconds ?? 12;
-    const pulse = 1 + Math.sin(time * (15 - remaining)) * 0.035;
-    if (this.art) this.art.scale.set(this.artHeight / this.art.texture.height * pulse);
-    for (let i = 0; i < Math.ceil(remaining); i++) {
-      const angle = i / 12 * Math.PI * 2;
-      this.fuse.circle(Math.cos(angle) * 25, -49 + Math.sin(angle) * 18, 1.8)
-        .fill({ color: remaining < 4 ? 0xffefb2 : 0xf07535, alpha: 0.8 });
-    }
   }
-  setDetached(): void { this.fuse.visible = false; }
+  setDetached(): void { this.detached = true; this.anger = 0; }
 
   /** Hits only visible mushroom pixels, including the mask's two-pixel shy tip. */
   hit(x: number, y: number): boolean {
@@ -172,8 +165,9 @@ export class MushroomView {
       } catch { /* Keep strict art/mask bounds when a non-raster fallback cannot be sampled. */ }
     }
     const local = this.art.toLocal(point);
-    const u = local.x / texture.orig.width + this.art.anchor.x;
-    const v = local.y / texture.orig.height + this.art.anchor.y;
+    const uv = this.art.sourceUV(local);
+    if (!uv) return false;
+    const { u, v } = uv;
     if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
     if (!this.hitPixels) return true;
     const mask = this.hitPixels;

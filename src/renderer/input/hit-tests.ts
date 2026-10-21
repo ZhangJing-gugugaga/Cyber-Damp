@@ -45,12 +45,8 @@ export function worldHitAt(s: HitSources, x: number, y: number, viewportW: numbe
  * 横向收窄到 68px（标签宽度），保证 72px 间距下互不抢占。
  */
 export function fileAt(sprites: Map<string, FileSprite>, x: number, y: number): FileSprite | null {
-  const hw = 34;
   for (const sprite of sprites.values()) {
-    const p = sprite.container.position;
-    if (x < p.x + FILE_CELL_W / 2 - hw || x > p.x + FILE_CELL_W / 2 + hw) continue;
-    if (y < p.y || y > p.y + FILE_CELL_H - 2) continue;
-    return sprite;
+    if (sprite.hit(x, y)) return sprite;
   }
   return null;
 }

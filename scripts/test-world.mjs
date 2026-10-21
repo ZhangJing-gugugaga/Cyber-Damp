@@ -23,13 +23,16 @@ import { FileEntity } from '../dist/test/world/file-entity.js';
 import { seedMoldyMushroom } from '../dist/test/world/file-seed.js';
 import { heatFile, stopHeating, scorchedCharacters } from '../dist/test/world/file-material.js';
 
-test('打开陈年文件后按最近使用时间保持新鲜，不改写原始 mtime', () => {
+test('打开陈年文件不自动清洗；明确换新后按护理时间保持新鲜', () => {
   const now = 1800000000000;
   const mtime = now - 60 * 86400000;
   const entity = new FileEntity({ id:'used', name:'old.txt', ext:'txt', category:'doc-code', sizeBytes:20, mtime, lastOpenedAt:now, x:0, y:0, realPath:'C:\\Desktop\\old.txt', kind:'file', iconDataUrl:'' });
   entity.syncStage(now + 10000);
-  assert.equal(entity.runtime.stage, 'fresh');
+  assert.equal(entity.runtime.stage, 'moldy');
   assert.equal(entity.node.mtime, mtime);
+  entity.runtime.refreshedAt = now;
+  entity.syncStage(now + 10000);
+  assert.equal(entity.runtime.stage, 'fresh');
   entity.syncStage(now + 4 * 86400000);
   assert.equal(entity.runtime.stage, 'damp');
 });
@@ -123,12 +126,18 @@ test('绳上晾晒趋向干爽且大风加速', () => {
   assert.ok(calm.humidity > 0.6, `无风应缓慢干爽（>0.6）：实算 ${calm.humidity.toFixed(3)}`);
 });
 
-test('mold>0.6 萌生蘑菇并生长至可采摘', () => {
+test('霉斑局部萌芽后缓慢生长，短时间不会同时成熟；干燥保留霉斑并冻结生长', () => {
   const rt = mkRuntime({ mold: 0.7 });
-  stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.1);
+  stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0);
   assert.ok(rt.mushroom, '应萌生蘑菇');
   for (let i = 0; i < 1050; i++) stepEvolution(rt, { humidity: 0.9, heat: 0, wind: 0 }, 0.1, 'doc-code', 0.99);
-  assert.equal(rt.mushroom.growth, 1, '应生长至 1');
+  assert.ok(rt.mushroom.growth > 0 && rt.mushroom.growth < .01);
+  rt.dryCare = true;
+  const before = { mold: rt.mold, growth: rt.mushroom.growth };
+  for (let i = 0; i < 3600; i++) stepEvolution(rt, { humidity: .9, heat: 0, wind: 0 }, 1, 'doc-code', 0);
+  assert.equal(rt.mold, before.mold);
+  assert.equal(rt.mushroom.growth, before.growth);
+  assert.ok(rt.humidity < .16);
 });
 
 test('过热焦化并锁定 burnt', () => {
@@ -173,6 +182,7 @@ test('真实条目 → FileNode 1:1 映射（名称/大小/mtime/图标不变）
     realPath: 'C:\\Users\\x\\Desktop\\真实文件.docx',
     kind: 'file',
     iconDataUrl: 'data:image/png;base64,AA==',
+    geometry: { x: 90, y: 42, size: 48, labelX: 80, labelY: 94, labelWidth: 80, labelHeight: 24 },
   };
   const nodes = buildFileNodes([entry], 1536, 864);
   assert.equal(nodes.length, 1);
@@ -181,7 +191,9 @@ test('真实条目 → FileNode 1:1 映射（名称/大小/mtime/图标不变）
   assert.equal(nodes[0].mtime, entry.mtime);
   assert.equal(nodes[0].iconDataUrl, entry.iconDataUrl);
   assert.equal(nodes[0].realPath, entry.realPath);
-  assert.deepEqual({ x: nodes[0].x, y: nodes[0].y }, { x: 4, y: 144 });
+  assert.deepEqual({ x: nodes[0].x, y: nodes[0].y }, { x: 72, y: 38 });
+  assert.deepEqual(nodes[0].geometry, entry.geometry);
+  assert.throws(() => buildFileNodes([{ ...entry, geometry: undefined }], 1536, 864), /缺少原生桌面布局/);
 });
 
 test('载荷公式 Fg = log10(sizeBytes+10)×1.8', () => {
