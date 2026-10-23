@@ -1,6 +1,8 @@
 # 回南天视觉资产快照 · 2026-10-24
 
-入口：[材质试验台](material-effects-lab/index.html)、[护理台概念小样](care-table-demo/index.html)。直接用浏览器打开。
+入口：[采摘与护理新资产](care-assets-v1/index.html)、[材质试验台](material-effects-lab/index.html)、[护理台概念小样](care-table-demo/index.html)。直接用浏览器打开。
+
+- care-assets-v1：18 件新增 SVG / PNG（蘑菇、工具、操作反馈、护理垫、收集篮）；单图标交互，待用户视觉确认。
 
 - material-effects-lab：用户认可的 12 种材质方向，6 个图标、3 档强度，共 216 张透明 PNG；包含生成器和结构验证记录。
 - mold-composite-demo：前期六套霉斑探索，共 72 张；作为历史方案保留。

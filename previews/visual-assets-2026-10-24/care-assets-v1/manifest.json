@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "style": "Smooth cartoon vector artwork; transparent; legible silhouettes; no emoji or borrowed game art",
+  "source": "Project-authored SVG; extends the approved code-native material direction",
+  "assets": [
+    {
+      "id": "round-bud",
+      "svg": "svg/round-bud.svg",
+      "png": "png/round-bud.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "cluster-bud",
+      "svg": "svg/cluster-bud.svg",
+      "png": "png/cluster-bud.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "fan-bud",
+      "svg": "svg/fan-bud.svg",
+      "png": "png/fan-bud.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "round-mature",
+      "svg": "svg/round-mature.svg",
+      "png": "png/round-mature.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "cluster-mature",
+      "svg": "svg/cluster-mature.svg",
+      "png": "png/cluster-mature.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "fan-mature",
+      "svg": "svg/fan-mature.svg",
+      "png": "png/fan-mature.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "sponge-idle",
+      "svg": "svg/sponge-idle.svg",
+      "png": "png/sponge-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "scissors-idle",
+      "svg": "svg/scissors-idle.svg",
+      "png": "png/scissors-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "cloth-idle",
+      "svg": "svg/cloth-idle.svg",
+      "png": "png/cloth-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "sponge-active",
+      "svg": "svg/sponge-active.svg",
+      "png": "png/sponge-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "scissors-active",
+      "svg": "svg/scissors-active.svg",
+      "png": "png/scissors-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "cloth-active",
+      "svg": "svg/cloth-active.svg",
+      "png": "png/cloth-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "foam",
+      "svg": "svg/foam.svg",
+      "png": "png/foam.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "droplets",
+      "svg": "svg/droplets.svg",
+      "png": "png/droplets.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "crumbs",
+      "svg": "svg/crumbs.svg",
+      "png": "png/crumbs.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "stump",
+      "svg": "svg/stump.svg",
+      "png": "png/stump.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "mat",
+      "svg": "svg/mat.svg",
+      "png": "png/mat.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "basket",
+      "svg": "svg/basket.svg",
+      "png": "png/basket.png",
+      "width": 256,
+      "height": 256
+    }
+  ],
+  "notes": [
+    "Mushrooms have separate bud/mature assets; growth animation is not implied.",
+    "Tool idle/active files are distinct states.",
+    "Not integrated into the Electron game."
+  ]
+}

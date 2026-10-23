@@ -1,0 +1,10 @@
+{
+  "assets": 18,
+  "transparentPngs": 18,
+  "harvest": true,
+  "immatureGuard": true,
+  "cleaning": true,
+  "clothFeedbackOnly": true,
+  "mobileOverflow": false,
+  "errors": []
+}
