@@ -4,6 +4,7 @@
  * 只存逻辑态，不存物理刚体；mtime/x/y/name/ext/size 由真实桌面扫描重建，不入存档
  */
 import type { FileActionState, MushroomState } from './file-runtime';
+import type { DailyEventRecord, DamageFamily, DamageStage, InitPlan, MushroomStage, NativeWeatherSnapshot } from './native';
 
 export interface PlayerState {
   coins: number;
@@ -39,11 +40,37 @@ export interface RopeSave {
 }
 
 export interface SaveData {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   savedAt: number;
   player: PlayerState;
   weather: { city: string; migratedOn: string };
   files: FileRuntimeSave[];
   ropes: RopeSave[];
   stats: { harvested: number; earned: number; playedMs: number };
+  /** v3：原生自然事件与对象状态（Goal v9 R4/R5）；v1/v2 迁移时标记为旧版已初始化 */
+  native?: NativeSaveSection;
+}
+
+export interface NativeObjectSave {
+  id: string;
+  realPath: string;
+  kind: 'dir' | 'lnk';
+  displayName: string;
+  originalMtime: number;
+  damage: { family: DamageFamily; stage: DamageStage; mushroom: MushroomStage } | null;
+  lastAdvanceAt?: number;
+  lastCareCompletedAt?: number;
+  moldImmuneUntil?: number;
+}
+
+export interface NativeSaveSection {
+  /** 'legacy-initialized'：旧版升级用户，不重发首批/奖励（R4.1） */
+  init: (InitPlan & { status: 'active' | 'completed' }) | { status: 'legacy-initialized' } | null;
+  /** 每个本地自然日至多一条记录（R4.2 额度） */
+  dailyEvents: Record<string, DailyEventRecord>;
+  objects: Record<string, NativeObjectSave>;
+  /** 最近一次有效天气快照（按城市坐标缓存另存 weather-cache.json） */
+  lastSnapshot: NativeWeatherSnapshot | null;
+  /** 用户暂停（R4.3：不生成不积欠） */
+  paused?: boolean;
 }

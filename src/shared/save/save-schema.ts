@@ -29,7 +29,7 @@ export function validateSave(raw: unknown): SaveData | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const d = raw as Record<string, unknown>;
 
-  if (d.schemaVersion !== 1 && d.schemaVersion !== 2) return null;
+  if (d.schemaVersion !== 1 && d.schemaVersion !== 2 && d.schemaVersion !== 3) return null;
   if (!isFiniteNumber(d.savedAt)) return null;
 
   const player = d.player as Record<string, unknown> | undefined;
@@ -76,13 +76,80 @@ export function validateSave(raw: unknown): SaveData | null {
     return null;
   }
 
+  // v3 原生事件段（可选；存在则逐字段校验，脏数据整体拒绝）
+  if (d.native !== undefined) {
+    const n = d.native as Record<string, unknown>;
+    if (!n || typeof n !== 'object' || !isPlainRecord(n.dailyEvents) || !isPlainRecord(n.objects)) return null;
+    if (n.init !== null && n.init !== undefined) {
+      const init = n.init as Record<string, unknown>;
+      if (typeof init.status !== 'string') return null;
+      if (init.status === 'legacy-initialized') {
+        // 合法：旧版升级标记
+      } else if (init.status === 'active' || init.status === 'completed') {
+        if (!isFiniteNumber(init.k) || !isFiniteNumber(init.n) || !isFiniteNumber(init.seed)
+          || !isFiniteNumber(init.generatedAt) || !Array.isArray(init.targets)) return null;
+        for (const t of init.targets as unknown[]) {
+          const tt = t as Record<string, unknown>;
+          if (!tt || !isStr(tt.id) || !isStr(tt.family) || !['damp', 'mold', 'char'].includes(tt.family as string)) return null;
+          if (!isFiniteNumber(tt.stage) || (tt.stage as number) < 0 || (tt.stage as number) > 3) return null;
+          if (!isStr(tt.mushroom) || !['none', 'young', 'mature'].includes(tt.mushroom as string)) return null;
+          if (!isStr(tt.status) || !['pending', 'done', 'skipped'].includes(tt.status as string)) return null;
+        }
+        const snapshot = init.snapshot as Record<string, unknown> | undefined;
+        if (!snapshot || !isFiniteNumber(snapshot.weatherCode) || !isFiniteNumber(snapshot.humidityPct)
+          || !isFiniteNumber(snapshot.temperatureC) || !isStr(snapshot.observedAt) || !isFiniteNumber(snapshot.fetchedAt)) return null;
+      } else {
+        return null;
+      }
+    }
+    for (const record of Object.values(n.dailyEvents)) {
+      const r = record as Record<string, unknown>;
+      if (!r || !isStr(r.date) || !isStr(r.id) || !isStr(r.status)) return null;
+      if (!['pending', 'retryable', 'success', 'empty', 'init_occupied'].includes(r.status as string)) return null;
+      if (!isFiniteNumber(r.seed) || !Array.isArray(r.candidateOrder) || !Array.isArray(r.attempts)) return null;
+    }
+    for (const obj of Object.values(n.objects)) {
+      const o = obj as Record<string, unknown>;
+      if (!o || !isStr(o.id) || !isStr(o.realPath) || !isStr(o.displayName) || !isFiniteNumber(o.originalMtime)) return null;
+      if (o.kind !== 'dir' && o.kind !== 'lnk') return null;
+      if (o.damage !== null && o.damage !== undefined) {
+        const dmg = o.damage as Record<string, unknown>;
+        if (!dmg || !isStr(dmg.family) || !['damp', 'mold', 'char'].includes(dmg.family as string)) return null;
+        if (!isFiniteNumber(dmg.stage) || (dmg.stage as number) < 0 || (dmg.stage as number) > 3) return null;
+        if (!isStr(dmg.mushroom) || !['none', 'young', 'mature'].includes(dmg.mushroom as string)) return null;
+      }
+      for (const key of ['lastAdvanceAt', 'lastCareCompletedAt', 'moldImmuneUntil'] as const) {
+        if (o[key] !== undefined && !isFiniteNumber(o[key])) return null;
+      }
+    }
+    if (n.lastSnapshot !== null && n.lastSnapshot !== undefined) {
+      const s = n.lastSnapshot as Record<string, unknown>;
+      if (!s || !isFiniteNumber(s.weatherCode) || !isFiniteNumber(s.humidityPct)
+        || !isFiniteNumber(s.temperatureC) || !isStr(s.observedAt) || !isFiniteNumber(s.fetchedAt)) return null;
+    }
+    if (n.paused !== undefined && typeof n.paused !== 'boolean') return null;
+  }
+
   return raw as SaveData;
 }
 
+function isPlainRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
 /**
- * 版本迁移入口。当前仅 v1：直接校验。
- * 未来 schemaVersion 2 在此升级（v1 → v2 字段补齐），失败仍返回 null。
+ * 版本迁移入口。v1/v2 → v3：补原生事件段；已有旧版进度的用户标记为
+ * legacy-initialized（R4.1：不重新发首批、不重发新手奖励），native 字段缺失视为未初始化新安装。
  */
 export function migrateSave(raw: unknown): SaveData | null {
-  return validateSave(raw);
+  const validated = validateSave(raw);
+  if (!validated) return null;
+  if (validated.schemaVersion >= 3) return validated;
+  const upgraded: SaveData = {
+    ...validated,
+    schemaVersion: 3,
+    // 旧用户已有游戏进度：视为已初始化，避免把老玩家当新安装重发首批
+    native: { init: { status: 'legacy-initialized' }, dailyEvents: {}, objects: {}, lastSnapshot: null },
+  };
+  return validateSave(upgraded) ?? null;
 }
