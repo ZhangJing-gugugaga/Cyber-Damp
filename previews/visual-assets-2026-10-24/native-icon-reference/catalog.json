@@ -1,0 +1,264 @@
+{
+  "purpose": "Native icon references for visual compatibility testing. Third-party marks remain the property of their respective owners.",
+  "items": [
+    {
+      "name": "此电脑",
+      "asset": "source-icons/completed-1.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "控制面板",
+      "asset": "source-icons/completed-2.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "laotie_nb666",
+      "asset": "source-icons/01.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "库",
+      "asset": "source-icons/completed-3.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "控制面板",
+      "asset": "source-icons/completed-2.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "网络",
+      "asset": "source-icons/completed-5.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "WPS云盘",
+      "asset": "source-icons/02.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "移动硬盘 (E:)",
+      "asset": "source-icons/03.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": ".env",
+      "asset": "source-icons/completed-6.png",
+      "method": "UserChoice Applications/notepad.exe; program icon resource, file contents not read",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": ".mimocode",
+      "asset": "source-icons/02.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "7z",
+      "asset": "source-icons/04.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "CC Switch",
+      "asset": "source-icons/05.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "DeepSeek Harness",
+      "asset": "source-icons/06.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "JianyingPro",
+      "asset": "source-icons/jianying-original.png",
+      "method": "User-provided installation directory, direct EXE resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "Obsidian",
+      "asset": "source-icons/07.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "QoderWork CN",
+      "asset": "source-icons/08.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "QQ",
+      "asset": "source-icons/09.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "TraeCode CN",
+      "asset": "source-icons/10.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "Unity Hub",
+      "asset": "source-icons/11.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "work",
+      "asset": "source-icons/02.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "WorkBuddy AI",
+      "asset": "source-icons/12.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "WorkBuddy",
+      "asset": "source-icons/12.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "X2MD_Extension",
+      "asset": "source-icons/02.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "X2MD_Mac",
+      "asset": "source-icons/02.png",
+      "method": "shell-icon-location",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "ZCode",
+      "asset": "source-icons/13.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "代码.txt",
+      "asset": "source-icons/completed-8.png",
+      "method": "Registry-resolved system resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "哔哩哔哩",
+      "asset": "source-icons/14.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "夸克网盘",
+      "asset": "source-icons/15.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "学习通",
+      "asset": "source-icons/16.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "微信",
+      "asset": "source-icons/17.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "微信开发者工具",
+      "asset": "source-icons/18.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "猫猫清理工具V1.99.exe",
+      "asset": "source-icons/19.png",
+      "method": "exe-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "造世界编辑器",
+      "asset": "source-icons/20.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "腾讯会议",
+      "asset": "source-icons/21.png",
+      "method": "shortcut-target-exe",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "钉钉",
+      "asset": "source-icons/22.png",
+      "method": "shortcut-explicit-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "回收站（空）",
+      "asset": "source-icons/recycle-empty.png",
+      "method": "recycle-bin-DefaultIcon-registry-resource",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "name": "回收站（满）",
+      "asset": "source-icons/recycle-full.png",
+      "method": "recycle-bin-DefaultIcon-registry-resource",
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

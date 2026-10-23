@@ -1,0 +1,1949 @@
+{
+  "errors": [],
+  "rows": [
+    {
+      "style": "绿苔侵角",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.31497860199714695,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.6212553495007133,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.9148676493897606,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.3142158998941667,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.6212569258544481,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.9116136462678205,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.3148258632261914,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.6209262435677531,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.9138265344171825,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.2874080130825838,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.6470427909512129,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.961933315163078,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.3140927233650599,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.6213540067546822,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.9106923549278477,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.3361663720807792,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.6632695272836674,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "绿苔侵角",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.9843556090406529,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.17278491044539546,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.3050404184498336,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.4537644634648914,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.17888937309344458,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.31802901077009277,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.4759384921870136,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.1894623014393318,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.3312327541203669,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.49438809754642404,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.7593349686563097,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.9287271736167894,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.9910511492686472,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.19843797973595334,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.3515313171630335,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.5193237642001842,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.26990335075777516,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.4534993042758828,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "蓝灰包边",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.6519123011545259,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.3816452686638136,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.562402916468537,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.7782215882073229,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.383754591296769,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.5612432297827304,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.7731588121770528,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.3815347900663733,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.5622902528152733,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.7778917145200984,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.3377396202416644,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.5962115017715999,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.8726265104024712,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.38426849861836043,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.5609072766349401,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.7718759594719067,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.35177315633108946,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.6084013387988417,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "赭黄侧蚀",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.881764506788011,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.2508796956728483,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.5072277698525915,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.7470280551592963,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.25717487393388533,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.5105210732739837,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.7530660524186018,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.26088820941158924,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.5173018122156761,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.757383100902379,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.31266466793858455,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.5508767148178432,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.8333333333333334,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.2520916487565244,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.5043368130181148,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.7528784157199877,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.29363318416005413,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.5368357715016359,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "灰紫菌岛",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.8615697040351998,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.41103185924869234,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.5872563005230623,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.721144396893327,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.4073803150096495,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.5806200585195792,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.7147793064807321,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.41211126855097324,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.5888955179357148,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.7228354090536206,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.4114200054510766,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.6441809757427092,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.7105478331970564,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "深青挂霉",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.40547282775560334,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.577985876573534,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.711467608228431,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.4253694859162875,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.6809446805310068,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "深青挂霉",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.8090707382196984,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.16826755428752577,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.3503724837533682,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.6742114439689333,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.16762124136213657,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.34862728008466665,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.6702359459627716,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.16951301364755014,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.35433291073159817,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.681762249235588,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.2887253565912601,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.5497410738620878,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.8691287362587444,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.1671783850168867,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.3470409886398526,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.6673319005219527,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.25298033169117373,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.5246511977736829,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "粉灰扩散",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.8880072204881351,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.46772864162307815,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.6832937074021239,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.9464732921223649,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.4682811429994397,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.6799477059079873,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.9426321359646392,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.46783876500857635,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.6831792079946305,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.9464725184577523,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.46702098664486236,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.7553375124920505,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.9731080221677114,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底部浸水",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.46847175314706785,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.6790182683451028,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.9411459932453178,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.54029558873303,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.7769546087021925,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底部浸水",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.9821744199165131,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.3281819622761135,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.4507211919480108,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.5796798224758282,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.32224677831040277,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.44263213596463924,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.5703013135777875,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.32797002013572973,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.4502200014915355,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.5788276530688343,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.40115381121104754,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.5510584173707641,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.6726628509130553,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "纵向流挂",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.3202141541295671,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.4401289530242555,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.5671822229045134,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.3953217253958106,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.5225076153585799,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "纵向流挂",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.6536046030611861,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.32930733872246,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.616769694087811,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.8477096211760976,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.3233518022785283,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.6095218825873124,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.8414368424329204,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.3289954508166157,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.6164702811544485,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.8474718472667612,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.3982011447260834,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.7054601617152721,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.9096029799218679,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "积水晕圈",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.3214614676082284,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.6070194964691434,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.8395954866441511,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.4298822910007145,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.7020044375916663,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "积水晕圈",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.9190327554435711,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.45137105721984466,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.6645744174988112,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.918893644000634,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.4365467222810185,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.6527578908049555,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.811943597086472,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.45154373927958835,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.6643299276605266,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.9186180923260496,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.44176433178886165,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.7338511856091579,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.9555283001726175,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "底边烤焦",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.45246776174393616,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.6606539760515812,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.9112680380718453,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.5251776917001993,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.7581512541837464,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "底边烤焦",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.968259937572863,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.3705817086701538,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.5245839277223014,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.6966714217784118,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.365249330760132,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.5188320986117164,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.6897372844425076,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.37018047579983593,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.5241442314863152,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.6964165858751584,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.45643681293722177,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.6192877259925502,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.790178977014627,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.36644151059256985,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.5203216149831132,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.6917408658274485,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.419615659433643,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.6057312624572224,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "斜向烟熏",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.801887856793652,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "WorkBuddy",
+      "stage": 1,
+      "coverage": 0.25320970042796004,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "WorkBuddy",
+      "stage": 2,
+      "coverage": 0.4946267237280076,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "WorkBuddy",
+      "stage": 3,
+      "coverage": 0.7603582184181328,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "ZCode",
+      "stage": 1,
+      "coverage": 0.17820456950756397,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "ZCode",
+      "stage": 2,
+      "coverage": 0.4163917076511237,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "ZCode",
+      "stage": 3,
+      "coverage": 0.626501898773579,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "学习通",
+      "stage": 1,
+      "coverage": 0.2531322246252517,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "学习通",
+      "stage": 2,
+      "coverage": 0.49444403012901783,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "学习通",
+      "stage": 3,
+      "coverage": 0.7600678648668805,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "CC Switch",
+      "stage": 1,
+      "coverage": 0.3276551285545562,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "CC Switch",
+      "stage": 2,
+      "coverage": 0.6003452348505497,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "CC Switch",
+      "stage": 3,
+      "coverage": 0.8693558644498955,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": false
+    },
+    {
+      "style": "局部灼斑",
+      "name": "腾讯会议",
+      "stage": 1,
+      "coverage": 0.24760132023334358,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "腾讯会议",
+      "stage": 2,
+      "coverage": 0.4839576297206018,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "腾讯会议",
+      "stage": 3,
+      "coverage": 0.7488870125882714,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "Obsidian",
+      "stage": 1,
+      "coverage": 0.34222105223571886,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "Obsidian",
+      "stage": 2,
+      "coverage": 0.5832800571621978,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    },
+    {
+      "style": "局部灼斑",
+      "name": "Obsidian",
+      "stage": 3,
+      "coverage": 0.8346809070738219,
+      "monotonic": true,
+      "alphaErrors": 0,
+      "blue": true
+    }
+  ]
+}
