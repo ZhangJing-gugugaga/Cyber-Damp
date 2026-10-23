@@ -2,10 +2,18 @@ import koffi from 'koffi';
 import { randomUUID } from 'node:crypto';
 
 let protectedHandle: bigint | null = null;
+const pending = new Map<bigint, Promise<boolean>>();
 
 /** A separate Win32 process outside Electron's job restores icons after kill. */
 export async function protectDesktopIcons(handle: bigint): Promise<boolean> {
   if (protectedHandle === handle) return true;
+  const existing = pending.get(handle); if (existing) return existing;
+  const protection = startProtection(handle);
+  pending.set(handle, protection);
+  try { return await protection; } finally { pending.delete(handle); }
+}
+
+async function startProtection(handle: bigint): Promise<boolean> {
   const kernel = koffi.load('kernel32.dll');
   const Startup = koffi.struct({
     cb: 'uint32', lpReserved: 'void *', lpDesktop: 'void *', lpTitle: 'void *',

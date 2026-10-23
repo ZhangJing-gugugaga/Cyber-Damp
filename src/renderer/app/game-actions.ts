@@ -101,8 +101,13 @@ export function createGameActions(ctx: GameActionContext): GameActions {
     }
   }
 
-  /** 剪下成熟蘑菇：立即入账，视图沿贝塞尔飞向金币栏后销毁 */
+  /** 普通菇直接采摘；剪落特殊菇复用原有交互，缺少铲子时说明原因。 */
   function pickMushroom(id: string): void {
+    const species = runtime.byId.get(id)?.runtime.mushroom?.species;
+    if ((species === 'shy' || species === 'lava') && !runtime.owned.includes('pvz-shovel')) {
+      toast.tip('需要先在小铺领取PVZ铲子。');
+      return;
+    }
     if (ctx.harvestSpecial?.(id)) return;
     const coinsBefore = runtime.coins;
     const item = runtime.pickMushroom(id);

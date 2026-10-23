@@ -302,6 +302,12 @@ export function attachOverlayToDesktop(win: BrowserWindow, show = true): boolean
 }
 
 /** 启动就绪后隐藏原生桌面图标；未挂载成功时拒绝执行 */
+export function prepareDesktopProtection(): void {
+  const a = win32(); if (!a) return;
+  const handle = findDesktopWindows(a)?.listView;
+  if (handle) void protectDesktopIcons(handle).catch(error => console.warn('[desktop-watchdog] Preparation failed:', error));
+}
+
 export async function hideDesktopIcons(): Promise<boolean> {
   if (!state.attached) return false;
   const a = win32();

@@ -1,0 +1,42 @@
+[
+  {
+    "file": "rope-coil.svg",
+    "author": "Delapouite",
+    "source": "https://github.com/game-icons/icons/blob/82d948812bfe3f269ef8f731dcdb07b08160edc4/delapouite/rope-coil.svg",
+    "sourceSha256": "c02e110c6a96a071ac9142bc58e07efa309732b7f3f6dede9b0538dc40bf90a7",
+    "license": "CC BY 3.0",
+    "changes": "Removed black background; changed white foreground to currentColor. Geometry unchanged."
+  },
+  {
+    "file": "spade.svg",
+    "author": "Lorc",
+    "source": "https://github.com/game-icons/icons/blob/82d948812bfe3f269ef8f731dcdb07b08160edc4/lorc/spade.svg",
+    "sourceSha256": "4607d1ff7668d2821ae176bcef2f632f038c93ff469f94bd5ed8cae81922c1ad",
+    "license": "CC BY 3.0",
+    "changes": "Removed black background; changed white foreground to currentColor. Geometry unchanged."
+  },
+  {
+    "file": "aerosol.svg",
+    "author": "Lorc",
+    "source": "https://github.com/game-icons/icons/blob/82d948812bfe3f269ef8f731dcdb07b08160edc4/lorc/aerosol.svg",
+    "sourceSha256": "3235ae23062b89bb569be884f91a7ab3f4aab8b11d896cbc8808caffdd179d78",
+    "license": "CC BY 3.0",
+    "changes": "Removed black background; changed white foreground to currentColor. Geometry unchanged."
+  },
+  {
+    "file": "straight-pipe.svg",
+    "author": "Delapouite",
+    "source": "https://github.com/game-icons/icons/blob/82d948812bfe3f269ef8f731dcdb07b08160edc4/delapouite/straight-pipe.svg",
+    "sourceSha256": "99002ca3e5acbead262ca62ec2244b6259796188ccd04f5bd94652f6c737ea6f",
+    "license": "CC BY 3.0",
+    "changes": "Removed black background; changed white foreground to currentColor. Geometry unchanged."
+  },
+  {
+    "file": "clothespin.svg",
+    "author": "Delapouite",
+    "source": "https://github.com/game-icons/icons/blob/82d948812bfe3f269ef8f731dcdb07b08160edc4/delapouite/clothespin.svg",
+    "sourceSha256": "0f683d56184aa67f0e2454875431b38371cf93f45c00b6eab27d4bf5b1cff019",
+    "license": "CC BY 3.0",
+    "changes": "Removed black background; changed white foreground to currentColor. Geometry unchanged."
+  }
+]

@@ -24,7 +24,7 @@ export interface ShopItem {
 }
 
 export const ITEMS: ShopItem[] = [
-  { id: 'pvz-shovel', name: 'PVZ 铲子', price: 0, category: 'appliance', desc: '领取后可采摘胆小菇与生气菇。本轮免费体验。' },
+  { id: 'pvz-shovel', name: 'PVZ 铲子', price: 0, category: 'appliance', desc: '领取后在工具柜装备，可采摘胆小菇与毁灭菇。本轮免费体验。' },
   { id: 'rope-1', name: '老式麻绳', price: 0, category: 'rope', desc: '承重上限 5GB，挂大文件极易断裂', byteLimit: 5 * GB },
   { id: 'rope-2', name: '妈妈的红塑料绳', price: 100, category: 'rope', desc: '承重上限 25GB，色彩极具中式年代感', byteLimit: 25 * GB },
   { id: 'rope-3', name: '304不锈钢防风晒衣杆', price: 800, category: 'rope', desc: '毕业级装备。刚性笔直不坍塌，挂 100GB 都不滑堆', byteLimit: 100 * GB, rigid: true },

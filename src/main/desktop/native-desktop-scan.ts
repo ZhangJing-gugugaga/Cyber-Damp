@@ -1,9 +1,9 @@
-import { app, screen, shell } from 'electron';
+import { app, nativeImage, screen, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { queryShellLayout } from './shell-layout';
-import { extractShellIconImage } from '../native/win32-icons';
+import { queryShellIcons } from './shell-icons';
 import { desktopUsageId } from './desktop-usage';
 import { extToCategory } from '../../shared/constants';
 import type { DesktopEntry } from '../../shared/types/desktop';
@@ -12,10 +12,29 @@ import { projectShellGeometry, unionScreenRects } from '../../shared/desktop-vie
 
 /** Shell's actual view is authoritative, including virtual and hidden-item policy. */
 export async function scanNativeDesktop(win?: BrowserWindow, canvasScale = screen.getPrimaryDisplay().scaleFactor): Promise<DesktopEntry[]> {
+  const started = performance.now();
   const { view, rects } = await queryShellLayout();
+  const layoutMs = performance.now() - started;
   const work = win ? overlayScreenRect(win) : unionScreenRects(screen.getAllDisplays().map(display => screen.dipToScreenRect(null, display.workArea)));
   if (!work) throw new Error('无法读取桌面画布的物理坐标');
-  return Promise.all(view.items.map(async (item, index): Promise<DesktopEntry> => {
+  const requests = view.items.map(item => {
+    const realPath = item.parsingName;
+    const virtual = realPath.startsWith('::');
+    let artworkPath = realPath;
+    let artworkIndex: number | undefined;
+    if (!virtual && path.extname(realPath).toLowerCase() === '.lnk') {
+      try {
+        // Shortcut metadata only. Never execute or read the target document.
+        const shortcut = shell.readShortcutLink(realPath);
+        if (shortcut.icon) { artworkPath = shortcut.icon; artworkIndex = shortcut.iconIndex ?? 0; }
+        else if (!shortcut.icon && shortcut.target) artworkPath = shortcut.target;
+      } catch { /* Keep Shell's shortcut artwork if metadata is unavailable. */ }
+    }
+    return { path: artworkPath, resourceIndex: artworkIndex,
+      fallbackPath: artworkPath !== realPath ? realPath : undefined };
+  });
+  const artwork = await queryShellIcons(requests);
+  const entries = await Promise.all(view.items.map(async (item, index): Promise<DesktopEntry> => {
     const rect = rects.items[index];
     const dip = screen.screenToDipRect(null, rect.icon);
     const display = screen.getDisplayNearestPoint({ x: dip.x, y: dip.y });
@@ -28,18 +47,8 @@ export async function scanNativeDesktop(win?: BrowserWindow, canvasScale = scree
     const virtual = realPath.startsWith('::');
     const info = virtual ? null : await stat(realPath);
     const recycle = realPath.toLowerCase().includes('645ff040-5081-101b-9f08-00aa002f954e');
-    let artworkPath = realPath;
-    let artworkIndex: number | undefined;
-    if (!virtual && path.extname(realPath).toLowerCase() === '.lnk') {
-      try {
-        // Shortcut metadata only. Never execute or read the target document.
-        const shortcut = shell.readShortcutLink(realPath);
-        if (shortcut.icon) { artworkPath = shortcut.icon; artworkIndex = shortcut.iconIndex ?? 0; }
-        else if (!shortcut.icon && shortcut.target) artworkPath = shortcut.target;
-      } catch { /* Keep Shell's shortcut artwork if metadata is unavailable. */ }
-    }
-    let icon = extractShellIconImage(artworkPath, true, artworkIndex);
-    if (!icon && artworkPath !== realPath) icon = extractShellIconImage(realPath);
+    const raw = artwork[index];
+    let icon = raw ? nativeImage.createFromBitmap(Buffer.from(raw.pixels), { width: raw.width, height: raw.height }) : null;
     if (!icon && !virtual) icon = await app.getFileIcon(realPath, { size: 'large' });
     if (!icon || icon.isEmpty()) throw new Error(`无法读取图标：${item.displayName}`);
     const name = virtual ? item.displayName : path.basename(realPath);
@@ -53,4 +62,6 @@ export async function scanNativeDesktop(win?: BrowserWindow, canvasScale = scree
       geometry,
     };
   }));
+  console.info('[startup:scan]', JSON.stringify({ items: entries.length, layoutMs: Math.round(layoutMs), artworkMs: Math.round(performance.now() - started - layoutMs) }));
+  return entries;
 }

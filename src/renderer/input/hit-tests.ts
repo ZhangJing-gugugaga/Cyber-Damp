@@ -61,7 +61,20 @@ export function nearestRopePoint(
   return near ? { entry: near.entry, x: near.x, y: near.y } : null;
 }
 
-/** 成熟蘑菇命中：根部在图标上边框中心，向上生长 */
+/** 指针与悬停共用实际可见几何；有生长即可命中，不要求成熟。 */
+export function visibleMushroomAt(
+  sprites: Map<string, FileSprite>, runtime: WorldRuntime,
+  views: ReadonlyMap<string, { hit(x: number, y: number): boolean }>, x: number, y: number,
+): string | null {
+  for (const [id, sprite] of sprites) {
+    const m = runtime.byId.get(id)?.runtime.mushroom;
+    if (m && m.growth > 0 && (m.species === 'oyster' || m.species === 'enoki') && sprite.mushroomHit(x, y)) return id;
+  }
+  for (const [id, view] of views) if ((runtime.byId.get(id)?.runtime.mushroom?.growth ?? 0) > 0 && view.hit(x, y)) return id;
+  return null;
+}
+
+/** 旧调用方的成熟蘑菇近似命中；生产指针与悬停使用visibleMushroomAt。 */
 export function mushroomAt(
   sprites: Map<string, FileSprite>,
   runtime: WorldRuntime,

@@ -42,6 +42,7 @@ export function mountUi(
     onBuy(itemId: string): void;
     onBuyBox(qty: number): void;
     onMicrophoneToggle?(on: boolean): Promise<boolean>;
+    microphoneState?(): { enabled: boolean; state: import('../../shared/types/management').ManagementPreferences['microphoneState'] };
     sfx: { setEnabled(on: boolean): void; whoosh(): void };
     demo: DemoActions;
   },
@@ -73,10 +74,10 @@ export function mountUi(
   }
   reposition();
 
-  // 金币 pill（top-right 第一席，纯读数 none）
+  // 复用金币栏作为剪落物售卖落点，位于可收起的桌面工具面板内。
   const coinPill = document.createElement('div');
   coinPill.className = 'coin-pill';
-  coinPill.innerHTML = `${icon('coins', 16)}<b class="coin-pill__value">0</b>`;
+  coinPill.innerHTML = `${icon('coins', 16)}<b class="coin-pill__value">0</b><span class="coin-pill__hint">剪落的菇拖到这里售卖</span>`;
   cabinet.appendChild(coinPill);
 
   // 商店 / 设置入口（44x44）
@@ -84,14 +85,14 @@ export function mountUi(
   shopBtn.type = 'button';
   shopBtn.className = 'hud-btn hud-btn--shop';
   shopBtn.setAttribute('aria-label', '杂货铺');
-  shopBtn.innerHTML = icon('store', 24);
+  shopBtn.innerHTML = `${icon('store', 20)}<span>雨天小铺</span>`;
   cabinet.appendChild(shopBtn);
 
   const settingsBtn = document.createElement('button');
   settingsBtn.type = 'button';
   settingsBtn.className = 'hud-btn hud-btn--settings';
   settingsBtn.setAttribute('aria-label', '设置（音效开关）');
-  settingsBtn.innerHTML = icon('settings', 24);
+  settingsBtn.innerHTML = `${icon('settings', 20)}<span>设置</span>`;
   cabinet.appendChild(settingsBtn);
 
   const weather = createWeatherSign(cabinet, runtime, () => hooks.sfx.whoosh());
@@ -104,7 +105,7 @@ export function mountUi(
     onBuyBox: hooks.onBuyBox,
   });
   const demo = createDemoConsole(mount, runtime, hooks.demo);
-  const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on), onMicrophoneToggle: hooks.onMicrophoneToggle });
+  const settings = createSettingsPanel(mount, { onSfxToggle: (on) => hooks.sfx.setEnabled(on), onMicrophoneToggle: hooks.onMicrophoneToggle, microphoneState: hooks.microphoneState });
 
   shopBtn.addEventListener('click', () => {
     emitAction('shop-open');

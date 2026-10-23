@@ -9,7 +9,7 @@ import * as path from 'node:path';
 import { desktopPointerState, fitOverlayScreenRect, overlayScreenRect, isDesktopAttached, restoreDesktop, suspendDesktopHost, shutdownDesktop } from '../native/win32-desktop';
 import type { DesktopCursor } from '../../shared/types/desktop';
 import { unionScreenRects } from '../../shared/desktop-viewport';
-import { reportDisplayError } from './management-window';
+import { reportDisplayError, syncToolEscape } from './management-window';
 const canvasScales = new WeakMap<BrowserWindow, number>();
 export function setOverlayCanvasScale(win: BrowserWindow, value: number): void { canvasScales.set(win, value); }
 export function getOverlayCanvasScale(win: BrowserWindow): number { return canvasScales.get(win) ?? screen.getPrimaryDisplay().scaleFactor; }
@@ -120,12 +120,14 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
   };
   startups.set(win, startup);
   const abortStartup = (reason: string): void => {
+    if (startup.failed) return;
     startup.failed = true;
     startup.revealed = false;
     startup.resolvePaint(false);
     console.error('[desktop] 渲染初始化失败，保留原生桌面:', reason);
     if (!win.isDestroyed()) win.hide();
     shutdownDesktop();
+    void reportDisplayError('桌面准备未完成，已保留原生桌面。可退出后重试。');
   };
 
   win.setSkipTaskbar(true);
@@ -142,6 +144,7 @@ export function createOverlayWindow(preloadPath: string): BrowserWindow {
     const work = overlayScreenRect(win); if (!work) return;
     const scale = getOverlayCanvasScale(win);
     const cursor: DesktopCursor = { x: (point.x - work.x) / scale, y: (point.y - work.y) / scale, ...desktopPointerState() };
+    syncToolEscape(cursor.desktopActive);
     win.webContents.send('window:cursor', cursor);
   }, 33);
   cursorTimer.unref();

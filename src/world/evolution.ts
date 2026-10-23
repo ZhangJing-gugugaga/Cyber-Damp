@@ -7,6 +7,7 @@ import type { FileRuntime, MushroomSpecies } from '../shared/types/file-runtime'
 import type { ExtCategory, FileNode } from '../shared/types/file-node';
 import { pickSpecies, pickFileSpecies } from './mushroom-species';
 import { heatFile, updateDesiccation } from './file-material';
+import { MUSHROOM_GROWTH_PER_SECOND } from '../shared/constants';
 
 export interface Env {
   /** 全局湿度 0..1 */
@@ -68,7 +69,7 @@ export function stepEvolution(
     rt.mushroom = { species, growth: 0 };
   }
   if (rt.mushroom && rt.mushroom.species !== 'bolete' && rt.mushroom.species !== 'lava') {
-    rt.mushroom.growth = clamp01(rt.mushroom.growth + dtSec * 0.00005 * (rt.dryCare ? 0 : 1));
+    rt.mushroom.growth = clamp01(rt.mushroom.growth + dtSec * MUSHROOM_GROWTH_PER_SECOND * (rt.dryCare ? 0 : 1));
   }
 
   // 过热烘烤焦化

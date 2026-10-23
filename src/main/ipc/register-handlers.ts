@@ -23,8 +23,12 @@ import {
   overlayScreenRect,
 } from '../native/win32-desktop';
 import type { SaveData } from '../../shared/types/save';
+import type { CityOption, WeatherLocation, WeatherLookup } from '../../shared/types/weather';
+import { getWeather, searchCities } from '../weather/weather-service';
+import { applyIconMutation, restoreAllIconReferences, type IconMutationKind, type IconMutationRequest, type IconMutationResult, type IconRestoreReport } from '../desktop/icon-mutate';
+import { writeIcoCache } from '../icon/ico-builder';
 import { scanNativeDesktop } from '../desktop/native-desktop-scan';
-import { waitForStartupPrompt, markSceneReady, isSceneHidden, reportDisplayError } from '../window/management-window';
+import { markSceneReady, isSceneHidden, reportDisplayError } from '../window/management-window';
 
 /** preload 出口浅校验（契约纪律 5）：非法载荷丢弃并 warn */
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -50,7 +54,10 @@ export function registerHandlers(
       && Math.abs(getOverlayCanvasScale(getWin()!) - pendingViewport.scale) < 1e-6;
     pendingViewport.finish(valid); return { ok: valid };
   });
-  const readCanvas = (win: BrowserWindow) => win.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve({scaleFactor: devicePixelRatio, width: innerWidth, height: innerHeight}))))') as Promise<{ scaleFactor: number; width: number; height: number }>;
+  // Hidden Chromium surfaces may schedule rAF at ~1 Hz even while preparing.
+  // Read geometry after the resize task queue, without waiting for hidden paint.
+  // The accepted CSS/physical dimensions are still validated before takeover.
+  const readCanvas = (win: BrowserWindow) => win.webContents.executeJavaScript('new Promise(resolve => setTimeout(() => resolve({scaleFactor: devicePixelRatio, width: innerWidth, height: innerHeight}), 0))') as Promise<{ scaleFactor: number; width: number; height: number }>;
   const refreshAttachedViewport = async (win: BrowserWindow): Promise<void> => {
     const canvas = await readCanvas(win);
     if (Math.abs(canvas.scaleFactor - getOverlayCanvasScale(win)) > 1e-6) {
@@ -161,16 +168,19 @@ export function registerHandlers(
     if (desktopReadyTask) return desktopReadyTask;
     const task = (async () => {
       try {
-        if (!desktopReadyHandled) await waitForStartupPrompt();
+        const takeoverAt = performance.now();
         if (layoutDisplaySignature !== displaySignature()) throw new Error('显示布局在准备期间发生变化，请重启重新读取。');
         if (!await waitForOverlayFirstFrame(win) || win.isDestroyed()) return { ok: false, error: 'renderer-not-ready', iconsHidden: false };
         if (!attachOverlayToDesktop(win, false)) {
           console.warn('[desktop] 挂载失败，窗口保持隐藏，原生桌面继续可用');
           return { ok: false, error: 'attach-failed', iconsHidden: false };
         }
+        console.info('[startup:attach]', Math.round(performance.now() - takeoverAt));
         await refreshAttachedViewport(win);
+        console.info('[startup:viewport]', Math.round(performance.now() - takeoverAt));
         if (layoutDisplaySignature !== displaySignature()) throw new Error('接管期间显示配置已变化，已保留原生桌面。');
         const iconsHidden = await hideDesktopIcons();
+        console.info('[startup:protection]', Math.round(performance.now() - takeoverAt));
         if (!iconsHidden || win.isDestroyed() || !revealDesktopOverlay(win)) {
           restoreDesktop();
           return { ok: false, error: iconsHidden ? 'renderer-not-ready' : 'desktop-protection-failed', iconsHidden: false };
@@ -178,6 +188,7 @@ export function registerHandlers(
         desktopReadyHandled = true;
         suspendDesktopHost(false);
         markSceneReady();
+        console.info('[startup:process-ready]', JSON.stringify({ elapsedMs: Math.round(process.uptime() * 1000) }));
         startDesktopHostMonitor(win);
         return { ok: true, iconsHidden: true };
       } catch (error) {
@@ -201,6 +212,56 @@ export function registerHandlers(
       return { ok: false };
     }
     return writeSave(data as unknown as SaveData);
+  });
+
+  // ---- 天气（R3：Open-Meteo current 快照；仅场景窗口可调用） ----
+  ipcMain.handle('weather:current', async (event, payload: unknown): Promise<WeatherLookup> => {
+    if (event.sender !== getWc() || !isPlainObject(payload)) return { status: 'unavailable', error: 'invalid-request' };
+    const { cityId, label, latitude, longitude, forceRefresh } = payload;
+    if (typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
+      || typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180
+      || typeof cityId !== 'string' || typeof label !== 'string' || label.length > 100) {
+      return { status: 'unavailable', error: 'invalid-location' };
+    }
+    const location: WeatherLocation = { cityId, label, latitude, longitude };
+    return getWeather(location, forceRefresh === true);
+  });
+  ipcMain.handle('weather:searchCity', async (event, payload: unknown): Promise<{ ok: true; options: CityOption[] } | { ok: false; error: string }> => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.query !== 'string') {
+      return { ok: false, error: 'invalid-request' };
+    }
+    try {
+      return { ok: true, options: await searchCities(payload.query) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // ---- 原生图标引用（R1：仅文件夹与普通 .lnk；仅场景窗口可调用） ----
+  ipcMain.handle('icon:applyState', async (event, payload: unknown): Promise<IconMutationResult[]> => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || !Array.isArray(payload.items)) return [];
+    const results: IconMutationResult[] = [];
+    for (const raw of payload.items) {
+      if (!isPlainObject(raw) || typeof raw.id !== 'string' || typeof raw.realPath !== 'string'
+        || (raw.kind !== 'dir' && raw.kind !== 'lnk')
+        || (typeof raw.sourcePngBase64 !== 'string' || raw.sourcePngBase64.length === 0)) {
+        results.push({ id: isPlainObject(raw) && typeof raw.id === 'string' ? raw.id : '?', ok: false, reason: 'invalid-item', retryable: false });
+        continue;
+      }
+      const request: IconMutationRequest = { id: raw.id, realPath: raw.realPath, kind: raw.kind as IconMutationKind, iconPath: '', eventId: typeof raw.eventId === 'string' ? raw.eventId : undefined };
+      try {
+        const sourcePng = Buffer.from(raw.sourcePngBase64, 'base64');
+        request.iconPath = await writeIcoCache(sourcePng, [request.realPath, request.id]);
+        results.push(applyIconMutation(request));
+      } catch (error) {
+        results.push({ id: request.id, ok: false, reason: error instanceof Error ? error.message : String(error), retryable: true });
+      }
+    }
+    return results;
+  });
+  ipcMain.handle('icon:restoreAll', async (event): Promise<IconRestoreReport[]> => {
+    if (event.sender !== getWc()) return [];
+    return restoreAllIconReferences();
   });
 
   // 应用

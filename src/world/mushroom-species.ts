@@ -47,7 +47,7 @@ export const SPECIES: Record<MushroomSpecies, SpeciesDef> = {
   },
   lava: {
     id: 'lava',
-    name: '核爆毁灭菇',
+    name: '毁灭菇',
     rarity: 'SSR',
     price: 300,
     allowedCategories: ['doc-code', 'image-video', 'audio', 'archive'],

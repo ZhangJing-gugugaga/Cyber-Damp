@@ -23,7 +23,10 @@ export class Sfx {
 
   setEnabled(on: boolean): void {
     this.master = on;
-    if (!on && this.rainGain) this.rainGain.gain.value = 0;
+    if (!on && this.rainGain && this.ctx) {
+      this.rainGain.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.rainGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    }
   }
 
   /** 环境雨声 0..1（0 关闭）；持续底噪，电平渐变 */

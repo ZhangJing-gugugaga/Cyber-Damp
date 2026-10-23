@@ -33,7 +33,7 @@ test('adjacency transforms ordinary document fungi once and protects shy species
   assert.deepEqual(tickSpecialMushrooms(files, pins, 0.1), [{ type: 'sprout', id: 'doc', species: 'bolete' }]);
   assert.equal(files[1].runtime.mushroom.species, 'bolete');
   tickSpecialMushrooms(files, pins, 7.9);
-  assert.equal(files[1].runtime.mushroom.growth, 1);
+  assert.ok(Math.abs(files[1].runtime.mushroom.growth - .0004) < 1e-9);
   assert.deepEqual(tickSpecialMushrooms(files, pins, 1), []);
   files[1].runtime.mushroom = { species: 'shy', growth: 1 };
   tickSpecialMushrooms(files, pins, 1);
@@ -58,8 +58,22 @@ test('cut oxidises in0.5s; raw sale hallucination lasts8s; three seconds cooking
   assert.ok(mushroomSaleEffect(cut));
   assert.equal(heatSpecialMushroom(cut, 0.02), true);
   assert.equal(mushroomSaleEffect(cut), null);
-  assert.equal(cutMushroom({ species: 'bolete', growth: 0.99 }), null);
   assert.equal(mushroomSaleEffect({ species: 'oyster', growth: 1 }), null);
+});
+
+test('visible young special mushrooms can be cut without an extra maturity gate', () => {
+  for (const species of ['bolete', 'lava']) for (const growth of [.01, .5, .99, 1]) {
+    const original = { species, growth };
+    const cut = cutMushroom(original);
+    assert.ok(cut);
+    assert.notEqual(cut, original);
+    assert.equal(cut.species, species);
+    assert.equal(cut.growth, growth);
+    assert.equal(original.cutAgeSeconds, undefined);
+  }
+  assert.equal(cutMushroom(null), null);
+  assert.equal(cutMushroom({ species: 'lava', growth: 0 }), null);
+  assert.equal(cutMushroom({ species: 'lava', growth: NaN }), null);
 });
 
 test('lava needs at least1GiB and neglect; maturity never starts a countdown', () => {
@@ -76,6 +90,19 @@ test('lava needs at least1GiB and neglect; maturity never starts a countdown', (
   assert.equal(lavaCountdown(files[0].runtime.mushroom), null);
   tickSpecialMushrooms(files, [], 0.2);
   assert.equal(lavaCountdown(files[0].runtime.mushroom), null);
+});
+
+test('special daily growth reuses the ordinary slow rate and dry care stops growth and sprouting', () => {
+  const lava = file('lava', { runtime: { mushroom: { species: 'lava', growth: .3 } } });
+  const bolete = file('bolete', { runtime: { mushroom: { species: 'bolete', growth: .4 } } });
+  const dry = file('dry', { runtime: { dryCare: true, mushroom: { species: 'lava', growth: .2 } } });
+  const dryBare = file('dry-bare', { sizeBytes: GB, runtime: { dryCare: true } });
+  tickSpecialMushrooms([lava, bolete, dry, dryBare], [], 8);
+  assert.ok(Math.abs(lava.runtime.mushroom.growth - .3004) < 1e-9);
+  assert.ok(Math.abs(bolete.runtime.mushroom.growth - .4004) < 1e-9);
+  assert.equal(dry.runtime.mushroom.growth, .2);
+  assert.equal(dry.runtime.mold, .9);
+  assert.equal(dryBare.runtime.mushroom, null);
 });
 
 test('legacy lava fuse is discarded without explosion, scorching or impulses', () => {

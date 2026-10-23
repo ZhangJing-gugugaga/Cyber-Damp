@@ -1,5 +1,6 @@
 /**
- * Lucide 1.58.0 唯一图标源（架构 ADR-005）：显式子集注册 + 全局渲染
+ * Lucide 1.58.0 通用操作图标：显式子集注册 + 全局渲染。
+ * 商城道具优先复用旧图集及已署名的 Game Icons，不在此注册位图资产。
  * DOM 层写 <i data-lucide="scissors"></i> 占位，insertHTML 后调 renderIcons()
  * P0-1 纪律：全项目禁止 emoji 充当功能图标
  */
@@ -9,7 +10,7 @@ const NAMES = [
   'map-pin', 'cloud-rain', 'cloud-sun', 'sun', 'cloud-fog', 'cloud', 'cloud-lightning',
   'droplets', 'plane', 'scissors', 'wind', 'fan', 'coins', 'store', 'wrench',
   'x', 'terminal', 'history', 'triangle-alert', 'thermometer', 'package-open',
-  'settings', 'hand', 'spray-can', 'eraser', 'brush', 'shovel', 'cable',
+  'settings', 'hand', 'spray-can', 'eraser', 'brush', 'shovel', 'cable', 'minus',
 ] as const;
 
 function pascal(name: string): string {

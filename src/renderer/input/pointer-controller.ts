@@ -35,6 +35,28 @@ export class PointerController {
   private focused = true;
   private nativeLeftDown = false;
 
+  private canHarvest(id: string): boolean {
+    const tool = this.deps.getTool();
+    const species = this.deps.runtime.byId.get(id)?.runtime.mushroom?.species;
+    if (tool === 'shovel') return !!this.deps.runtime.owned?.includes('pvz-shovel');
+    return tool === 'scissors' && species !== 'shy' && species !== 'lava';
+  }
+
+  private routePointer(x: number, y: number): void {
+    const tool = this.deps.getTool();
+    const inside = x >= 0 && y >= 0 && x < window.innerWidth && y < window.innerHeight;
+    const mushroom = this.matureAt(x, y);
+    const valid = tool === 'scissors' || tool === 'shovel' ? !!mushroom && this.canHarvest(mushroom) : tool === 'heat' || tool === 'spray'
+      ? !!fileAt(this.deps.sprites, x, y) || (tool === 'heat' && !!mushroom) : inside;
+    document.documentElement.dataset.tool = tool;
+    document.documentElement.dataset.toolValid = String(valid);
+    this.setScissorsCursor(tool === 'scissors' && valid && !this.deps.domHit(x, y));
+    // A selected tool owns desktop input, including blank-space strokes. Normal
+    // application windows still cover this desktop child window.
+    this.clickThrough.update(this.deps.runtime.locked || (tool !== 'hand' && inside)
+      || worldHitAt(this.deps, x, y, window.innerWidth));
+  }
+
   private refreshSelection(x = this.lastX, y = this.lastY): void {
     const hover = fileAt(this.deps.sprites, x, y)?.node.id;
     for (const [id, sprite] of this.deps.sprites) sprite.setSelection(this.selected.has(id), id === hover, this.focused);
@@ -46,24 +68,30 @@ export class PointerController {
       this.lastX = x; this.lastY = y;
       const pressed = leftDown && !this.nativeLeftDown;
       this.nativeLeftDown = leftDown;
+      if (!desktopActive && this.deps.getTool() !== 'hand') { this.cancelGestures(); this.deps.resetTool(); }
       this.focused = desktopActive;
-      if (pressed && desktopActive && !this.deps.runtime.locked && !worldHitAt(this.deps, x, y, window.innerWidth)) {
+      if (pressed && desktopActive && this.deps.getTool() === 'hand' && !this.deps.runtime.locked && !worldHitAt(this.deps, x, y, window.innerWidth)) {
         this.selected.clear();
         this.lastClick = { id: '', at: 0 };
       }
       this.refreshSelection(x, y);
       if (this.drag || this.ropeDraw || this.boxDrag || this.squeegeeing || this.brooming || this.heatTarget) return;
-      this.clickThrough.update(this.deps.runtime.locked || worldHitAt(this.deps, x, y, window.innerWidth));
+      this.routePointer(x, y);
     });
     window.addEventListener('pointermove', (e) => this.onMove(e));
     window.addEventListener('pointerdown', (e) => this.onDown(e));
     window.addEventListener('pointerup', (e) => this.onUp(e));
     // 指针在窗外松开/失焦：取消全部手势，避免热风/拖拽/穿透卡死
     window.addEventListener('pointercancel', () => this.cancelGestures());
-    window.addEventListener('blur', () => { this.cancelGestures(); this.focused = false; this.refreshSelection(); });
+    window.addEventListener('blur', () => { this.cancelGestures(); this.deps.resetTool(); this.focused = false; this.refreshSelection(); this.routePointer(this.lastX, this.lastY); });
+    window.addEventListener('damp:tool-change', () => { this.cancelGestures(); this.lastClick = { id: '', at: 0 }; this.routePointer(this.lastX, this.lastY); });
+    window.addEventListener('damp:cancel-tool', () => { this.cancelGestures(); this.deps.resetTool(); this.lastClick = { id: '', at: 0 }; this.routePointer(this.lastX, this.lastY); });
     window.addEventListener('focus', () => { this.focused = true; this.refreshSelection(); });
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { this.selected.clear(); this.refreshSelection(); }
+      if (e.key === 'Escape') {
+        e.preventDefault(); this.cancelGestures(); this.deps.resetTool();
+        this.lastClick = { id: '', at: 0 }; this.selected.clear(); this.refreshSelection(); this.routePointer(this.lastX, this.lastY);
+      }
     });
   }
 
@@ -186,14 +214,14 @@ export class PointerController {
       return;
     }
     // 成熟蘑菇 hover：剪刀光标（点击即采摘，与当前工具无关）
-    this.setScissorsCursor(!!this.matureAt(x, y));
+    this.routePointer(x, y);
     // 音频类文件悬停：八音盒走调旋律（P1，6s 冷却）
     if (performance.now() - this.musicBoxAt > 6000 && fileAt(this.deps.sprites, x, y)?.node.category === 'audio') {
       this.musicBoxAt = performance.now();
       this.deps.sfx.musicBox();
     }
     // 命中测试 → 穿透跳变（AC-26）
-    this.clickThrough.update(worldHitAt(this.deps, x, y, window.innerWidth));
+    this.routePointer(x, y);
   }
 
   private onDown(e: PointerEvent): void {
@@ -217,14 +245,28 @@ export class PointerController {
     const tool = this.deps.getTool();
     // Hot air cooks an attached mushroom; the hand/scissors can harvest it.
     const mature = this.matureAt(x, y);
-    if (mature) {
+    if (mature && tool !== 'hand') {
       if (tool === 'heat') { this.heatTarget = mature; return; }
-      this.deps.onPick(mature);
-      return;
+      if (tool === 'scissors' || tool === 'shovel') {
+        if (this.canHarvest(mature)) this.deps.onPick(mature);
+        return;
+      }
     }
 
     const sprite = fileAt(this.deps.sprites, x, y);
     const fileId = sprite?.node.id ?? null;
+    // Resolve tool actions before selection/double-click. A tool press can
+    // never become an Explorer open or a surrogate drag.
+    if (tool !== 'hand') {
+      this.lastClick = { id: '', at: 0 };
+      if (tool === 'spray' && fileId) {
+        const rt = this.deps.runtime.byId.get(fileId)!.runtime;
+        if (rt.char > 0 && this.deps.runtime.useSpray(fileId)) this.deps.sfx.pop(1.4);
+      } else if (tool === 'heat') this.heatTarget = fileId;
+      else if (tool === 'squeegee') { this.squeegeeing = true; this.sqLast = { x, y }; }
+      else if (tool === 'broom') { this.brooming = true; this.deps.sweepGlyphs?.(x, y); }
+      return;
+    }
     if (fileId) {
       if (e.ctrlKey) {
         if (this.selected.has(fileId)) this.selected.delete(fileId);
@@ -250,32 +292,6 @@ export class PointerController {
     // 回收站是系统特殊项：只响应双击，不参与网格拖拽
     if (sprite?.node.kind === 'recycle') return;
     if (e.ctrlKey || e.shiftKey) { this.lastClick = { id: '', at: 0 }; return; }
-
-    if (tool === 'scissors') {
-      return;
-    }
-    if (tool === 'spray') {
-      if (fileId) {
-        const rt = this.deps.runtime.byId.get(fileId)!.runtime;
-        if (rt.char > 0 && this.deps.runtime.useSpray(fileId)) this.deps.sfx.pop(1.4);
-      }
-      return;
-    }
-    if (tool === 'heat') {
-      // 吹风机：按住施热（game tick 每帧 applyHeat；焦化由演化域产出）
-      if (fileId) this.heatTarget = fileId;
-      return;
-    }
-    if (tool === 'squeegee') {
-      this.squeegeeing = true;
-      this.sqLast = { x, y };
-      return;
-    }
-    if (tool === 'broom') {
-      this.brooming = true;
-      this.deps.sweepGlyphs?.(x, y);
-      return;
-    }
 
     // 手工具：吸湿盒拖拽 > 湿文件拧干 > 拖文件 > 边缘拉绳
     if (tool === 'hand') {

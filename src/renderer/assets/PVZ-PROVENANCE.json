@@ -1,0 +1,70 @@
+{
+  "source": "https://github.com/i-Eureka/NewPvzJs-v1.6/tree/6d4517524fe9f0bd6fb3bacbce6b537b951b74ac",
+  "copyright": "Plants vs. Zombies / PopCap / EA",
+  "license": "No asset redistribution license found in upstream; not covered by this repository MIT license.",
+  "userDirection": "2026-10-23: use supplied Scaredy-shroom / Doom-shroom reference appearance and reuse existing original assets in the local demo.",
+  "operation": "Original GIF frames decoded to RGBA, common transparent margins trimmed, fixed cells with 2px transparent gutters; frame timing preserved, no repainting.",
+  "assets": {
+    "shy": {
+      "width": 51,
+      "height": 67,
+      "columns": 5,
+      "padding": 2,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "source": "ScaredyShroom.gif",
+      "sha256": "0131752f32dd2fd16cb14527a44132954b2063d6958105a0da66d7f475072c9f"
+    },
+    "lava": {
+      "width": 91,
+      "height": 76,
+      "columns": 5,
+      "padding": 2,
+      "durations": [
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40,
+        40
+      ],
+      "source": "DoomShroom.gif",
+      "sha256": "8904e6c80fde5fc899ad36cb8d4b80d40900903446d9f37641fd88762dc14413"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # 回南天 Cyber Damp
 
-本轮开发进展：[2026-10-21体验增量](docs/EXPERIENCE-INCREMENT-2026-10-21.md)。[十二种连续材质样片与两套游戏界面预览](previews/material-library/README.md)已可独立查看；原生输入工具当前不可用，完整Goal仍未验收。
+本轮开发进展：[启动反馈与后台图标提取](docs/STARTUP-EXPERIENCE-2026-10-23.md)、[输入与启动修复](docs/INTERACTION-PERFORMANCE-2026-10-22.md)、[体验增量与包记录](docs/EXPERIENCE-INCREMENT-2026-10-21.md)、[2026-10-22原生回归](docs/NATIVE-UAT-2026-10-22.md)。用户最新反馈重新打开卡顿与工具冲突问题，历史性能认可不代表当前通过；完整Goal仍未验收。
 
 > **2026-10-21 当前方向：** 开发进行中。用户已认可原生排版与样片迁移方向，并明确当前性能满足使用要求；下一轮集中修复图标准确性、可见对象的点击操作，以及独立商城/设置的完整体验。现按用户进一步反馈执行 [修订目标与开发计划](docs/superpowers/specs/2026-10-21-experience-direction-and-plan.md)：复用旧版、恢复单击选中、统一游戏式 UI，并扩充多种动态样片。工作区源码、下方历史 0.1.9 便携包与最终用户验收分别记录，不能混用。
 >
@@ -8,7 +8,7 @@
 
 Windows 桌面玩具：真实桌面文件受潮、发霉，拖动替身拉绳晾晒，采蘑菇升级家务装备。
 
-当前修复版 **0.1.9**。技术栈：Electron 44、Pixi.js 8、TypeScript、koffi / Win32，材质变形使用 PixiJS Filters 6。
+当前开发体验包 **0.1.22**：新增真实阶段启动提示与后台图标提取，等待期间保留原生桌面，就绪后自动关闭提示并播放；浏览/工具动作分离，Esc退出工具，白色文件名独立于材质，启动安全就绪后自动回放；保留已认可商城/HUD美术与窗口壳。部分原生回归通过，完整矩阵和性能感官确认未通过；下方0.1.9记录属于历史交付。真实麦克风/音频听感尚未验收。技术栈：Electron 44、Pixi.js 8、TypeScript、koffi / Win32，材质变形使用 PixiJS Filters 6。
 
 ## 启动与构建
 
@@ -23,9 +23,11 @@ npm start
 npm run dist:win
 ```
 
-便携版：`release/Cyber Damp 0.1.9.exe`。未签名；完整终极 UAT 仍未通过，逐项状态见下方验收记录。
+Windows打包复用`node_modules/electron/dist`中已安装的锁定版本运行时（electron-builder官方`electronDist`能力），无需为每次打包重复下载Electron。需先按锁文件安装依赖。
 
-设置面板中的“退出回南天”会恢复原生桌面；正常退出与强杀恢复已分别做原生可见性计时测试。程序不移动、不改写真实文件和 Explorer 的图标坐标。
+本机优先运行完整目录中的`release/win-unpacked/Cyber Damp.exe`；分发使用`release/Cyber Damp-0.1.21-win.zip`，解压一次后双击其中exe，保留同目录资源。单文件`release/Cyber Damp 0.1.21.exe`每次启动重新解包，本机这轮总启动明显更慢，不作为优先体验入口。版本、哈希与未测范围见上方本轮修复记录；完整UAT仍未通过。
+
+设置面板中的“退出回南天”走恢复原生桌面的路径；本机0.1.16原生退出恢复实测62ms，0.1.11强制终止恢复94ms，不推广成所有版本/机器均已通过。程序不移动、不改写真实文件和 Explorer 的图标坐标。
 
 ## 真实桌面与本地数据
 

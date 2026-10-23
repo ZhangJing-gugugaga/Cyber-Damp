@@ -1,0 +1,45 @@
+{
+  "author": "Kenney",
+  "page": "https://kenney.nl/assets/ui-pack-adventure",
+  "source": "https://kenney.nl/media/pages/assets/ui-pack-adventure/9a877376bc-1723597274/kenney_ui-pack-adventure.zip",
+  "archiveSha256": "982e8ab66842509ee9214f9c2038e594cbe029f19d1dc177fecaad3b41a67ed3",
+  "license": "CC0 1.0",
+  "assets": [
+    {
+      "file": "panel_brown.svg",
+      "sha256": "dded438c7b82b4e4d7ba3fd33e74e6e027757247fcb78efdd1001dea1164fea8",
+      "archivePath": "Vector/panel_brown.svg",
+      "changes": "none"
+    },
+    {
+      "file": "panel_brown_dark.svg",
+      "sha256": "37ac9f8800348da62e51d1e756bd6ae225fe99efc9ddd1f0e5366e8355135add",
+      "archivePath": "Vector/panel_brown_dark.svg",
+      "changes": "none"
+    },
+    {
+      "file": "panel_border_brown.svg",
+      "sha256": "2bd004c0ee296e8a7cc757f0cdf2ef59522414a3bac4e3a1cc6f05157c9b2bf4",
+      "archivePath": "Vector/panel_border_brown.svg",
+      "changes": "none"
+    },
+    {
+      "file": "button_brown.svg",
+      "sha256": "822b39af4d2e34ad4434b74e87680978acdb4ec9f35bc3963e4f654244f067e0",
+      "archivePath": "Vector/button_brown.svg",
+      "changes": "none"
+    },
+    {
+      "file": "button_grey.svg",
+      "sha256": "2f4bb6b6ebb0d2a53bffa773f1ec6453f906ed480a9afee5886bd3c9e580d8f7",
+      "archivePath": "Vector/button_grey.svg",
+      "changes": "none"
+    },
+    {
+      "file": "banner_hanging.svg",
+      "sha256": "f9b4a93eb14babd86e3d154d7afab81c4af0e69a01af686caff0875d6367a4ee",
+      "archivePath": "Vector/banner_hanging.svg",
+      "changes": "none"
+    }
+  ]
+}

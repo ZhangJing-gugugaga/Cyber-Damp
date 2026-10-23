@@ -15,6 +15,15 @@ export interface SellResult {
   remaining: InventoryItem[];
 }
 
+/** 复用普通采摘现有临时计价；剪落物在采摘时记录相同品相，不另定价格。 */
+export function harvestPrice(item: InventoryItem, humidity: number): number {
+  if (!Number.isFinite(item.growth) || item.growth <= 0 || item.growth > 1 ||
+      !Number.isFinite(humidity) || humidity < 0 || humidity > 1) {
+    throw new RangeError('Invalid harvest growth or humidity');
+  }
+  return Math.max(1, Math.round((SPECIES[item.species]?.price ?? 0) * (0.25 + 0.75 * humidity) * Math.max(.1, item.growth)));
+}
+
 /** 售卖库存中全部成熟蘑菇，返回新余额与剩余库存 */
 export function sellMushroom(inventory: InventoryItem[], coins: number): SellResult {
   let earned = 0;

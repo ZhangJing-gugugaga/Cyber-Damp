@@ -23,6 +23,7 @@ export function createHoverCard(
   mount: HTMLElement,
   runtime: WorldRuntime,
   sprites: Map<string, FileSprite>,
+  mushroomHit?: (x: number, y: number) => string | null,
 ): HoverCard {
   const el = document.createElement('div');
   el.className = 'hover-card';
@@ -66,7 +67,7 @@ export function createHoverCard(
       return;
     }
     // 蘑菇长在图标上方、会伸进上一格；悬停卡片优先归属蘑菇本体
-    const shroomId = mushroomAt(sprites, runtime, x, y);
+    const shroomId = mushroomHit ? mushroomHit(x, y) : mushroomAt(sprites, runtime, x, y);
     const sprite = (shroomId ? sprites.get(shroomId) : null) ?? fileAt(sprites, x, y);
     if (!sprite) {
       if (el.style.display !== 'none') el.style.display = 'none';

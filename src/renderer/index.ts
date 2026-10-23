@@ -34,7 +34,10 @@ async function main(): Promise<void> {
   trackEvent('app_launch', { firstEver });
 
   // Pixi v8 异步 init；画布挂载 + 游戏世界装配
+  void window.damp?.management.command({ action: 'startup-stage', value: 'graphics' });
+  const graphicsAt = performance.now();
   const app = await createPixiApp();
+  console.info('[startup:graphics]', Math.round(performance.now() - graphicsAt));
   document.getElementById('stage')?.appendChild(app.canvas);
   await createGame(app);
 }

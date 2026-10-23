@@ -5,6 +5,7 @@
  */
 import type { WorldRuntime } from '../app/world-runtime';
 import type { Tool } from '../input/pointer-controller';
+import shovelUrl from '../assets/pvz-shovel.png?url';
 import { icon, renderIcons } from './icons';
 
 interface ToolDef {
@@ -15,8 +16,9 @@ interface ToolDef {
 }
 
 const TOOLS: ToolDef[] = [
-  { id: 'hand', lucide: 'hand', label: '手：拖拽晾晒 / 画圈拧干' },
-  { id: 'scissors', lucide: 'scissors', label: '剪刀：采摘成熟蘑菇' },
+  { id: 'hand', lucide: 'hand', label: '浏览：单击选中 / 双击打开 / 拖拽晾晒' },
+  { id: 'scissors', lucide: 'scissors', label: '剪刀：采摘普通蘑菇；彩蛋菇请用铲子' },
+  { id: 'shovel', lucide: 'shovel', label: 'PVZ铲子：采摘彩蛋菇；胆小菇不会躲藏' },
   { id: 'spray', lucide: 'spray-can', label: '保湿喷雾：焦化恢复（消耗品）' },
   { id: 'heat', lucide: 'wind', label: '手持吹风机：按住吹干，过热会焦化' },
   { id: 'squeegee', lucide: 'eraser', label: '橡胶刮水器：拖动刮去屏幕雾气' },
@@ -26,6 +28,7 @@ const TOOLS: ToolDef[] = [
 export interface Toolbox {
   el: HTMLElement;
   getTool(): Tool;
+  select(tool: Tool): void;
   refresh(): void;
 }
 
@@ -50,19 +53,26 @@ export function createToolbox(mount: HTMLElement, runtime: WorldRuntime): Toolbo
   });
 
   const cells: HTMLButtonElement[] = [];
+  const instruction = document.createElement('p');
+  instruction.className = 'toolbox__instruction';
+  instruction.setAttribute('role', 'status');
+  const modeStatus = document.createElement('p');
+  modeStatus.className = 'tool-mode-status'; modeStatus.setAttribute('role', 'status');
+  (mount.closest('.rain-dock') ?? mount).appendChild(modeStatus);
   TOOLS.forEach((t, i) => {
     const cell = document.createElement('button');
     cell.type = 'button';
     cell.className = 'tool-cell';
-    cell.innerHTML = `${icon(t.lucide, 20)}<span class="tool-cell__label">${t.label}</span>`;
+    cell.title = t.label;
+    cell.setAttribute('aria-label', t.label);
+    cell.innerHTML = `${t.id === 'shovel' ? `<img src="${shovelUrl}" alt="" width="38" height="24">` : icon(t.lucide, 24)}<span class="tool-cell__label">${t.label.split('：')[0]}</span>`;
     if (t.disabled) {
       cell.setAttribute('aria-disabled', 'true');
       cell.title = '功能在路线图上，还没有到站';
     } else {
       cell.dataset.tool = t.id;
       cell.addEventListener('click', () => {
-        current = t.id;
-        syncSelected();
+        select(t.id);
       });
     }
     if (t.id === 'spray') cell.dataset.spray = '1';
@@ -75,12 +85,28 @@ export function createToolbox(mount: HTMLElement, runtime: WorldRuntime): Toolbo
     for (const cell of cells) {
       const t = TOOLS[Number(cell.dataset.index)];
       cell.classList.toggle('tool-cell--active', !t.disabled && t.id === current && cell.dataset.tool === current);
+      cell.setAttribute('aria-pressed', String(t.id === current));
     }
+    instruction.textContent = TOOLS.find(t => t.id === current)!.label + (current === 'hand' ? '' : ' · Esc 返回浏览');
+    modeStatus.hidden = current === 'hand';
+    modeStatus.textContent = `${TOOLS.find(t => t.id === current)!.label.split('：')[0]} · Esc 返回浏览`;
+  }
+
+  function select(tool: Tool): void {
+    if (tool === 'shovel' && !runtime.owned.includes('pvz-shovel')) return;
+    current = tool;
+    syncSelected();
+    void window.damp?.management.command({ action: 'tool-mode', value: tool === 'hand' ? 'off' : 'on' });
+    window.dispatchEvent(new Event('damp:tool-change'));
   }
 
   function refresh(): void {
     // 喷雾无货置灰提示
     for (const cell of cells) {
+      if (cell.dataset.tool === 'shovel') {
+        cell.disabled = !runtime.owned.includes('pvz-shovel');
+        cell.title = cell.disabled ? '先到雨天小铺免费领取PVZ铲子' : '铲子已就绪：胆小菇不再躲藏，点击采摘';
+      }
       if (cell.dataset.spray === '1' && !cell.hasAttribute('aria-disabled')) {
         cell.title = runtime.sprayCharges > 0 ? `剩余 ${runtime.sprayCharges} 罐` : '杂货铺有售（20 币/罐）';
       }
@@ -88,13 +114,16 @@ export function createToolbox(mount: HTMLElement, runtime: WorldRuntime): Toolbo
   }
 
   mount.appendChild(entry);
+  el.appendChild(instruction);
   mount.appendChild(el);
   renderIcons();
   syncSelected();
+  refresh();
 
   return {
     el,
     getTool: () => current,
+    select,
     refresh,
   };
 }

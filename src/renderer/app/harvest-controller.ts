@@ -5,7 +5,7 @@ import type { ParticlePool } from '../view/particles';
 import type { Sfx } from '../audio/sfx';
 import type { Tool } from '../input/pointer-deps';
 import type { MushroomState } from '../../shared/types/file-runtime';
-import { SPECIES } from '../../world/mushroom-species';
+import { harvestPrice } from '../../world/economy';
 import { cutMushroom, tickCutMushroom, boleteCutColor, heatSpecialMushroom, mushroomSaleEffect } from '../../world/special-mushrooms';
 import { Hallucination } from '../view/hallucination';
 import { sporeBurst } from '../input/fx-burst';
@@ -25,6 +25,7 @@ interface HarvestDeps {
 }
 interface Detached {
   item: MushroomState;
+  value: number;
   view: MushroomView;
   cutFace: Graphics;
   vy: number;
@@ -56,6 +57,8 @@ export class HarvestController {
     window.addEventListener('pointerup', this.onUp, true);
     window.addEventListener('pointercancel', this.cancel, true);
     window.addEventListener('blur', this.cancel);
+    window.addEventListener('damp:tool-change', this.cancel);
+    window.addEventListener('keydown', event => { if (event.key === 'Escape') this.cancel(); });
   }
 
   /** Return true for special species even when unavailable, preventing ordinary auto-sale. */
@@ -67,12 +70,13 @@ export class HarvestController {
     if (this.deps.runtime.locked || this.detached.length >= 16) return true;
     const item = cutMushroom(mushroom), view = this.deps.shrooms.get(id);
     if (!item || !view || !entity) return true;
+    const value = harvestPrice(item, entity.runtime.humidity);
     entity.runtime.mushroom = null;
     this.deps.shrooms.delete(id);
     view.setDetached();
     this.deps.layer.addChild(view.container);
     const cutFace = new Graphics(); view.container.addChild(cutFace);
-    this.detached.push({ item, view, cutFace, vy: 0, falling: false, bounces: 0, smoke: 0 });
+    this.detached.push({ item, value, view, cutFace, vy: 0, falling: false, bounces: 0, smoke: 0 });
     this.deps.runtime.stats.harvested += 1;
     this.deps.runtime.onChange?.(); this.deps.refresh(); this.deps.sfx.snip();
     sporeBurst(this.deps.pool, view.container.x, view.container.y);
@@ -97,7 +101,7 @@ export class HarvestController {
     this.time += dt; this.hallucination.update(dt);
     for (const target of this.detached) {
       tickCutMushroom(target.item, dt);
-      target.view.update(1, this.time);
+      target.view.update(target.item.growth, this.time);
       target.cutFace.clear();
       if (target.item.species === 'bolete') {
         target.cutFace.ellipse(0, 1, 6, 3.2).fill(boleteCutColor(target.item))
@@ -141,6 +145,7 @@ export class HarvestController {
   private readonly onDown = (event: PointerEvent): void => {
     if (event.button !== 0 || this.deps.runtime.locked) return;
     if (isUiElement(event.target)) return;
+    if (this.deps.getTool() !== 'hand' && this.deps.getTool() !== 'heat') return;
     const target = this.at(event.clientX, event.clientY);
     if (!target) return;
     this.gesture = { target, pointerId: event.pointerId,
@@ -186,7 +191,7 @@ export class HarvestController {
   }
 
   private sell(target: Detached): void {
-    const effect = mushroomSaleEffect(target.item), price = SPECIES[target.item.species].price;
+    const effect = mushroomSaleEffect(target.item), price = target.value;
     this.deps.runtime.chargeCoins(-price);
     this.deps.runtime.stats.earned += price;
     this.deps.runtime.onChange?.(); this.deps.refresh(); this.deps.sfx.coin();

@@ -17,6 +17,7 @@ assert.ok(overlay,'Only kill the attached Cyber Damp test instance');
 assert.equal(visible(list),false,'Native icons must be hidden before the test');
 const ids=[0];processId(overlay,ids);
 const normal = process.argv[2] === 'normal';
+const observe = process.argv[2] === 'observe';
 let socket;
 if (normal) {
   const targets=await (await fetch('http://127.0.0.1:9222/json')).json();
@@ -24,13 +25,27 @@ if (normal) {
   socket=new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true})});
 }
+if (observe) {
+  assert.ok(process.argv[3],'Observe mode requires an isolated output JSON path');
+  // The caller arms this probe, inspects the native exit button, then clicks
+  // through Windows-MCP. This mode observes only; it never sends input.
+  const down=u.func('int16 GetAsyncKeyState(int key)');
+  const deadline=performance.now()+15000;
+  fs.writeFileSync(`${process.argv[3]}.armed`,JSON.stringify({pid:process.pid,waitingFor:'native-left-button'}));
+  let pressed=false;
+  while(performance.now()<deadline){
+    if((down(1)&0x8000)!==0){pressed=true;break}
+    await new Promise(r=>setTimeout(r,2));
+  }
+  assert.ok(pressed,'No native exit-button press observed within 15 seconds');
+}
 const start=performance.now();
 if(normal) socket.send(JSON.stringify({id:1,method:'Runtime.evaluate',params:{expression:'void window.damp.app.quit()'}}));
-else process.kill(ids[0],'SIGKILL');
+else if(!observe) process.kill(ids[0],'SIGKILL');
 while(!visible(list)&&performance.now()-start<2000) await new Promise(r=>setTimeout(r,5));
 const elapsed=performance.now()-start;
 socket?.close();
-const record={test:normal?'normal-quit':'forced-process-termination',pid:ids[0],restored:visible(list),elapsedMs:Math.round(elapsed),pass:visible(list)&&elapsed<500};
+const record={test:observe?'native-exit-click':normal?'normal-quit':'forced-process-termination',pid:ids[0],restored:visible(list),elapsedMs:Math.round(elapsed),pass:visible(list)&&elapsed<500};
 fs.writeFileSync(process.argv[3] ?? `logs/native-uat/${normal?'normal':'forced'}-exit.json`,JSON.stringify(record,null,2));
 console.log(JSON.stringify(record));
 if (!record.restored) u.func('bool ShowWindow(void *h,int cmd)')(list,5);

@@ -584,6 +584,9 @@ html.cursor-hygrometer, html.cursor-hygrometer * {
 }
 
 /* ---------- 成熟蘑菇 hover：剪刀光标（纯 CSS data-URI，无外部资源） ---------- */
+html[data-tool]:not([data-tool="hand"]) canvas { cursor: crosshair; }
+.tool-mode-status { position:absolute; right:64px; bottom:64px; width:max-content; max-width:calc(100vw - 100px); padding:6px 12px; margin:0; color:#fff5dc; background:#39483bea; border-radius:5px; pointer-events:none; font:14px "Microsoft YaHei",sans-serif; }
+html[data-tool]:not([data-tool="hand"])[data-tool-valid="false"] canvas { cursor: not-allowed; }
 html.cursor-scissors,
 html.cursor-scissors body,
 html.cursor-scissors #stage,
@@ -636,14 +639,48 @@ html.cursor-scissors canvas {
 .rain-dock{position:absolute;right:16px;bottom:16px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
 .rain-dock__toggle{pointer-events:auto;width:52px;height:52px;padding:0;border:0;background:transparent;cursor:pointer;filter:drop-shadow(0 3px 3px #263e4740)}
 .rain-dock__toggle img{width:100%;height:100%}.rain-dock__toggle:hover{transform:translateY(-2px)}.rain-dock__toggle:focus-visible{outline:2px solid #9bc2cb;border-radius:50%}
-.rain-dock__cabinet{width:290px;padding:12px;background:#dce5de;color:var(--cabinet-ink);border-radius:12px;box-shadow:0 6px 20px #263e4730;border-bottom:4px solid #b59a73;display:flex;gap:7px;flex-wrap:wrap;pointer-events:auto}
+.rain-dock__cabinet{width:290px;padding:12px;background:var(--cabinet-surface);color:var(--cabinet-ink);border-radius:12px;box-shadow:0 6px 20px #263e4730;border-bottom:4px solid #b59a73;display:flex;gap:7px;flex-wrap:wrap;pointer-events:auto}
 .rain-dock__cabinet[hidden]{display:none!important}
 .rain-dock__cabinet .hud-btn{position:static;width:auto;height:36px;flex:1;border:0;background:#c4d4c9;color:var(--cabinet-ink)}
 .rain-dock__cabinet .hud-btn--toolbox{display:none}
 .rain-dock__cabinet .coin-pill{position:static;width:100%;border:0;padding:0;background:transparent;color:#5d4c25}
 .rain-dock__cabinet .coin-pill__value{color:inherit}
+.rain-dock__cabinet .coin-pill__hint{font-size:11px;margin-left:auto;color:var(--cabinet-active)}
 .rain-dock__cabinet .weather-sign{position:static;transform:none;padding:4px 0;min-width:0;width:100%;background:transparent;border:0;box-shadow:none;font-size:11px;gap:5px;color:var(--cabinet-ink)}
 .rain-dock__cabinet .weather-sign::before{display:none}.rain-dock__cabinet .weather-sign__readout{gap:8px}
+.rain-dock__cabinet .weather-sign__readout svg,.rain-dock__cabinet .weather-sign__humidity b{color:var(--cabinet-active)}
+.rain-dock__cabinet .weather-sign__migrate{color:var(--cabinet-ink);background:var(--cabinet-backdrop);border-color:var(--cabinet-shell)}
+.rain-dock__cabinet .weather-sign__migrate:hover{background:var(--cabinet-face)}
+.rain-dock__cabinet .weather-sign__migrate:disabled{color:var(--cabinet-active)}
 .rain-dock__cabinet .toolbox{position:static;width:100%;background:transparent;padding:0;border:0;gap:2px}
 .rain-dock__cabinet .tool-cell{width:100%;min-height:36px;color:var(--cabinet-ink);font-size:11px;border-radius:4px}
 .rain-dock__cabinet .tool-cell--active{background:#bdcec1;border-color:#6d8d76}.rain-dock__cabinet .tool-cell:hover{background:#ccd9cf}
+.rain-dock__cabinet{border-radius:10px 10px 5px 5px;border-bottom:5px solid var(--cabinet-wood);box-shadow:0 4px 0 #8e8167,0 10px 24px #263e4730;padding:14px;gap:10px}
+.rain-dock__cabinet .hud-btn{display:flex;align-items:center;justify-content:center;gap:7px;background:transparent;border-radius:0;box-shadow:none;font-size:12px;border-bottom:1px solid #aab99c}
+.rain-dock__cabinet .hud-btn--toolbox{display:none}
+.rain-dock__cabinet .coin-pill{padding:7px 4px;background:#eee5c7;border-radius:3px;min-height:34px}
+.rain-dock__cabinet .toolbox{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.rain-dock__cabinet .tool-cell{display:flex;flex-direction:column;justify-content:center;gap:6px;min-height:74px;padding:8px 3px;border:0;border-radius:5px;font-size:11px;text-align:center;background:transparent;box-shadow:inset 0 -2px #abb99d}
+.rain-dock__cabinet .tool-cell svg{color:#627851;fill:#c5d0ab;filter:drop-shadow(0 2px 0 #62785120)}
+.rain-dock__cabinet .tool-cell--active{background:#f1e9c9;box-shadow:inset 0 -3px #a38d5d;color:#344b3c}.rain-dock__cabinet .tool-cell:hover{background:#d1ddc2}
+.toolbox__instruction{grid-column:1/-1;margin:4px 0 0;min-height:32px;font-size:11px;line-height:1.5;color:var(--cabinet-ink);pointer-events:none}
+/* Same licensed game surfaces as the manager inventory; one cabinet frame. */
+.rain-dock__cabinet{position:relative;isolation:isolate;box-sizing:border-box;border:0;border-image:none;background:none;padding:20px;color:#f1dfb5;border-radius:0;box-shadow:0 8px 18px #1c302b55;width:300px}
+.rain-dock__cabinet::before{content:"";position:absolute;inset:0;border:12px solid transparent;border-image:var(--game-dark-panel) 14 fill / 12px / 0 stretch;z-index:-1;opacity:var(--game-panel-opacity);pointer-events:none}
+.rain-dock__cabinet .coin-pill{border:7px solid transparent;border-image:var(--game-panel) 14 fill / 7px / 0 stretch;background:none;color:#614a25;border-radius:0;padding:3px 0}
+.rain-dock__cabinet .coin-pill__hint{color:#65552e;font-size:10px}
+.rain-dock__cabinet .hud-btn{border:6px solid transparent;border-image:var(--game-button) 8 fill / 6px / 0 stretch;background:none;color:#674927;border-radius:0;height:40px}
+.rain-dock__cabinet .weather-sign,.rain-dock__cabinet .weather-sign__readout svg,.rain-dock__cabinet .weather-sign__humidity b{color:#ead5a5}
+.rain-dock__cabinet .weather-sign__migrate{color:#f4e2b7;background:#82643f;border-color:#baa071}
+.rain-dock__cabinet .tool-cell{color:#ead7a9;border-radius:0;box-shadow:none;border-bottom:3px solid #ae8b56}
+.rain-dock__cabinet .tool-cell svg{color:#e2cea0;fill:#9c9b6a;filter:drop-shadow(0 2px 0 #403c2860)}
+.rain-dock__cabinet .tool-cell:hover{background:#d6bc7b22}
+.rain-dock__cabinet .tool-cell--active{border:6px solid transparent;border-image:var(--game-panel) 14 fill / 6px / 0 stretch;background:none;color:#5c4828;box-shadow:none}
+.rain-dock__cabinet .tool-cell--active svg{color:#715e36;fill:#c9c394}
+.rain-dock__cabinet .toolbox__instruction{color:#eddab0}
+
+html[data-tool="shovel"][data-tool-valid="true"] canvas { cursor: url("../assets/pvz-shovel.png") 12 28, crosshair; }
+.tool-cell:disabled { opacity:.45; cursor:not-allowed; }
+.tool-cell img { object-fit:contain; }
+
+.rain-dock__cabinet { max-height:calc(100vh - 100px); overflow-y:auto; }

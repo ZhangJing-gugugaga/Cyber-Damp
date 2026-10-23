@@ -10,7 +10,8 @@ const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function files(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(path.join(dir, entry.name)) : [path.join(dir, entry.name)]); }
 const checked = ['renderer', 'main', 'preload', 'shared'].flatMap(dir => files(path.join('dist', dir)));
 const mismatches = checked.filter(file => hash(asar.extractFile(archive, path.normalize(file))) !== hash(fs.readFileSync(file)));
-const researchAssets = asar.listPackage(archive).filter(file => file.includes('mildew-lifecycle') || file.endsWith('effects.html') || file.endsWith('specials.html'));
+const researchAssets = asar.listPackage(archive).filter(file => file.includes('mildew-lifecycle') || file.endsWith('effects.html') || file.endsWith('specials.html') ||
+  /pvz-original-reference|ScaredyShroom\.gif|DoomShroom\.gif|Shovel\.gif|shovel-first-frame\.png/i.test(file));
 const executable = path.resolve(`release/Cyber Damp ${expected}.exe`);
 const result = { scope: 'package-resource-consistency-not-native-uat', expected, version: packaged.version,
   checkedFiles: checked.length, mismatches, researchAssets, executable, bytes: fs.statSync(executable).size,

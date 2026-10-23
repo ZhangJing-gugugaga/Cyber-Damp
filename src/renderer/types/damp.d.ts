@@ -33,6 +33,14 @@ declare global {
         load(): Promise<SaveData | null>;
         write(data: SaveData): Promise<{ ok: boolean }>;
       };
+      weather: {
+        current(location: import('../../shared/types/weather').WeatherLocation, forceRefresh?: boolean): Promise<import('../../shared/types/weather').WeatherLookup>;
+        searchCity(query: string): Promise<{ ok: true; options: import('../../shared/types/weather').CityOption[] } | { ok: false; error: string }>;
+      };
+      icon: {
+        applyState(items: Array<{ id: string; realPath: string; kind: 'dir' | 'lnk'; sourcePngBase64: string; eventId?: string }>): Promise<Array<{ id: string; ok: true } | { id: string; ok: false; reason: string; retryable: boolean }>>;
+        restoreAll(): Promise<Array<{ id: string; realPath: string; kind: 'dir' | 'lnk'; outcome: 'restored' | 'kept-user-value' | 'missing' | 'failed'; detail?: string }>>;
+      };
       system: {
         onCpu(cb: (usage: number) => void): () => void;
         onDisplayChanged(cb: (size: import('../../shared/types/desktop').DisplayChangedNotice) => void): () => void;

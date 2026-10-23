@@ -1,10 +1,10 @@
 /** Special fungi are logical surrogate state; real files are never changed. */
-import { GB } from '../shared/constants';
+import { GB, MUSHROOM_GROWTH_PER_SECOND } from '../shared/constants';
 import type { ExtCategory, FileKind } from '../shared/types/file-node';
 import type { FileRuntime, MushroomState } from '../shared/types/file-runtime';
 
 export const BOLETE_ADJACENCY_DISTANCE = 80;
-export const SPECIAL_GROW_SECONDS = 8;
+export const SPECIAL_GROW_SECONDS = 1 / MUSHROOM_GROWTH_PER_SECOND;
 export const BOLETE_COOK_SECONDS = 3;
 export const BOLETE_OXIDIZE_SECONDS = 0.5;
 export const HALLUCINATION_SECONDS = 8;
@@ -65,7 +65,7 @@ export function tickSpecialMushrooms(
   for (const file of files) {
     const rt = file.runtime;
     if (file.kind !== 'recycle' && Number.isFinite(file.sizeBytes) && file.sizeBytes >= LAVA_MIN_BYTES
-      && rt.stage === 'moldy' && rt.mold > 0.6 && rt.state !== 'burnt'
+      && !rt.dryCare && rt.stage === 'moldy' && rt.mold > 0.6 && rt.state !== 'burnt'
       && rt.mushroom?.species !== 'lava' && rt.mushroom?.species !== 'shy') {
       rt.mushroom = { species: 'lava', growth: 0 };
       events.push({ type: 'sprout', id: file.id, species: 'lava' });
@@ -73,7 +73,7 @@ export function tickSpecialMushrooms(
   }
   for (const pair of findBoletePairs(files, hung)) {
     const rt = byId.get(pair.documentId)!.runtime;
-    if (rt.state === 'burnt' || rt.mushroom && !['oyster', 'enoki'].includes(rt.mushroom.species)) continue;
+    if (rt.dryCare || rt.state === 'burnt' || rt.mushroom && !['oyster', 'enoki'].includes(rt.mushroom.species)) continue;
     rt.mushroom = { species: 'bolete', growth: 0 };
     events.push({ type: 'sprout', id: pair.documentId, species: 'bolete' });
   }
@@ -81,8 +81,7 @@ export function tickSpecialMushrooms(
   for (const file of files) {
     const m = file.runtime.mushroom;
     if (!m || m.species !== 'bolete' && m.species !== 'lava') continue;
-    const untilMature = Math.max(0, 1 - m.growth) * SPECIAL_GROW_SECONDS;
-    m.growth = Math.min(1, m.growth + dtSec / SPECIAL_GROW_SECONDS);
+    if (!file.runtime.dryCare) m.growth = Math.min(1, m.growth + dtSec * MUSHROOM_GROWTH_PER_SECOND);
     if (m.species === 'lava') delete m.lavaSeconds;
   }
   for (const file of exploding) events.push(explodeLava(file, files));
@@ -117,7 +116,7 @@ export function heatSpecialMushroom(m: MushroomState | null, dtSec: number, stre
 
 /** The detached item is a copy; caller removes the original from its file. */
 export function cutMushroom(m: MushroomState | null): MushroomState | null {
-  if (!m || m.growth < 1) return null;
+  if (!m || !Number.isFinite(m.growth) || m.growth <= 0 || m.growth > 1) return null;
   const cut = { ...m };
   delete cut.lavaSeconds;
   if (cut.species === 'bolete') cut.cutAgeSeconds = 0;

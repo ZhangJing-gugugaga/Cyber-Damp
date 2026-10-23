@@ -5,7 +5,7 @@
  */
 import type { WorldRuntime } from './world-runtime';
 import { CITIES } from '../../world/weather-simulator';
-import { sellMushroom } from '../../world/economy';
+import { sellMushroom, harvestPrice } from '../../world/economy';
 import { purchase, getItem } from '../../world/shop-catalog';
 import { pickSpecies, SPECIES } from '../../world/mushroom-species';
 import { clamp01 } from './clamp';
@@ -40,9 +40,9 @@ export function pickMushroom(rt: WorldRuntime, id: string): InventoryItem | null
   const m = ent?.runtime.mushroom;
   if (!ent || !m || m.growth <= 0) return null;
   if ((m.species === 'shy' || m.species === 'lava') && !rt.owned.includes('pvz-shovel')) return null;
-  ent.runtime.mushroom = null;
   const item = { species: m.species, growth: m.growth };
-  const price = Math.max(1, Math.round((SPECIES[m.species]?.price ?? 0) * (0.25 + 0.75 * ent.runtime.humidity) * Math.max(.1, m.growth)));
+  const price = harvestPrice(item, ent.runtime.humidity);
+  ent.runtime.mushroom = null;
   rt.coins += price;
   rt.stats.harvested += 1;
   rt.stats.earned += price;

@@ -5,7 +5,7 @@
     {
       "path": "src/renderer/assets/mushrooms-atlas.png",
       "prompt": "Use case: stylized-concept. Asset type: transparent PNG sprite atlas for Cyber Damp Windows desktop toy. Create a square 1024x1024 image, exactly four separate realistic miniature mushrooms, one centered in each equal quadrant with generous transparent padding, never touching quadrant edges. Top left: ivory oyster mushroom cluster with layered damp gills and beige caps. Top right: tall slender purple mushroom with two tiny dark eyes on its lilac cap, shy character, realistic organic texture. Bottom left: bolete mushroom, warm ochre cap and pale yellow stem, a freshly cut stem showing deep blue oxidation. Bottom right: large dark crimson mushroom with charcoal cap and thin glowing orange lava cracks. All rooted at bottom center of their quadrants, front facing orthographic view, equal grounded perspective, detailed moist fleshy texture and subtle soft lighting, photographic game prop realism readable at 48px. No soil, no ground plane, no text, no border, no labels, no background, genuine transparent alpha, no cast shadows outside each object. Keep each object entirely inside its quadrant with 60px padding. Intended quadrant order oyster / shy purple / blue bolete / lava.",
-      "usage": "oyster/shy/lava sprites in gameplay; the pre-oxidized bolete cell is superseded by bolete-intact.png"
+      "usage": "oyster sprite in gameplay; legacy shy/lava cells retained but superseded by PVZ frame atlases (separate PVZ-PROVENANCE.json); pre-oxidized bolete superseded by bolete-intact.png"
     },
     {
       "path": "src/renderer/assets/household-atlas.png",

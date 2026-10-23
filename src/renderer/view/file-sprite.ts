@@ -8,8 +8,9 @@
  * - 夹子只在 PINNED 状态可见；GRID / DRAGGING 绝不渲染夹子；
  * - 标签在绳上收窄到 68px，配合 72px 最小弧长间距，杜绝文字遮挡。
  */
-import { Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
-import { TwistFilter, BulgePinchFilter } from 'pixi-filters';
+import { Container, Graphics, Sprite, Text, Texture, type Renderer } from 'pixi.js';
+import { measureMaterialCoverage } from './material-coverage';
+import { TwistFilter } from 'pixi-filters';
 import { MaterialFilter } from './shaders/material-filter';
 import { FileLabel } from './file-label';
 import { IconMaterialSurface } from './icon-material-surface';
@@ -86,7 +87,6 @@ export class FileSprite {
   private pinned = false;
   private readonly material = new MaterialFilter();
   private readonly twist = new TwistFilter({ radius: 46, angle: 0, offset: { x: 32, y: 32 }, padding: 0 });
-  private readonly bulge = new BulgePinchFilter({ center: { x: 0.5, y: 0.5 }, radius: 40, strength: 0 });
   private wrung = false;
   private visibleTop = 0;
   private visualTop = FILE_ICON_TOP;
@@ -125,7 +125,7 @@ export class FileSprite {
     this.surface = new IconMaterialSurface(this.icon, this.material);
     if (this.icon && texture) {
       this.lifecycle = createMildewSurface(texture.source.resource as CanvasImageSource,
-        Math.round(hash01(node.id) * 0xffffffff), Math.ceil(this.iconSize * window.devicePixelRatio * 2),
+        Math.round(hash01(node.id) * 0xffffffff), Math.ceil(this.iconSize * window.devicePixelRatio),
         (u, v) => this.surface.nearestOpaque(u, v));
       this.lifecycle.update(0, 0, 0, 0);
       this.icon.texture = this.lifecycle.texture;
@@ -146,10 +146,9 @@ export class FileSprite {
     this.body.position.set(this.iconCenterX, FILE_ICON_TOP + this.visibleTop);
     this.body.addChild(
       this.iconLayer,
-      this.label,
       this.clip,
     );
-    this.container.addChild(this.selection, this.body, this.ghost);
+    this.container.addChild(this.selection, this.body, this.label, this.ghost);
   }
 
   /** Shell-sized feedback stays readable even when the artwork is deformed. */
@@ -160,9 +159,13 @@ export class FileSprite {
     const g = this.selection.clear();
     if (!selected && !hovered) return;
     const geometry = this.node.geometry;
-    const left = geometry ? Math.min(FILE_ICON_LEFT - 4, geometry.labelX - this.node.x - 3) : FILE_ICON_LEFT - 6;
-    const right = geometry ? Math.max(FILE_ICON_LEFT + this.iconSize + 4, geometry.labelX - this.node.x + geometry.labelWidth + 3) : FILE_ICON_LEFT + this.iconSize + 6;
-    const bottom = geometry ? geometry.labelY - this.node.y + geometry.labelHeight + 3 : FILE_ICON_TOP + this.iconSize + 25;
+    // Shell geometry stays fixed while the surrogate moves; use the same
+    // original local origin as label placement and hit(), not its dragged x/y.
+    const originX = geometry ? geometry.x - FILE_ICON_LEFT : this.node.x;
+    const originY = geometry ? geometry.y - FILE_ICON_TOP : this.node.y;
+    const left = geometry ? Math.min(FILE_ICON_LEFT - 4, geometry.labelX - originX - 3) : FILE_ICON_LEFT - 6;
+    const right = geometry ? Math.max(FILE_ICON_LEFT + this.iconSize + 4, geometry.labelX - originX + geometry.labelWidth + 3) : FILE_ICON_LEFT + this.iconSize + 6;
+    const bottom = geometry ? geometry.labelY - originY + geometry.labelHeight + 3 : FILE_ICON_TOP + this.iconSize + 25;
     g.roundRect(left, FILE_ICON_TOP - 4, right - left, bottom - FILE_ICON_TOP + 4, 2)
       .fill({ color: focused ? 0x78b9ec : 0xb0bdc7, alpha: selected ? 0.30 : 0.12 })
       .stroke({ color: focused ? 0xc1e3ff : 0xe0e6eb, alpha: selected ? 0.72 : 0.35, width: 1 });
@@ -176,6 +179,10 @@ export class FileSprite {
   }
   measureMildewOcclusion(pixels = Math.round(this.iconSize * window.devicePixelRatio)) {
     return this.lifecycle?.measureOcclusion(pixels) ?? null;
+  }
+  measureMaterialOcclusion(renderer: Renderer, pixels = Math.round(this.iconSize * window.devicePixelRatio)) {
+    const masks = this.lifecycle?.measureOcclusion(pixels);
+    return masks && this.icon ? measureMaterialCoverage(renderer, this.iconLayer, this.icon, this.material, masks, this.iconSize) : null;
   }
 
   /** 蘑菇根部锚点：图标上边框中心（与 (0.5, 1.0) 锚点等价） */
@@ -256,9 +263,9 @@ export class FileSprite {
     const pivotY = this.pinned ? FILE_ICON_TOP + this.visibleTop : FILE_ICON_TOP + this.iconSize / 2;
     this.iconLayer.pivot.set(this.iconCenterX, pivotY); this.iconLayer.position.set(this.iconCenterX, pivotY);
     this.iconLayer.scale.set(shrink, 1 - dryness * 0.18);
-    // Existing filter supplies gentle local swelling without changing Shell bounds.
-    this.bulge.radius = this.iconSize * .65;
-    this.bulge.strength = h > .35 ? (h - .35) * .12 : 0;
+    // Wetness and growing fungi already animate in the shared lifecycle atlas.
+    // Keep normal wet icons in the shared sprite batch instead of allocating a
+    // separate post-processing pass for a barely visible per-icon bulge.
     this.visualTop = pivotY + (FILE_ICON_TOP + this.visibleTop - pivotY) * (1 - dryness * 0.18);
     this.label.update(h, char, this.wrung);
     this.clip.position.y = FILE_ICON_TOP + this.visibleTop;
@@ -266,7 +273,6 @@ export class FileSprite {
       this.icon.tint = 0xffffff;
       if (this.twist.angle === 0) this.icon.filters = [
         ...(char > 0 || dryness > 0 ? [this.material] : []),
-        ...(this.bulge.strength > 0 ? [this.bulge] : []),
       ];
     }
     // Material shader samples the actual source alpha. Rectangle masks and

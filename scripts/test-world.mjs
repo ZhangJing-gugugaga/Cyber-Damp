@@ -8,7 +8,15 @@ import { stepEvolution, deriveStage } from '../dist/test/world/evolution.js';
 import { layoutDesktopCells, buildFileNodes } from '../dist/test/world/desktop-layout.js';
 import { pickSpecies, SPECIES } from '../dist/test/world/mushroom-species.js';
 import { simulateDay } from '../dist/test/world/weather-simulator.js';
-import { sellMushroom } from '../dist/test/world/economy.js';
+import { sellMushroom, harvestPrice } from '../dist/test/world/economy.js';
+
+test('direct and detached harvests share the existing growth and humidity valuation', () => {
+  assert.equal(harvestPrice({ species: 'shy', growth: .5 }, .5), 125);
+  assert.equal(harvestPrice({ species: 'shy', growth: 1 }, 1), 400);
+  assert.equal(harvestPrice({ species: 'oyster', growth: .5 }, 1), 3);
+  assert.throws(() => harvestPrice({ species: 'lava', growth: NaN }, 1), RangeError);
+  assert.throws(() => harvestPrice({ species: 'lava', growth: .5 }, Infinity), RangeError);
+});
 import { purchase } from '../dist/test/world/shop-catalog.js';
 import { validateSave } from '../dist/test/shared/save/save-schema.js';
 import { GB, ropePointLoad } from '../dist/test/shared/constants.js';

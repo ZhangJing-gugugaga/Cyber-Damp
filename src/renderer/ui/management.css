@@ -9,3 +9,60 @@ body[data-layout=inventory] main{display:grid;grid-template-columns:110px 1fr;ga
 .shop-categories{display:flex;gap:4px;margin:0 0 12px;flex-wrap:wrap}.shop-categories button{min-height:30px;padding:5px 10px;font-size:12px}.shop-categories button[aria-pressed=true]{background:var(--cabinet-active);color:white}
 #feedback{color:var(--cabinet-active)}#feedback:empty{display:none}
 #scene-error{color:#923d2f}#scene-error:empty{display:none}
+.preference-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;gap:12px;border-bottom:1px solid #c4d1c9}
+.preference-row button{min-width:72px;background:#d8e2dc}.preference-row button[aria-checked=true]{background:var(--cabinet-active);color:white}
+.veil-options{border:0;padding:0;margin:18px 0}.veil-options legend{margin-bottom:8px}.veil-options button[aria-pressed=true]{background:var(--cabinet-active);color:white}
+/* Keep game actions inside the actual window; scroll items, not the purchase. */
+body:not([data-layout=inventory]) main{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+body:not([data-layout=inventory]) main>header,body:not([data-layout=inventory]) main>.tabs,body:not([data-layout=inventory]) main>nav,body:not([data-layout=inventory]) main>p{flex-shrink:0}
+body:not([data-layout=inventory]) section[role=tabpanel]{flex:1;min-height:0;overflow:auto}
+body:not([data-layout=inventory]) #shop-page{display:flex;flex-direction:column}
+body:not([data-layout=inventory]) #shop-page>h2,body:not([data-layout=inventory]) #coins,body:not([data-layout=inventory]) .shop-categories{flex-shrink:0}
+body:not([data-layout=inventory]) .shop-layout{flex:1;min-height:0}
+body:not([data-layout=inventory]) #shop{height:100%;max-height:none;min-height:0}
+body:not([data-layout=inventory]) #item-detail{min-height:0;overflow:hidden}
+body:not([data-layout=inventory]) #item-detail .item-art{flex:1 1 100px;min-height:40px;max-height:160px;width:100%;max-width:160px}
+body:not([data-layout=inventory]) #item-detail .item-art svg{max-height:100%;max-width:100%}
+body:not([data-layout=inventory]) #item-detail h3{flex-shrink:0;margin:8px 0 4px}
+body:not([data-layout=inventory]) #item-detail p{min-height:1.7em;overflow:auto;margin:4px 0 8px}
+body:not([data-layout=inventory]) .purchase{flex-shrink:0;margin-top:auto}
+@media(max-height:600px){
+  body:not([data-layout=inventory]) main{padding:10px 14px}
+  body:not([data-layout=inventory]) header{padding-bottom:7px}
+  body:not([data-layout=inventory]) header .brand{width:32px;height:32px}
+  body:not([data-layout=inventory]) header h1{font-size:18px}
+  body:not([data-layout=inventory]) header p{display:none}
+  body:not([data-layout=inventory]) #shop-page>h2,body:not([data-layout=inventory]) #coins{display:none}
+  body:not([data-layout=inventory]) section[role=tabpanel]{padding:12px}
+  body:not([data-layout=inventory]) #feedback{margin:4px 0 8px}
+}
+/* Material pass: a painted rack, loose props, small price tags, paper counter. */
+header h1{font-family:"STKaiti","KaiTi","Microsoft YaHei UI",serif;font-size:27px;letter-spacing:3px}
+header p{font-size:11px;letter-spacing:3px;color:#64726c}
+header output{padding:9px 18px 9px 32px;background:#dbc18a;color:#534324;border-radius:50% 45% 40% 35% / 30% 35% 45% 40%;box-shadow:inset 0 -3px #bca16f,0 3px 0 #77867b26;position:relative}
+header output:before{content:"";position:absolute;left:12px;top:13px;width:11px;height:11px;border:2px solid #8b6c33;border-radius:50%}
+.tabs{gap:6px;padding:0 8px;background:transparent;border-radius:0;border-bottom:5px solid #657e70}
+.tabs button{background:#b8c9ba;color:#50624f;padding:10px 18px;border-radius:7px 7px 0 0}
+.tabs button[aria-selected=true]{background:var(--shed-green);color:#fff7e2;box-shadow:inset 0 3px #aab99a}
+section[role=tabpanel]{border-radius:3px 3px 10px 10px;box-shadow:0 3px 0 #a6b4a6}
+nav{padding:7px 0}nav button{font-size:11px;min-height:30px;padding:5px 8px}#status{font-size:11px;color:#5a705e}
+.shop-layout{grid-template-columns:minmax(0,1fr) 204px}
+#shop{gap:0 5px;grid-auto-rows:150px;padding:0 8px;scrollbar-color:#9d9479 transparent;background:repeating-linear-gradient(to bottom,#b9c9b1 0,#c4d0b8 132px,#b3a07d 132px,#d2b992 137px,#8c7c5e 141px,#a2ac92 143px,#b9c9b1 150px);border-radius:7px 7px 3px 3px;box-shadow:inset 3px 0 #93a28b,inset -3px 0 #93a28b}
+.item-slot{position:relative;min-width:0;min-height:143px;height:143px;gap:3px;padding:8px 3px 14px;border:0;border-radius:0;background:transparent}
+.item-slot:hover{background:#f6f0d626}.item-slot[aria-pressed=true]{background:radial-gradient(ellipse at 50% 55%,#fbf2cf99,transparent 72%);box-shadow:none}
+.item-slot[aria-pressed=true]:after{content:"";position:absolute;bottom:10px;width:26px;height:3px;background:#486647;border-radius:3px}
+.item-slot span{font-size:11px;line-height:1.35;text-align:center;max-width:100%;color:#2d4639}
+.item-slot small{font-size:10px;line-height:1.5;color:#64583f;background:#eee5c7;padding:0 7px;box-shadow:0 1px 1px #5e5f4533;transform:rotate(-2deg)}
+.item-art{height:72px;width:76px;color:#456b5e;filter:drop-shadow(0 4px 2px #31412c30)}
+.item-art svg{stroke-width:1.7;fill:#bdcdb6;stroke:#49644f;filter:none}
+.item-art[data-art=rope-1] svg{stroke:#98784e;fill:#d6c09a;transform:rotate(-14deg)}.item-art[data-art=rope-2] svg{stroke:#9a5448;fill:#dba18c;transform:rotate(9deg)}.item-art[data-art=rope-3] svg{stroke:#657b7d;fill:#c0d1cc;transform:rotate(-7deg)}.item-art[data-art=pvz-shovel] svg{stroke:#53665b;fill:#bec8b7;transform:rotate(-24deg)}.item-art[data-art=spray-1] svg{stroke:#65816b;fill:#e2dbb3;transform:rotate(-8deg)}.item-art[data-art=humidifier-1] svg{stroke:#548b8e;fill:#c2dddd}
+.item-art.game-prop svg{fill:currentColor;stroke:none}.item-art[data-art=rope-1]{color:#8d7249}.item-art[data-art=rope-2]{color:#a66451}.item-art[data-art=rope-3]{color:#6b8281}.item-art[data-art=spray-1]{color:#729273}
+.item-art[data-art=rope-3] svg{transform:rotate(-35deg)}.item-art[data-art=clip-2]{color:#a77d42}.item-art[data-art=clip-2] svg{transform:rotate(15deg)}
+.item-art .prop-sprite,#item-detail .item-art .prop-sprite{width:100%!important;height:100%!important;stroke:none;fill:none;transform:none}
+.asset-credits{font-size:10px;margin-top:22px}.asset-credits a{color:#647257;text-underline-offset:3px}
+#item-detail{padding:14px 14px 12px;border:0;background:var(--shed-paper);box-shadow:0 3px 0 #bdb49b,0 4px 9px #65705717;border-radius:3px 8px 5px 4px;position:relative}
+#item-detail:before{content:"";width:46px;height:13px;background:#d4c69a99;position:absolute;top:-5px;left:calc(50% - 23px);transform:rotate(-5deg)}
+#item-detail h3{line-height:1.5;color:#344c3a}#item-detail p{color:#786e58}.purchase{min-height:40px;font-weight:700;color:#fff7e2}
+.shop-categories button{background:transparent;border-radius:0;color:#64715d}.shop-categories button[aria-pressed=true]{background:transparent;color:#34593e;box-shadow:inset 0 -2px #5d7a50;font-weight:700}
+.preference-row{border-color:#d0d5c5}.preference-row button,.file button{background:#dce1d1}dl{border-color:#d0d5c5}
+@media(max-width:620px){.shop-layout{grid-template-columns:minmax(0,1fr) 158px;gap:10px}#item-detail{padding:12px 10px}.tabs button{min-width:85px}}

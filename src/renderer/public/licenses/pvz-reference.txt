@@ -1,0 +1,10 @@
+Plants vs. Zombies reference artwork — PopCap / EA
+
+ScaredyShroom.gif, DoomShroom.gif and Shovel.gif were obtained from:
+https://github.com/i-Eureka/NewPvzJs-v1.6/tree/6d4517524fe9f0bd6fb3bacbce6b537b951b74ac
+
+No asset redistribution license was found in that upstream tree. These assets
+are not covered by Cyber Damp's MIT license. Included in this local demo at
+the user's direction as reference artwork. Conversion only: decode frames,
+trim shared transparent margins and pack with transparent gutters; no repaint.
+Source hashes and frame timings: src/renderer/assets/PVZ-PROVENANCE.json.

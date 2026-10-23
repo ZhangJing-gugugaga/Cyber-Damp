@@ -1,7 +1,46 @@
 # IPC 契约：window.damp（Phase 2 唯一联调依据）
 
 > 本项目无 HTTP 服务端，故无 OpenAPI 面。本文件是前后端（main/preload ↔ renderer）的唯一契约，作用等同于 openapi.yaml：renderer 与 main 均按本表实现，变更必须走 Team Lead 同步并升版本号。
-> 契约版本：v1.6（2026-10-21）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+> 契约版本：v1.11（2026-10-24）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+
+## v1.11 天气与原生图标引用（Goal v9 阶段1）
+
+新增三组通道（Goal v9 R1/R3；均仅接受场景 webContents 发送方，载荷浅校验，非法即拒绝）：
+
+| 通道 / API | 方向 | 载荷 / 返回 |
+| --- | --- | --- |
+| `weather:current` / `damp.weather.current(location, forceRefresh?)` | R→M | `WeatherLocation {cityId,label,latitude,longitude}` → `WeatherLookup {status:'ok'\|'stale'\|'unavailable', snapshot?, ageMs?, usableForEvents?, error?}`。Open-Meteo `current` 快照；缓存 30 分钟、超时 8s、首次重试 2 次（1s/3s）、>24h 只展示不驱动事件（R3） |
+| `weather:searchCity` / `damp.weather.searchCity(query)` | R→M | `{query}` → `{ok:true,options:CityOption[]} \| {ok:false,error}`；Open-Meteo 地理编码，失败保留输入重试，不自动选点 |
+| `icon:applyState` / `damp.icon.applyState(items)` | R→M | `items[{id,realPath,kind:'dir'\|'lnk',sourcePngBase64,eventId?}]` → 逐项 `{ok}`/`{ok:false,reason,retryable}`。仅文件夹与普通 .lnk；main 生成多尺寸 ICO 缓存并写引用，写前落盘恢复登记（R1） |
+| `icon:restoreAll` / `damp.icon.restoreAll()` | R→M | → 逐项 `{outcome:'restored'\|'kept-user-value'\|'missing'\|'failed', detail?}`。恢复用户原值；引用已非我方时保留用户值 |
+
+`icon:applyState` 的 `sourcePngBase64` 输入不含桌面背景/文字/快捷方式箭头；箭头由 Explorer 原生绘制，不重复叠加。启动时 main 对未结算图标写入执行核对（补结算/丢弃/保留用户值），不新增 IPC。胶囊窗口位置记忆存 `userData`（测试可用 `CD_CAPSULE_STATE_DIR` 隔离），不经 renderer 通道。
+
+## v1.10 启动阶段反馈
+
+`SceneStatus`新增可选`startupStage: StartupStage`，共享枚举`launch/graphics/desktop/materials/takeover`。`management:command`沿用现有权限出口，新增`startup-stage {value:StartupStage}`，仅接受场景webContents及枚举值，ready后迟到消息不改变阶段或重新开窗。现有`management:status/get`向轻量启动反馈页传递真实阶段；preload和renderer声明沿用共享SceneStatus，无新通用执行权限。
+
+启动反馈窗使用独立轻量文档、复用游戏材质，ready-to-show后showInactive，不置顶、不抢焦点、不占任务栏；取消沿既有quit路径恢复桌面。桌面安全就绪或出现错误时自动销毁，不等待用户确认，不添加最小展示时长或假百分比。窗口页面载入成功不等于场景接管完成。
+
+## v1.9 桌面工具退出与自动启动
+
+沿用`management:command`：`tool-mode {value:'on'|'off'}`仅场景发送方可请求；主进程利用既有原生桌面焦点探针，在工具开启、桌面前台、非隐藏/暂停时注册Electron Escape快捷键，其余情况释放。按下后通过同一通道发送`cancel-tool`，场景取消手势并选回hand（浏览）。注册冲突时取消工具模式，避免进入无法Esc退出的状态；未知发送方和值被拒绝。无需新增preload权限出口；共享ManagementCommand仍为既有action字符串契约。
+
+取消启动管理窗确认，正式场景就绪后自动安全接管并播放3–5秒回放。恢复监护提前准备不等于允许提前隐藏图标，原安全和DPI确认要求仍有效。
+
+## v1.8 管理窗外壳
+
+沿用`management:command`，增加`window-close`与`window-minimize`两个动作，仅管理窗webContents可调用，场景或未知发送方被拒绝。关闭调用原窗口close路径，只隐藏管理窗，不改变场景paused/hidden状态；最小化使用Electron原生minimize，托盘/快捷键再次打开会restore并聚焦。无需新增preload出口或共享字段，ManagementCommand仍为既有action字符串载荷；IPC注册继续位于management-window.ts，而非重复注册到register-handlers.ts。
+
+管理窗使用Electron原生frame:false/transparent与CSS app-region拖动；标题按钮明确no-drag。透明窗口按官方限制禁用原生边缘缩放/最大化，启动按当前主屏工作区适配固定面板尺寸；保留普通窗口层级，不置顶、不连接WorkerW、不授予任意窗口控制权限。
+
+## v1.7 复用设置控制
+
+`management:snapshot`增加可选`preferences: ManagementPreferences`：`sfx:boolean`、`veil:''|'low'|'high'`、`microphoneEnabled:boolean`、`microphoneState:'disabled'|'requesting'|'calibrating'|'ready'|'denied'|'unavailable'|'error'`。旧快照缺省时新控件禁用，不显示假成功。状态来自既有SettingsPanel及MicrophoneWind getter，不新建音效/媒体实现。
+
+`management:command`增加`sfx`/`microphone`的`value:'on'|'off'`与`veil`的三个有效字符串。main仅接受本场景或管理窗发送方并校验值，再沿现有通道转发。preload不增权限出口，共享类型、renderer声明及IPC沿用同一管理契约。返回`ok`只代表转发，实际反馈与媒体状态由场景快照给出。
+
+麦克风每次启动默认关闭，读取快照不请求媒体权限。开启由管理页用户动作触发，复用原有本机音量分析；关闭可取消未完成请求，迟到结果不覆盖新状态。设备断开/拒绝/不可用按真实状态显示。设置按原实现仅本次会话有效，不持久化麦克风开启，不新增录音、上传或自动权限授予。独立预览强制使用夹具，即使存在preload也不连接真实场景。
 
 ## v1.6 多屏画布与刷新
 

@@ -8,7 +8,7 @@ import type { FileSprite } from '../view/file-sprite';
 import type { ParticlePool } from '../view/particles';
 import type { Sfx } from '../audio/sfx';
 
-export type Tool = 'hand' | 'scissors' | 'spray' | 'heat' | 'squeegee' | 'broom';
+export type Tool = 'hand' | 'shovel' | 'scissors' | 'spray' | 'heat' | 'squeegee' | 'broom';
 
 export interface PointerDeps {
   runtime: WorldRuntime;
@@ -17,6 +17,7 @@ export interface PointerDeps {
   pool: ParticlePool;
   sfx: Sfx;
   getTool(): Tool;
+  resetTool(): void;
   /** 剪下成熟蘑菇（含视图移除），由 game 装配注入 */
   onPick(id: string): void;
   /** 双击替身图标：打开真实文件并重置受潮状态 */

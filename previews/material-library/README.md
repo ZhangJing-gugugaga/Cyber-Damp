@@ -12,4 +12,11 @@
 
 当前局限：需继续做独立mask并集测量与正常尺寸识别性验收；十二个入口不表示十二种最终美术均已获认可。生产仍使用真实运行时状态，新增预览曲线不写入存档。
 
+2026-10-22补充：页面增加“变形后联合覆盖”，将独立霉斑/菇体路径mask与当前焦化/折痕着色权重，经过同一套UV卷曲、Twist、Bulge和缩水变换后测量。复用Pixi内置提取，不引入新渲染器或图像依赖；不从画面RGB差值推算遮挡。投影面积另列，水光/颜料不计入本次联合mask。
+
+运行 `node_modules/.bin/electron.cmd scripts/preview-game-ui.cjs --composite --output=logs/composite-review-20261022-final`，再用现有 `python scripts/check-mildew-masks.py logs/composite-review-20261022-final` 独立复算。`canvas-*.png`直接导出当前画布并记录目标进度，作为材质关键帧；`effect-*.png`为离屏页面截图，可能受Chromium合成延迟影响，不单独用于判断目标进度。测量另检查前后场景像素保持一致，防止诊断模式留在实际画面。
+
 后续源码补充：`specials.html`演示旧特殊菇素材的根部固定形变与点击。`scripts/preview-game-ui.cjs --effects --specials --output=logs/rooted-review-20261021`将本次证据另存；随后`python scripts/check-mildew-masks.py logs/rooted-review-20261021`用现有Pillow独立核对48/60/96/128像素的霉变mask。当前144项一致、最大约51.48%；范围仅为变形前霉斑、菇体及接触阴影，不能代替焦化/形变后的联合测量、原生DPI或用户辨识性验收。
+
+
+2026-10-22：用户已明确否定原工具棚的网页感。当前新增第三种完整游戏物品柜预览：`http://127.0.0.1:5173/manage.html?preview=1&layout=workbench&page=shop`，含左侧分类、中央陈列、底部操作托盘；设置页参数改为`page=settings`。原cabinet/inventory仅作历史候选对照，不代表已获认可。当前游戏菜单直接复用Kenney CC0材质，来源/哈希见`src/renderer/assets/kenney-ui/PROVENANCE.json`。新增样式不改变冻结霉变样片。

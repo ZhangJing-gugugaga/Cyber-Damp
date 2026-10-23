@@ -8,9 +8,10 @@ import * as path from 'node:path';
 import { createOverlayWindow, isOverlayReady, startDisplayTracker } from './window/create-overlay-window';
 import { registerHandlers } from './ipc/register-handlers';
 import { startCpuMonitor } from './system/cpu-monitor';
-import { installDesktopSafety, restoreDesktop } from './native/win32-desktop';
+import { installDesktopSafety, restoreDesktop, prepareDesktopProtection } from './native/win32-desktop';
 import { trackEvent } from './telemetry/event-log';
-import { installManagement, openManagement } from './window/management-window';
+import { installManagement, openManagement, showStartupFeedback } from './window/management-window';
+import { reconcilePendingEntries } from './desktop/icon-mutate';
 
 let win: BrowserWindow | null = null;
 const startedAt = Date.now();
@@ -37,10 +38,24 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => {
     trackEvent('session_start');
+    // R4/R1：先核对上次未结算的图标写入（补结算/丢弃），再调度新事件
+    try {
+      const reconciliation = reconcilePendingEntries();
+      if (reconciliation.settled || reconciliation.dropped) {
+        console.info('[icon-restore] 启动核对:', JSON.stringify(reconciliation));
+      }
+    } catch (error) {
+      console.warn('[icon-restore] 启动核对失败（保留登记）:', error);
+    }
+    const preload = path.join(__dirname, '..', 'preload', 'index.js');
+    installManagement(() => win, preload);
+    if (process.env.CD_QA !== '1' && process.env.CD_NO_ATTACH !== '1') showStartupFeedback();
     // 产物布局：dist/main/index.js + dist/preload/index.js（rootDir=src 平铺）
     const created = createOverlayWindow(path.join(__dirname, '..', 'preload', 'index.js'));
     win = created;
-    installManagement(() => win, path.join(__dirname, '..', 'preload', 'index.js'));
+    // Compile/start the existing recovery guard while the renderer loads assets.
+    // Explorer remains visible; actual takeover still awaits guard readiness.
+    if (process.env.CD_QA !== '1' && process.env.CD_NO_ATTACH !== '1') prepareDesktopProtection();
     registerHandlers(
       () => win,
       () => (win && !win.isDestroyed() ? win.webContents : null),

@@ -29,6 +29,7 @@ import { createGameTick } from './game-tick';
 import { mountUi } from '../ui/ui-root';
 import { createGuide } from '../ui/onboarding';
 import { createHoverCard } from '../ui/hover-card';
+import { visibleMushroomAt } from '../input/hit-tests';
 import { createFpsWatch } from './fps-watch';
 import { wireSystemEvents } from './system-wiring';
 import { trackError } from './telemetry';
@@ -47,6 +48,7 @@ import { connectManagement } from './management-bridge';
 const AUTOSAVE_SEC = 30;
 
 export async function createGame(app: Application): Promise<void> {
+  const preparedAt = performance.now();
   const inputTrace: Array<{ type: string; x?: number; y?: number; buttons?: number; at: number }> = [];
   if (location.search.includes('inspect=1')) {
     for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'blur']) window.addEventListener(type, (event) => {
@@ -56,7 +58,9 @@ export async function createGame(app: Application): Promise<void> {
     }, true);
   }
   // 1. 真实桌面 + 存档并行读取；绝不生成 Mock 文件
-  const [loaded, entries] = await Promise.all([loadSave(), loadDesktopEntries()]);
+  void window.damp?.management.command({ action: 'startup-stage', value: 'desktop' });
+  const [loaded, entries] = await Promise.all([loadSave(), loadDesktopEntries(), loadMushroomAssets()]);
+  console.info('[startup:entries]', Math.round(performance.now() - preparedAt));
   const nodes = buildFileNodes(entries, app.screen.width, app.screen.height);
   const runtime = new WorldRuntime();
   const ropes = new RopeManager();
@@ -76,7 +80,7 @@ export async function createGame(app: Application): Promise<void> {
   );
 
   // 2. 视图图层 + 原生图标纹理（并发解码）
-  await loadMushroomAssets();
+  void window.damp?.management.command({ action: 'startup-stage', value: 'materials' });
   const layers = new WorldLayers();
   app.stage.addChild(layers.root);
   const pool = new ParticlePool();
@@ -91,6 +95,7 @@ export async function createGame(app: Application): Promise<void> {
     layers.fileLayer.addChild(sprite.container);
     sprites.set(node.id, sprite);
   });
+  console.info('[startup:views]', Math.round(performance.now() - preparedAt));
   function ensureShroom(id: string): void {
     const ent = runtime.byId.get(id);
     const m = ent?.runtime.mushroom;
@@ -177,6 +182,7 @@ export async function createGame(app: Application): Promise<void> {
     sfx,
     demo: actions.demo,
     onMicrophoneToggle: (on) => microphone.setEnabled(on),
+    microphoneState: () => ({ enabled: microphone.enabled, state: microphone.state }),
   });
   const uiRefresh = runtime.onChange;
   harvest = new HarvestController({ app, runtime, shrooms, sfx, pool, layer: layers.shroomLayer, getTool: () => ui.getTool(), refresh: () => ui.refresh() });
@@ -186,8 +192,9 @@ export async function createGame(app: Application): Promise<void> {
   };
 
   // 6. 新手引导 / 悬停卡片 / 蜗牛 / 指针
+  const mushroomHit = (x: number, y: number) => visibleMushroomAt(sprites, runtime, shrooms, x, y);
   const guide = createGuide(ui.toast);
-  const hoverCard = createHoverCard(ui.mount, runtime, sprites);
+  const hoverCard = createHoverCard(ui.mount, runtime, sprites, mushroomHit);
   const snails = new SnailController(layers, pool, () => ({ w: app.screen.width, h: app.screen.height }));
   const previewG = new Graphics();
   layers.propLayer.addChild(previewG);
@@ -199,14 +206,8 @@ export async function createGame(app: Application): Promise<void> {
     sfx,
     getTool: () => ui.getTool(),
     extraHit: (x, y) => harvest.hit(x, y),
-    mushroomHit: (x, y) => {
-      for (const [id, sprite] of sprites) {
-        const m = runtime.byId.get(id)?.runtime.mushroom;
-        if (m && m.growth > 0 && (m.species === 'oyster' || m.species === 'enoki') && sprite.mushroomHit(x, y)) return id;
-      }
-      for (const [id, view] of shrooms) if ((runtime.byId.get(id)?.runtime.mushroom?.growth ?? 0) >= 1 && view.hit(x, y)) return id;
-      return null;
-    },
+    resetTool: () => ui.toolbox.select('hand'),
+    mushroomHit,
     domHit: uiHitAt,
     onPick: (id) => actions.pickMushroom(id),
     onOpen: (id) => {
@@ -246,7 +247,7 @@ export async function createGame(app: Application): Promise<void> {
   for (const btn of document.querySelectorAll('#ui-hud button')) btn.setAttribute('data-ui-interactive', '1');
   wireSystemEvents(runtime, saver);
   let opening: Opening | null = null, displayRefreshing = false;
-  connectManagement(app, runtime, saver, sprites, { ...actions, onPauseChange: (paused) => opening?.setPaused(paused || displayRefreshing), onBuy: (id) => {
+  connectManagement(app, runtime, saver, sprites, { ...actions, settings: ui.settings, onPauseChange: (paused) => opening?.setPaused(paused || displayRefreshing), onBuy: (id) => {
     if (id === 'box-1') buyBoxes(1); else actions.onBuy(id);
   } });
   installDisplayRefresh({ app, runtime, ropes, sprites, layer: layers.fileLayer,
@@ -320,10 +321,14 @@ export async function createGame(app: Application): Promise<void> {
   });
 
   // 首帧渲染后挂 WorkerW + 隐藏原生图标（失败则保持图标显示）
+  void window.damp?.management.command({ action: 'startup-stage', value: 'takeover' });
+  console.info('[startup:assembled]', Math.round(performance.now() - preparedAt));
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      console.info('[startup:ready-request]', Math.round(performance.now() - preparedAt));
       void window.damp?.app.desktopReady().then((result) => {
         desktopReady = result.ok;
+        console.info('[startup:desktop-ready]', JSON.stringify({ ok: result.ok, elapsedMs: Math.round(performance.now() - preparedAt) }));
         if (!result.ok) console.error('[cyber-damp] 桌面接管未就绪，开场保持暂停');
       }).catch((error) => console.error('[cyber-damp] 桌面接管失败:', error));
     });

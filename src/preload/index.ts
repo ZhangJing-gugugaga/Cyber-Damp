@@ -1,10 +1,11 @@
 /**
  * preload（隔离上下文，唯一通道 contextBridge）
- * 契约：docs/contracts/preload-api.md v1.0 §4 样板（实现逐字对齐）
+ * 契约：docs/contracts/preload-api.md v1.10；启动反馈/管理窗口/设置/工具退出复用现有管理通道。
  * v1.2：desktop:scan / desktop:open / app:desktopReady（真实桌面 + WorkerW）
  */
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopCursor, DesktopViewportRequest, DisplayChangedNotice } from '../shared/types/desktop';
+import type { CityOption, WeatherLocation, WeatherLookup } from '../shared/types/weather';
 
 contextBridge.exposeInMainWorld('damp', {
   management: {
@@ -35,6 +36,17 @@ contextBridge.exposeInMainWorld('damp', {
   save: {
     load: () => ipcRenderer.invoke('save:load'),
     write: (data: unknown) => ipcRenderer.invoke('save:write', data),
+  },
+  weather: {
+    current: (location: WeatherLocation, forceRefresh = false) =>
+      ipcRenderer.invoke('weather:current', { ...location, forceRefresh }),
+    searchCity: (query: string) =>
+      ipcRenderer.invoke('weather:searchCity', { query }) as Promise<{ ok: true; options: CityOption[] } | { ok: false; error: string }>,
+  },
+  icon: {
+    applyState: (items: Array<{ id: string; realPath: string; kind: 'dir' | 'lnk'; sourcePngBase64: string; eventId?: string }>) =>
+      ipcRenderer.invoke('icon:applyState', { items }),
+    restoreAll: () => ipcRenderer.invoke('icon:restoreAll'),
   },
   system: {
     onCpu: (cb: (usage: number) => void) => {

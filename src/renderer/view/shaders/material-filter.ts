@@ -25,6 +25,7 @@ uniform float uDry;
 uniform float uTime;
 uniform float uMediaWet;
 uniform float uSeed;
+uniform float uCoverage;
 uniform vec4 uPaintSpot0;
 uniform vec4 uPaintColor0;
 uniform vec4 uPaintSpot1;
@@ -60,8 +61,6 @@ void main() {
   vec4 color=sampleIcon(source);
   if (source.x<0.0||source.x>1.0||source.y<0.0||source.y>1.0) color=vec4(0);
   if(color.a<0.004) { gl_FragColor=vec4(0); return; }
-  float luminance=dot(color.rgb,vec3(0.2126,0.7152,0.0722));
-  color.rgb=mix(color.rgb,vec3(luminance),0.30*uMediaWet);
   // All material is multiplied into the original native pixel, preserving alpha.
   vec2 d=min(p,1.0-p);
   float corners=length(d);
@@ -69,16 +68,27 @@ void main() {
   float moss=(1.0-smoothstep(uMold*0.34,uMold*0.34+0.08,corners+noise(p*17.0)*0.1));
   moss*=uMold;
   vec3 mossColor=mix(vec3(0.24,0.30,0.13),vec3(0.06,0.09,0.055),grain);
-  color.rgb*=mix(vec3(1),mossColor,moss*0.85);
   vec2 scorchDirection=vec2(cos(uSeed*6.28318),sin(uSeed*6.28318));
   float edgeIn=dot(p-0.5,scorchDirection)+0.5;
   float scorch=(1.0-smoothstep(uChar*0.60,uChar*0.60+0.13,edgeIn+noise(p*9.0+uSeed)*0.14))*uChar;
-  color.rgb*=mix(vec3(1),mix(vec3(0.36,0.14,0.035),vec3(0.045),scorch),scorch);
   vec2 foldPoint=p+vec2(uSeed*3.0,uSeed*7.0);
   float fold=abs(sin((p.x*(8.0+uSeed*6.0)+p.y*(4.0+uSeed*4.0))+noise(foldPoint*4.0)*2.5));
   float crossFold=abs(sin((p.y*11.0-p.x*5.0)+noise(foldPoint*3.0)*1.8));
   float crease=max(pow(1.0-fold,14.0),pow(1.0-crossFold,18.0)*0.7);
-  color.rgb*=mix(vec3(1),vec3(0.94,0.91,0.84)*(1.0-crease*0.30),uDry);
+  // Review mode carries independent path masks through these exact UVs and
+  // the existing downstream distortion filters. It never compares RGB deltas.
+  if(uCoverage>0.5) {
+    if(uCoverage>1.5) gl_FragColor=vec4(vec3(color.b),1.0);
+    else gl_FragColor=vec4(color.rg,max(scorch,crease*uDry)*max(color.b,color.g),1.0);
+    return;
+  }
+  float luminance=dot(color.rgb,vec3(0.2126,0.7152,0.0722));
+  color.rgb=mix(color.rgb,vec3(luminance),0.30*uMediaWet);
+  color.rgb*=mix(vec3(1),mossColor,moss*0.85);
+  color.rgb*=mix(vec3(1),mix(vec3(0.36,0.14,0.035),vec3(0.045),scorch),scorch);
+  // Keep the original artwork between folds; warmth and shading belong to
+  // the actual crease rather than a uniform full-picture discoloration.
+  color.rgb*=mix(vec3(1),vec3(0.94,0.91,0.84)*0.70,crease*uDry);
   color.rgb=pigment(color.rgb,color.a,source,uPaintSpot0,uPaintColor0);
   color.rgb=pigment(color.rgb,color.a,source,uPaintSpot1,uPaintColor1);
   color.rgb=pigment(color.rgb,color.a,source,uPaintSpot2,uPaintColor2);
@@ -108,6 +118,7 @@ export class MaterialFilter extends Filter {
       uDry:{value:0,type:'f32'}, uTime:{value:0,type:'f32'},
       uMediaWet:{value:0,type:'f32'},
       uSeed:{value:0,type:'f32'},
+      uCoverage:{value:0,type:'f32'},
       uPaintSpot0:{value:new Float32Array(4),type:'vec4<f32>'},
       uPaintColor0:{value:new Float32Array(4),type:'vec4<f32>'},
       uPaintSpot1:{value:new Float32Array(4),type:'vec4<f32>'},
@@ -125,6 +136,8 @@ export class MaterialFilter extends Filter {
   setVariation(seed: number): void {
     this.resources.material.uniforms.uSeed = Math.max(0, Math.min(1, seed));
   }
+
+  setCoverageReview(mode: 0 | 1 | 2): void { this.resources.material.uniforms.uCoverage = mode; }
 
   /** Last four splashes remain on the surrogate, clipped by original native alpha. */
   addPaintStain(u:number,v:number,color:number):void {

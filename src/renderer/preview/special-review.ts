@@ -15,7 +15,8 @@ const entries = (['shy', 'bolete', 'lava'] as const).flatMap((species, index) =>
   text.position.set(view.container.x - 24, 255); app.stage.addChild(text);
   return { species, view, near };
 }));
-let growth = 1, near = false, time = 0;
+let growth = 1, near = false, time = 0, usingShovel = false;
+document.getElementById('shovel')!.onclick = event => { usingShovel = !usingShovel; (event.target as HTMLElement).textContent = usingShovel ? '收起铲子' : '装备铲子'; };
 document.getElementById('restart')!.onclick = () => { growth = 0; };
 document.getElementById('anger')!.onclick = event => { near = !near; (event.target as HTMLElement).textContent = near ? '模拟移远' : '模拟靠近'; };
 app.canvas.addEventListener('pointerdown', event => {
@@ -28,9 +29,9 @@ app.ticker.add(ticker => {
   const dt = Math.min(.05, ticker.deltaMS / 1000); time += dt; growth = Math.min(1, growth + dt / 4);
   for (const entry of entries) {
     const root = entry.view.container.position;
-    entry.view.update(growth, time, entry.near && near ? { x: root.x + 30, y: root.y - 30 } : { x: -999, y: -999 });
+    entry.view.update(growth, time, entry.near && near ? { x: root.x + 30, y: root.y - 30 } : { x: -999, y: -999 }, usingShovel);
     entry.view.setCondition({ species: entry.species, growth }, time);
   }
   document.getElementById('phase')!.textContent = `生长 ${Math.round(growth * 100)}% · ${near ? '右侧正在靠近' : '指针移远'}`;
 });
-(window as unknown as Record<string, unknown>).__CD_SPECIAL_REVIEW__ = () => ({ growth, near, species: entries.map(entry => entry.species) });
+(window as unknown as Record<string, unknown>).__CD_SPECIAL_REVIEW__ = () => ({ growth, near, usingShovel, species: entries.map(entry => entry.species) });

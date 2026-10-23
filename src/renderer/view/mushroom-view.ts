@@ -2,11 +2,14 @@
  * 蘑菇渲染（view 层）—— P0 平菇 N + 金针菇 R；complex杂交形态搁置
  * 三帧破土动画（土壤隆起 → 菌盖顶开 → 抖落孢子），由 growth 0..1 驱动
  */
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, type Texture } from 'pixi.js';
 import { RootedMushroomArt } from './rooted-mushroom-art';
-import { mushroomTexture } from './mushroom-assets';
+import { mushroomTexture, mushroomFrame } from './mushroom-assets';
 import type { MushroomSpecies, MushroomState } from '../../shared/types/file-runtime';
 import { SHROOM } from './token-colors';
+
+type HitPixels = { data: Uint8ClampedArray; width: number; height: number };
+const frameMasks = new WeakMap<Texture, HitPixels | null>();
 
 /** 平菇：灰褐扇形菌盖叠生（cap/gill/stem 三色） */
 function drawOyster(g: Graphics, growth: number): void {
@@ -72,7 +75,6 @@ export class MushroomView {
   private anger = 0;
   private detached = false;
   private readonly artHeight: number;
-  private hitPixels: { data: Uint8ClampedArray; width: number; height: number } | null | undefined;
 
   constructor(readonly species: MushroomSpecies) {
     this.artHeight = species === 'lava' ? 68 : species === 'bolete' ? 42 : species === 'shy' ? 46 : 36;
@@ -94,20 +96,23 @@ export class MushroomView {
    * growth 0..1 破土生长；tSec 用于呼吸/光晕/眨眼；
    * pointer 传入时胆小菇执行 120px 缩头（AC-30：0.2s 内缩回，移远恢复）
    */
-  update(growth: number, tSec: number, pointer?: { x: number; y: number }): void {
+  update(growth: number, tSec: number, pointer?: { x: number; y: number }, usingShovel = false): void {
     const dt = Math.max(0, Math.min(0.1, tSec - this.lastT));
     this.lastT = tSec;
     this.g.clear();
 
-    if (this.species === 'shy' && pointer) {
-      const d = Math.hypot(pointer.x - this.container.position.x, pointer.y - this.container.position.y);
-      if (d <= 120) this.farSince = tSec;
-      const target = d <= 120 || tSec - this.farSince < 2 ? 1 : 0;
+    if (this.species === 'shy') {
+      const d = pointer ? Math.hypot(pointer.x - this.container.position.x, pointer.y - this.container.position.y) : Infinity;
+      if (usingShovel || this.detached) this.farSince = -Infinity;
+      else if (d <= 120) this.farSince = tSec;
+      const target = !usingShovel && !this.detached && (d <= 120 || tSec - this.farSince < 2) ? 1 : 0;
       const delta = dt / (target ? 0.14 : 0.3);
       this.retract = target ? Math.min(1, this.retract + delta) : Math.max(0, this.retract - delta);
     }
 
     if (this.art) {
+      const frame = mushroomFrame(this.species, tSec);
+      if (frame && frame !== this.art.texture) this.art.texture = frame;
       const grown = Math.max(0.02, Math.min(1, growth));
       if (this.species === 'lava') {
         const near = !this.detached && !!pointer && Math.hypot(pointer.x - this.container.x, pointer.y - this.container.y) < 120;
@@ -150,8 +155,8 @@ export class MushroomView {
     const clipPoint = this.stemMask.toLocal(point);
     if (clipPoint.x < -64 || clipPoint.x > 64 || clipPoint.y < -128 || clipPoint.y > 0) return false;
     const texture = this.art.texture, frame = texture.frame;
-    if (this.hitPixels === undefined) {
-      this.hitPixels = null;
+    if (!frameMasks.has(texture)) {
+      frameMasks.set(texture, null);
       try {
         const canvas = document.createElement('canvas');
         canvas.width = Math.ceil(frame.width); canvas.height = Math.ceil(frame.height);
@@ -159,8 +164,8 @@ export class MushroomView {
         if (context) {
           context.drawImage(texture.source.resource as CanvasImageSource,
             frame.x, frame.y, frame.width, frame.height, 0, 0, canvas.width, canvas.height);
-          this.hitPixels = { data: context.getImageData(0, 0, canvas.width, canvas.height).data,
-            width: canvas.width, height: canvas.height };
+          frameMasks.set(texture, { data: context.getImageData(0, 0, canvas.width, canvas.height).data,
+            width: canvas.width, height: canvas.height });
         }
       } catch { /* Keep strict art/mask bounds when a non-raster fallback cannot be sampled. */ }
     }
@@ -169,8 +174,8 @@ export class MushroomView {
     if (!uv) return false;
     const { u, v } = uv;
     if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
-    if (!this.hitPixels) return true;
-    const mask = this.hitPixels;
+    const mask = frameMasks.get(texture);
+    if (!mask) return true;
     return mask.data[(Math.floor(v * mask.height) * mask.width + Math.floor(u * mask.width)) * 4 + 3] > 32;
   }
 

@@ -8,5 +8,5 @@
     "declaration": false,
     "types": ["node"]
   },
-  "include": ["src/world", "src/shared"]
+  "include": ["src/world", "src/shared", "src/main/desktop/desktop-ini.ts"]
 }

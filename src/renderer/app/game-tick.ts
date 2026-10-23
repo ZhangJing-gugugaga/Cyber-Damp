@@ -165,7 +165,7 @@ export function createGameTick(deps: GameTickDeps): (dtSec: number, render?: boo
         // Ordinary fungi are drawn inside the icon's lifecycle surface.
         // Their legacy view must not redraw invisible Graphics every frame.
         if (!view.container.visible) continue;
-      view.update(m.growth * (opening?.mushroomReveal ?? 1), tSec, opening ? undefined : pointer.lastPos);
+      view.update(m.growth * (opening?.mushroomReveal ?? 1), tSec, opening ? undefined : pointer.lastPos, ui.getTool() === 'shovel');
       view.setCondition(m, tSec);
     }
 

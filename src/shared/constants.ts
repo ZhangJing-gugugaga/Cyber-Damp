@@ -6,6 +6,9 @@
 /** GB 统一定义为 1024³ 字节（GiB 语义，与文件系统一致） */
 export const GB = 1024 ** 3;
 
+/** 复用既有普通菇日常速率；开场展示进度由Opening独立控制。 */
+export const MUSHROOM_GROWTH_PER_SECOND = 0.00005;
+
 /** ext（小写无点）→ 大类；未命中归 doc-code */
 const EXT_TABLE: Record<string, 'doc-code' | 'image-video' | 'audio' | 'archive'> = {
   // 文档与代码类：受潮宣纸洇染，晾晒滴黑色标点/字母

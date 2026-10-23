@@ -1,9 +1,9 @@
 /**
  * 环境表现层（app 装配层）：挂雾 / CPU 出汗 / 电扇
- * AC-02：全局湿度 ≥80% 四边起雾 + 色温偏冷（FogFilter 挂单个全屏雾 Sprite，不挂 stage）
+ * AC-02：全局湿度 ≥80% 四边起雾 + 色温偏冷（复用烘焙纹理，仅绘制四边，不挂 stage 滤镜）
  * AC-05：CPU 连续 5s >80% 顶框汗珠滴落（粒子预算内）
  */
-import { Sprite, Texture } from 'pixi.js';
+import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { Application } from 'pixi.js';
 import { FanView } from '../view/fan-view';
 import type { WorldLayers } from '../view/layers';
@@ -15,7 +15,7 @@ import type { WorldRuntime } from './world-runtime';
 const FOG_ONSET = 0.65;
 
 export class Atmosphere {
-  private readonly fogSprite: Sprite;
+  private readonly fogSprite: Container;
   private readonly fan: FanView | null = null;
   private sweatAcc = 0;
   /** 开场演出强制雾强度覆盖（0..1，演出结束归 -1 交还天气驱动） */
@@ -24,7 +24,6 @@ export class Atmosphere {
   private fogOverride = 1;
 
   constructor(private app: Application, private layers: WorldLayers) {
-    // 全屏雾 Sprite：Texture.WHITE 拉伸（滤镜只挂单个 Sprite——R3 纪律）
     // Fog has no sharp detail. Bake the stable edge texture once instead of
     // running a full-resolution offscreen noise filter on every frame.
     const canvas = document.createElement('canvas');
@@ -41,9 +40,22 @@ export class Atmosphere {
       pixels.data[i + 3] = Math.round(edge * (.18 + noise * .22) * 255);
     }
     context.putImageData(pixels, 0, 0);
-    this.fogSprite = new Sprite(Texture.from(canvas));
-    this.fogSprite.width = app.screen.width;
-    this.fogSprite.height = app.screen.height;
+    // Reuse the exact baked texture, with the same atlas-frame mechanism as
+    // our prop sprites. Its fully transparent center need not be blended over
+    // the entire desktop on every frame. Four disjoint strips still batch.
+    const texture = Texture.from(canvas), w = canvas.width, h = canvas.height;
+    const ex = Math.ceil(80 * w / app.screen.width) + 1;
+    const ey = Math.ceil(80 * h / app.screen.height) + 1;
+    const frames = ex * 2 >= w || ey * 2 >= h ? [[0, 0, w, h]] : [
+      [0, 0, w, ey], [0, h - ey, w, ey], [0, ey, ex, h - ey * 2], [w - ex, ey, ex, h - ey * 2],
+    ];
+    this.fogSprite = new Container();
+    for (const [x, y, width, height] of frames) {
+      const sprite = new Sprite(new Texture({ source: texture.source, frame: new Rectangle(x, y, width, height) }));
+      sprite.x = x / w * app.screen.width; sprite.y = y / h * app.screen.height;
+      sprite.width = width / w * app.screen.width; sprite.height = height / h * app.screen.height;
+      this.fogSprite.addChild(sprite);
+    }
     this.fogSprite.eventMode = 'none';
     this.layers.fogLayer.addChild(this.fogSprite);
   }
