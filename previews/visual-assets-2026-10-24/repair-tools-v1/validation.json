@@ -1,0 +1,18 @@
+{
+  "assets": 25,
+  "transparentPngs": 25,
+  "spraySoftensWithoutErasing": true,
+  "brush": true,
+  "sponge": true,
+  "blotter": true,
+  "squeegee": true,
+  "cloth": true,
+  "blowerWhileHeldOnly": true,
+  "sootScarSeparated": true,
+  "dustbrush": true,
+  "repairroller": true,
+  "environmentDoesNotClean": true,
+  "modeStatePreserved": true,
+  "mobileOverflow": false,
+  "errors": []
+}

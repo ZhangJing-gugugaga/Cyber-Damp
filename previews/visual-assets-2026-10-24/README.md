@@ -1,6 +1,8 @@
 # 回南天视觉资产快照 · 2026-10-24
 
-入口：[采摘与护理新资产](care-assets-v1/index.html)、[材质试验台](material-effects-lab/index.html)、[护理台概念小样](care-table-demo/index.html)。直接用浏览器打开。
+入口：[修复工具台](repair-tools-v1/index.html)、[采摘与护理新资产](care-assets-v1/index.html)、[材质试验台](material-effects-lab/index.html)、[护理台概念小样](care-table-demo/index.html)。直接用浏览器打开。
+
+- repair-tools-v1：基于 EPA、美国国家档案馆、国会图书馆等资料补充 10 种工具与道具，25 件 SVG / PNG；单图标分层护理预览。调研及游戏化边界见其 RESEARCH.md，新工具待用户视觉确认。
 
 - care-assets-v1：18 件新增 SVG / PNG（蘑菇、工具、操作反馈、护理垫、收集篮）；单图标交互，待用户视觉确认。
 

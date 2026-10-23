@@ -1,0 +1,288 @@
+{
+  "date": "2026-10-24",
+  "source": "Project-authored SVG, matching care-assets-v1; factual references are shape/function references, not copied artwork.",
+  "tools": [
+    {
+      "id": "sprayer",
+      "name": "清洁喷壶",
+      "category": "霉斑",
+      "gesture": "喷洒",
+      "basis": "清洁液与水配合擦洗硬表面",
+      "source": "epa",
+      "scope": "喷洒只软化霉斑，随后用刷子或海绵清理"
+    },
+    {
+      "id": "scrubbrush",
+      "name": "清洁刷",
+      "category": "霉斑",
+      "gesture": "拖动刷洗",
+      "basis": "硬表面清洁的刷洗动作",
+      "source": "epa",
+      "scope": "不会处理水渍和焦痕"
+    },
+    {
+      "id": "blotter",
+      "name": "吸水纸",
+      "category": "受潮",
+      "gesture": "按压吸水",
+      "basis": "吸水材料吸走表面水分",
+      "source": "wet",
+      "scope": "每次按压吸走一块，区别于擦拭"
+    },
+    {
+      "id": "squeegee",
+      "name": "刮水器",
+      "category": "受潮",
+      "gesture": "拖动刮水",
+      "basis": "光滑表面刮除残水",
+      "source": "squeegee",
+      "scope": "图标表面作为光滑平面的游戏化表达"
+    },
+    {
+      "id": "blower",
+      "name": "冷风干燥器",
+      "category": "受潮",
+      "gesture": "按住吹干",
+      "basis": "空气流通有助于干燥",
+      "source": "wet",
+      "scope": "借鉴通风而非高温加热；不去霉、不修复焦化"
+    },
+    {
+      "id": "sootblock",
+      "name": "烟灰海绵",
+      "category": "烟灰",
+      "gesture": "点按吸附",
+      "basis": "干式橡胶海绵轻按吸附烟灰",
+      "source": "soot",
+      "scope": "去掉烟灰，底下的焦痕仍保留"
+    },
+    {
+      "id": "dustbrush",
+      "name": "软毛刷",
+      "category": "烟灰",
+      "gesture": "拖动扫除",
+      "basis": "软毛刷去除集中松散污物",
+      "source": "soot",
+      "scope": "仅对应松散烟灰"
+    },
+    {
+      "id": "repairroller",
+      "name": "图标补色滚轮",
+      "category": "焦痕",
+      "gesture": "拖动补色",
+      "basis": "补色及表面修饰的游戏化概念",
+      "source": "fire",
+      "scope": "恢复图标外观的虚构功能，不宣称修复真实炭化"
+    },
+    {
+      "id": "dehumidifier",
+      "name": "除湿机",
+      "category": "环境",
+      "gesture": "摆放开关",
+      "basis": "环境主动除湿",
+      "source": "silica",
+      "scope": "不擦除已有霉斑、水渍、焦痕"
+    },
+    {
+      "id": "desiccant",
+      "name": "吸湿包",
+      "category": "环境",
+      "gesture": "查看干湿状态",
+      "basis": "密闭空间被动调湿",
+      "source": "silica",
+      "scope": "不作为瞬间吸干物品或去除污渍的工具"
+    }
+  ],
+  "sources": {
+    "epa": "https://www.epa.gov/mold/what-are-basic-mold-cleanup-steps",
+    "wet": "https://www.archives.gov/preservation/holdings-maintenance/wet-records",
+    "soot": "https://guides.loc.gov/wet-collections/smoke-and-soot",
+    "squeegee": "https://www.kaercher.com/ie/en/home-and-garden/products/window-vac-c6871",
+    "fire": "https://www.canada.ca/en/conservation-institute/services/agents-deterioration/fire.html",
+    "silica": "https://www.canada.ca/en/conservation-institute/services/conservation-preservation-publications/technical-bulletins/silica-gel-relative-humidity.html"
+  },
+  "assets": [
+    {
+      "id": "sprayer-idle",
+      "svg": "svg/sprayer-idle.svg",
+      "png": "png/sprayer-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "scrubbrush-idle",
+      "svg": "svg/scrubbrush-idle.svg",
+      "png": "png/scrubbrush-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "blotter-idle",
+      "svg": "svg/blotter-idle.svg",
+      "png": "png/blotter-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "squeegee-idle",
+      "svg": "svg/squeegee-idle.svg",
+      "png": "png/squeegee-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "blower-idle",
+      "svg": "svg/blower-idle.svg",
+      "png": "png/blower-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "sootblock-idle",
+      "svg": "svg/sootblock-idle.svg",
+      "png": "png/sootblock-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "dustbrush-idle",
+      "svg": "svg/dustbrush-idle.svg",
+      "png": "png/dustbrush-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "dehumidifier-idle",
+      "svg": "svg/dehumidifier-idle.svg",
+      "png": "png/dehumidifier-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "desiccant-idle",
+      "svg": "svg/desiccant-idle.svg",
+      "png": "png/desiccant-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "repairroller-idle",
+      "svg": "svg/repairroller-idle.svg",
+      "png": "png/repairroller-idle.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "sprayer-active",
+      "svg": "svg/sprayer-active.svg",
+      "png": "png/sprayer-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "scrubbrush-active",
+      "svg": "svg/scrubbrush-active.svg",
+      "png": "png/scrubbrush-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "blotter-active",
+      "svg": "svg/blotter-active.svg",
+      "png": "png/blotter-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "squeegee-active",
+      "svg": "svg/squeegee-active.svg",
+      "png": "png/squeegee-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "blower-active",
+      "svg": "svg/blower-active.svg",
+      "png": "png/blower-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "sootblock-active",
+      "svg": "svg/sootblock-active.svg",
+      "png": "png/sootblock-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "dustbrush-active",
+      "svg": "svg/dustbrush-active.svg",
+      "png": "png/dustbrush-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "dehumidifier-active",
+      "svg": "svg/dehumidifier-active.svg",
+      "png": "png/dehumidifier-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "desiccant-active",
+      "svg": "svg/desiccant-active.svg",
+      "png": "png/desiccant-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "repairroller-active",
+      "svg": "svg/repairroller-active.svg",
+      "png": "png/repairroller-active.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "mist",
+      "svg": "svg/mist.svg",
+      "png": "png/mist.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "airflow",
+      "svg": "svg/airflow.svg",
+      "png": "png/airflow.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "soot-puffs",
+      "svg": "svg/soot-puffs.svg",
+      "png": "png/soot-puffs.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "absorb",
+      "svg": "svg/absorb.svg",
+      "png": "png/absorb.png",
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "repair-patch",
+      "svg": "svg/repair-patch.svg",
+      "png": "png/repair-patch.png",
+      "width": 256,
+      "height": 256
+    }
+  ],
+  "reused": [
+    "care-assets-v1/svg/sponge-idle.svg",
+    "care-assets-v1/svg/cloth-idle.svg",
+    "care-assets-v1/svg/foam.svg",
+    "care-assets-v1/svg/droplets.svg",
+    "care-assets-v1/svg/mat.svg"
+  ]
+}
