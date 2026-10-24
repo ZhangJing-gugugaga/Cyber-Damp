@@ -11,6 +11,7 @@ export interface NativeObjectView {
   realPath: string;
   damage: DamageState | null;
   careProgress: number;
+  careMask?: string;
   mushroomSpecies?: string;
   moldImmuneUntil: number;
   lastAdvanceAt: number;

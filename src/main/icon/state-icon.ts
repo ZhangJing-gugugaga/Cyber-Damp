@@ -1,83 +1,94 @@
 /**
- * 状态图标合成（阶段2占位材质 → 阶段3接入已认可资产管线）
+ * 状态图标合成（Goal v9 修复轮：接入认可材质与资产）
  *
- * R7 约束：对每个真实原图分别合成，不贴通用成品；原图轮廓/透明留白/标志
- * 必须可辨认；输入不含桌面背景/文字/选中框/快捷方式箭头（箭头由 Explorer 绘制）。
- * 本实现用"原图 + 半透明族色叠加 + 菇斑"的占位合成保证端到端闭环可测；
- * 阶段 3 用 care-assets-v1/repair-tools-v1 认可材质替换 blend 管线，接口不变。
+ * 三层：原图（任意真实图标像素）→ 认可材质损伤层（shared/material/effects，
+ * 与护理台污染层同一实现、同一款式派生）→ 认可蘑菇资产（独立图层，
+ * bud/mature）。只改损伤层 RGB；透明留白/非满方格轮廓保持原图。
  */
 import { nativeImage } from 'electron';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { applyDamageMaterial, damageVariant } from '../../shared/material/effects';
 import type { DamageState } from '../../shared/types/native';
 
 const STATE_SIZE = 256;
 
-/** 族色与不透明度（ABGR 由像素循环写入；占位材质，阶段3替换） */
-const FAMILY_TINT: Record<string, { r: number; g: number; b: number; alpha: [number, number, number] }> = {
-  damp: { r: 52, g: 118, b: 214, alpha: [0.28, 0.48, 0.68] },   // 水渍默认蓝
-  mold: { r: 108, g: 128, b: 62, alpha: [0.30, 0.52, 0.74] },
-  char: { r: 46, g: 38, b: 32, alpha: [0.32, 0.55, 0.76] },
+const SPECIES_SHAPE: Record<string, string> = {
+  oyster: 'round', enoki: 'cluster', shy: 'fan', bolete: 'round', lava: 'fan',
 };
 
-export async function composeStateIconPng(sourcePng: Buffer, damage: DamageState | null): Promise<Buffer> {
+function mushroomAsset(species: string | undefined, stage: 'none' | 'young' | 'mature'): string | null {
+  if (stage === 'none') return null;
+  const shape = SPECIES_SHAPE[species ?? 'oyster'] ?? 'round';
+  const file = `${shape}-${stage === 'mature' ? 'mature' : 'bud'}.png`;
+  const assetPath = path.join(__dirname, '..', '..', 'renderer', 'assets', 'care', file);
+  return fs.existsSync(assetPath) ? assetPath : null;
+}
+
+/** RGBA <-> BGRA 包装：nativeImage.toBitmap 在 Windows 为 BGRA */
+function withRgba(image: Electron.NativeImage, fn: (rgba: Uint8ClampedArray, width: number, height: number) => void): Electron.NativeImage {
+  const size = image.getSize();
+  const bgra = Buffer.from(image.toBitmap());
+  for (let i = 0; i < bgra.length; i += 4) {
+    const b = bgra[i];
+    bgra[i] = bgra[i + 2];
+    bgra[i + 2] = b;
+  }
+  const rgba = new Uint8ClampedArray(bgra.buffer, bgra.byteOffset, bgra.byteLength);
+  fn(rgba, size.width, size.height);
+  const out = Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength);
+  for (let i = 0; i < out.length; i += 4) {
+    const r = out[i];
+    out[i] = out[i + 2];
+    out[i + 2] = r;
+  }
+  return nativeImage.createFromBitmap(out, { width: size.width, height: size.height });
+}
+
+export async function composeStateIconPng(sourcePng: Buffer, damage: DamageState | null, objectId = '', species = 'oyster'): Promise<Buffer> {
   const source = nativeImage.createFromBuffer(sourcePng);
   if (source.isEmpty()) throw new Error('原图标 PNG 无法解码，无法合成状态图标');
   const resized = source.resize({ width: STATE_SIZE, height: STATE_SIZE, quality: 'best' });
   if (!damage) return resized.toPNG();
 
-  const size = resized.getSize();
-  const bitmap = resized.toBitmap(); // BGRA
-  const out = Buffer.from(bitmap);
-  const tint = FAMILY_TINT[damage.family];
-  const alphaScale = tint.alpha[Math.min(damage.stage, 3) - 1] ?? 0.3;
-  for (let i = 0; i < out.length; i += 4) {
-    const a = out[i + 3];
-    if (a === 0) continue; // 透明留白不污染（原图轮廓可辨认）
-    const k = (a / 255) * alphaScale;
-    out[i] = Math.round(out[i] * (1 - k) + tint.b * k);
-    out[i + 1] = Math.round(out[i + 1] * (1 - k) + tint.g * k);
-    out[i + 2] = Math.round(out[i + 2] * (1 - k) + tint.r * k);
-  }
-  const composed = nativeImage.createFromBitmap(out, { width: size.width, height: size.height });
-  return addMushroom(composed, damage).toPNG();
-}
+  // 损伤层：认可材质（stage=0 干净 → 不套任何染色）
+  const styled = damage.stage > 0
+    ? withRgba(resized, (rgba, width, height) => {
+      const type = damageVariant(objectId, damage.family);
+      applyDamageMaterial({ data: rgba, width, height, stage: damage.stage as 1 | 2 | 3, type });
+    })
+    : resized;
 
-/** 成熟/幼菇以可见菇斑加入图标外观（R7：玩家看得出可采摘）。 */
-function addMushroom(image: Electron.NativeImage, damage: DamageState): Electron.NativeImage {
-  if (damage.mushroom === 'none') return image;
-  const size = image.getSize();
-  const bitmap = Buffer.from(image.toBitmap());
-  const cx = Math.round(size.width * 0.5);
-  const cy = Math.round(size.height * 0.78);
-  const radius = Math.round(Math.min(size.width, size.height) * (damage.mushroom === 'mature' ? 0.20 : 0.13));
-  const cap = { r: 122, g: 168, b: 84 };   // 菇盖
-  const stem = { r: 226, g: 218, b: 196 }; // 菌柄
-  for (let y = Math.max(0, cy - radius * 2); y < Math.min(size.height, cy + radius); y += 1) {
-    for (let x = Math.max(0, cx - radius * 2); x < Math.min(size.width, cx + radius * 2); x += 1) {
-      const dx = x - cx;
-      const dy = y - cy;
-      const i = (y * size.width + x) * 4;
-      if (dy < 0) {
-        // 半圆菇盖
-        if (dx * dx + dy * dy <= radius * radius) {
-          blendPixel(bitmap, i, cap, 0.96);
-        }
-      } else {
-        // 菌柄（略窄）
-        const halfStem = Math.max(1, Math.round(radius * 0.35));
-        if (Math.abs(dx) <= halfStem && dy <= radius * 0.9) {
-          blendPixel(bitmap, i, stem, 0.95);
-        }
+  // 蘑菇独立图层：认可资产按品种/阶段贴底（清洗不掉菇、采摘只去菇）
+  if (damage.mushroom === 'none') return styled.toPNG();
+  const shape = SPECIES_SHAPE[species] ?? 'round';
+  const shapeAsset = path.join(__dirname, '..', '..', 'renderer', 'assets', 'care',
+    `${shape}-${damage.mushroom === 'mature' ? 'mature' : 'bud'}.png`);
+  if (!fs.existsSync(shapeAsset)) return styled.toPNG();
+  const mushroom = nativeImage.createFromPath(shapeAsset);
+  if (mushroom.isEmpty()) return styled.toPNG();
+
+  return withRgba(styled, (rgba, width, height) => {
+    const m = mushroom.resize({ width: Math.round(width * 0.52), height: Math.round(height * 0.52), quality: 'best' });
+    const mSize = m.getSize();
+    const mBgra = m.toBitmap();
+    const baseX = Math.round((width - mSize.width) / 2);
+    const baseY = Math.round(height - mSize.height * 0.86);
+    for (let y = 0; y < mSize.height; y += 1) {
+      for (let x = 0; x < mSize.width; x += 1) {
+        const mi = (y * mSize.width + x) * 4;
+        const alpha = mBgra[mi + 3] / 255;
+        if (alpha <= 0.02) continue;
+        const px = baseX + x;
+        const py = baseY + y;
+        if (px < 0 || py < 0 || px >= width || py >= height) continue;
+        const pi = (py * width + px) * 4;
+        const mr = mBgra[mi + 2], mg = mBgra[mi + 1], mb = mBgra[mi]; // BGRA -> RGB
+        rgba[pi] = Math.round(rgba[pi] * (1 - alpha) + mr * alpha);
+        rgba[pi + 1] = Math.round(rgba[pi + 1] * (1 - alpha) + mg * alpha);
+        rgba[pi + 2] = Math.round(rgba[pi + 2] * (1 - alpha) + mb * alpha);
+        rgba[pi + 3] = Math.max(rgba[pi + 3], Math.round(alpha * 255));
       }
     }
-  }
-  return nativeImage.createFromBitmap(bitmap, { width: size.width, height: size.height });
-}
-
-function blendPixel(bgra: Buffer, i: number, color: { r: number; g: number; b: number }, alpha: number): void {
-  const a = bgra[i + 3] / 255;
-  const k = alpha * Math.max(a, 0.85);
-  bgra[i] = Math.round(bgra[i] * (1 - k) + color.b * k);
-  bgra[i + 1] = Math.round(bgra[i + 1] * (1 - k) + color.g * k);
-  bgra[i + 2] = Math.round(bgra[i + 2] * (1 - k) + color.r * k);
-  bgra[i + 3] = Math.round(Math.min(255, (bgra[i + 3] + alpha * 255 * (1 - a / 255))));
+  }).toPNG();
 }

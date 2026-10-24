@@ -10,4 +10,4 @@ run(['node_modules/typescript/bin/tsc', '-p', 'tsconfig.test.json']);
 run(['--test', '--test-concurrency=2', 'scripts/test-world.mjs', 'scripts/test-special-mushrooms.mjs', 'scripts/test-pigment.mjs',
   'scripts/test-falling.mjs', 'scripts/check-shared.mjs', 'scripts/test-folder-size.mjs', 'scripts/test-microphone-wind.mjs',
   'scripts/test-wallpaper-layout.mjs', 'scripts/test-desktop-pointer.mjs', 'scripts/test-rooted-mushroom.mjs', 'scripts/test-management.mjs', 'scripts/test-startup-window.mjs', 'scripts/test-edge-fog.mjs', 'scripts/test-shell-icons.mjs', 'scripts/test-desktop-viewport.mjs', 'scripts/test-viewport-ipc.mjs',
-  'scripts/test-desktop-ini.mjs', 'scripts/test-weather-validate.mjs', 'scripts/test-native-events.mjs', 'scripts/test-save-migration.mjs', 'scripts/test-native-care.mjs', 'scripts/test-native-scheduler.mjs']);
+  'scripts/test-desktop-ini.mjs', 'scripts/test-weather-validate.mjs', 'scripts/test-native-events.mjs', 'scripts/test-save-migration.mjs', 'scripts/test-native-care.mjs', 'scripts/test-material-effects.mjs', 'scripts/test-native-scheduler.mjs']);

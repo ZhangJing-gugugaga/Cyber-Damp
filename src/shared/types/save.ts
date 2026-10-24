@@ -63,6 +63,8 @@ export interface NativeObjectSave {
   moldImmuneUntil?: number;
   /** 本轮护理进度 0..1（松手/关窗/退出时保存，重开继续；R6） */
   careProgress?: number;
+  /** 擦拭掩码 64×64 位图（base64，行优先 1bit/格）：重开还原同一批擦除洞，不按百分比随机 */
+  careMask?: string;
   /** 菇品种（mushroom ≠ none 时存在；采摘进收藏，R6） */
   mushroomSpecies?: string;
 }

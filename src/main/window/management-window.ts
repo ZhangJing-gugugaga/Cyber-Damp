@@ -73,8 +73,13 @@ async function setHidden(hidden: boolean): Promise<void> {
 export function openManagement(): void {
   if (manager && !manager.isDestroyed()) { if (manager.isMinimized()) manager.restore(); manager.show(); manager.focus(); return; }
   const area = screen?.getPrimaryDisplay().workAreaSize;
-  const width = Math.min(720, Math.max(280, (area?.width ?? 744) - 24));
-  const height = Math.min(760, Math.max(320, (area?.height ?? 784) - 24));
+  // 原生模式：约 900×640 DIP，按工作区夹回；旧模式保持原尺寸
+  const width = NATIVE_MODE
+    ? Math.min(900, Math.max(720, (area?.width ?? 900) - 24))
+    : Math.min(720, Math.max(280, (area?.width ?? 744) - 24));
+  const height = NATIVE_MODE
+    ? Math.min(640, Math.max(540, (area?.height ?? 640) - 24))
+    : Math.min(760, Math.max(320, (area?.height ?? 784) - 24));
   // Electron's native frameless/drag support; transparent windows use a fixed
   // fitted size because native resizing is unsupported on some platforms.
   manager = new BrowserWindow({ width, height, minWidth: Math.min(560, width), minHeight: Math.min(500, height),

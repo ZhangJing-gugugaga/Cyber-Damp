@@ -37,6 +37,7 @@ export function completeCare(state: NativeSaveSection, objectId: string, now: nu
     ...obj,
     damage: { family: obj.damage.family, stage: 0, mushroom: obj.damage.mushroom },
     careProgress: 0,
+    careMask: undefined,
     lastCareCompletedAt: now,
     moldImmuneUntil: now + MOLD_IMMUNITY_MS,
   };

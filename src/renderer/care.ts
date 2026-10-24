@@ -1,21 +1,23 @@
 /**
- * 护理台页面（Goal v9 阶段3，R6）：护理台/收藏/小铺/设置 四页 + 一次性引导。
- * 清洁交互：污染层 destination-out 擦拭，形状/位置匹配；≥90% 自动收尾；
- * 进度经 native:careProgress 节流保存，松手/关窗继续。
+ * 护理台页面（Goal v9 修复轮）：雨天玻璃外壳 + 认可材质同源污染层。
+ * 污染层与桌面 ICO 用同一 shared/material/effects 实现、同一款式派生（对象 ID 稳定）；
+ * 擦拭只作用于污染层（原图/蘑菇不受影响）；64×64 掩码持久化，重开还原同一批擦除洞。
  */
-import type { NativeStatusSnapshot } from '../shared/types/native-status';
-
-type NativeObject = NativeStatusSnapshot['objects'][number];
+import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
+import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
 
 let status: NativeStatusSnapshot | null = null;
 let currentId: string | null = null;
 let wiping = false;
-let localProgress = 0;
 let lastSaved = 0;
 let dirtInitial = 1;
-let onboardStep = 0;
+/** 64×64 擦拭掩码（本地工作副本，节流持久化） */
+let mask: Uint8Array = new Uint8Array(new ArrayBuffer(64 * 64));
+const MASK_GRID = 64;
+const MASK_CELL = 256 / MASK_GRID;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+let onboardStep = 0;
 
 async function fetchStatus(): Promise<NativeStatusSnapshot> {
   return (await window.damp!.native.status())!;
@@ -28,7 +30,7 @@ function toast(message: string): void {
   setTimeout(() => el.classList.add('hidden'), 2600);
 }
 
-function ensureCoins(): void { $('coins').textContent = `🪙 ${status?.coins ?? 0}`; }
+function ensureCoins(): void { $('coins').textContent = String(status?.coins ?? 0); }
 
 // ---------- 标签页 ----------
 
@@ -40,6 +42,20 @@ for (const tab of document.querySelectorAll<HTMLButtonElement>('#tabs .tab')) {
 }
 
 $('win-close').addEventListener('click', () => { void window.damp!.management.command({ action: 'window-close', value: '' }); });
+$('win-min').addEventListener('click', () => { void window.damp!.management.command({ action: 'window-minimize', value: '' }); });
+
+// ---------- 窗口内确认对话（不使用原生消息框） ----------
+
+let confirmResolve: ((ok: boolean) => void) | null = null;
+function confirmDialog(title: string, text: string, okLabel = '确认'): Promise<boolean> {
+  $('confirm-title').textContent = title;
+  $('confirm-text').textContent = text;
+  ($('confirm-ok') as HTMLButtonElement).textContent = okLabel;
+  $('confirm-dialog').classList.remove('hidden');
+  return new Promise((resolve) => { confirmResolve = resolve; });
+}
+$('confirm-ok').addEventListener('click', () => { $('confirm-dialog').classList.add('hidden'); confirmResolve?.(true); });
+$('confirm-cancel').addEventListener('click', () => { $('confirm-dialog').classList.add('hidden'); confirmResolve?.(false); });
 
 // ---------- 对象列表 ----------
 
@@ -50,7 +66,8 @@ function familyLabel(family: string): string {
 function renderList(): void {
   const list = $('object-list');
   list.innerHTML = '';
-  const affected = (status?.objects ?? []).filter((o) => o.present && (o.damage === null || o.damage.stage > 0 || o.damage.mushroom === 'mature'));
+  const objects = status?.objects ?? [];
+  const affected = objects.filter((o) => o.present && (o.damage === null || o.damage.stage > 0 || o.damage.mushroom === 'mature'));
   const dirty = affected.filter((o) => o.damage && o.damage.stage > 0);
   const clean = affected.filter((o) => !o.damage || o.damage.stage === 0);
   const ordered = [...dirty, ...clean];
@@ -63,13 +80,15 @@ function renderList(): void {
   for (const obj of ordered) {
     const item = document.createElement('div');
     item.className = `obj-item${obj.id === currentId ? ' selected' : ''}`;
+    item.title = obj.displayName;
     const img = document.createElement('img');
+    img.className = 'obj-icon';
     img.src = obj.iconDataUrl || '';
     const name = document.createElement('span');
     name.className = 'name';
     name.textContent = obj.displayName;
     const flag = document.createElement('span');
-    flag.className = 'flag' + (obj.damage && obj.damage.stage > 0 ? ' dirty' : '');
+    flag.className = 'flag' + (obj.damage?.mushroom === 'mature' ? ' harvest' : '');
     if (obj.damage?.mushroom === 'mature') flag.textContent = '🍄可采';
     else if (obj.damage && obj.damage.stage > 0) flag.textContent = familyLabel(obj.damage.family);
     item.append(img, name, flag);
@@ -78,85 +97,95 @@ function renderList(): void {
   }
 }
 
-// ---------- 清洁画布 ----------
+// ---------- 污染层（与桌面 ICO 同一材质实现/款式） ----------
 
 const base = $('base-icon') as HTMLImageElement;
 const dirt = $('dirt-layer') as HTMLCanvasElement;
-const dirtCtx = dirt.getContext('2d')!;
+const mushroomEl = $('mushroom-layer') as HTMLImageElement;
+const dirtCtx = dirt.getContext('2d', { willReadFrequently: true })!;
 
-const TINT: Record<string, string> = { damp: 'rgba(52,118,214,', mold: 'rgba(108,128,62,', char: 'rgba(46,38,32,' };
+const MUSHROOM_ASSET: Record<string, string> = {
+  oyster: 'round', enoki: 'cluster', shy: 'fan', bolete: 'round', lava: 'fan',
+};
 
-function buildDirt(obj: NativeObject): void {
-  localProgress = obj.careProgress ?? 0;
+function maskToBase64(): string {
+  let binary = '';
+  for (let i = 0; i < mask.length; i += 1) binary += mask[i] ? '1' : '0';
+  // 8 位一组转 base64
+  let out = '';
+  for (let i = 0; i < 64; i += 1) out += String.fromCharCode(parseInt(binary.slice(i * 8, i * 8 + 8), 2));
+  return btoa(out);
+}
+
+function base64ToMask(value: string): Uint8Array | null {
+  try {
+    const bytes = atob(value);
+    if (bytes.length !== 64) return null;
+    const out = new Uint8Array(new ArrayBuffer(4096));
+    for (let i = 0; i < 64; i += 1) {
+      const byte = bytes.charCodeAt(i);
+      for (let b = 0; b < 8; b += 1) out[i * 8 + b] = (byte >> (7 - b)) & 1;
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function clearMask(): void {
+  mask = new Uint8Array(new ArrayBuffer(64 * 64));
+}
+
+/** 把掩码表现为污染层上的擦除洞（每格 4×4px，圆角近似） */
+function applyMaskToCanvas(): void {
+  dirtCtx.globalCompositeOperation = 'destination-out';
+  for (let gy = 0; gy < MASK_GRID; gy += 1) {
+    for (let gx = 0; gx < MASK_GRID; gx += 1) {
+      if (!mask[gy * MASK_GRID + gx]) continue;
+      dirtCtx.beginPath();
+      dirtCtx.arc(gx * MASK_CELL + MASK_CELL / 2, gy * MASK_CELL + MASK_CELL / 2, MASK_CELL * 0.62, 0, Math.PI * 2);
+      dirtCtx.fill();
+    }
+  }
+  dirtCtx.globalCompositeOperation = 'source-over';
+}
+
+function buildDirt(obj: NativeObjectView): void {
+  base.src = obj.iconDataUrl || '';
+  mushroomEl.src = '';
   dirtCtx.clearRect(0, 0, 256, 256);
+  clearMask();
   if (!obj.iconDataUrl) return;
-  // 底图
-  base.src = obj.iconDataUrl;
-  // 污染层 = 原图 + 族色叠加（仅不透明像素），擦掉即露出原图（形状/位置匹配反馈）
+
   const img = new Image();
   img.onload = () => {
     dirtCtx.clearRect(0, 0, 256, 256);
-    dirtCtx.drawImage(img, 0, 0, 256, 256);
-    const family = obj.damage?.family ?? 'damp';
-    const stageAlpha = [0, 0.45, 0.65, 0.85][obj.damage?.stage ?? 1];
-    dirtCtx.globalCompositeOperation = 'source-atop';
-    dirtCtx.fillStyle = `${TINT[family]}${stageAlpha})`;
-    dirtCtx.fillRect(0, 0, 256, 256);
-    if (obj.damage?.mushroom === 'mature') {
-      dirtCtx.fillStyle = '#7aa854';
-      dirtCtx.beginPath();
-      dirtCtx.arc(128, 196, 46, Math.PI, 0);
-      dirtCtx.fill();
-      dirtCtx.fillStyle = '#e2dac4';
-      dirtCtx.fillRect(112, 196, 32, 34);
-    } else if (obj.damage?.mushroom === 'young') {
-      dirtCtx.fillStyle = '#8cb662';
-      dirtCtx.beginPath();
-      dirtCtx.arc(128, 206, 26, Math.PI, 0);
-      dirtCtx.fill();
-      dirtCtx.fillStyle = '#e2dac4';
-      dirtCtx.fillRect(118, 206, 20, 22);
+    if (obj.damage && obj.damage.stage > 0) {
+      dirtCtx.drawImage(img, 0, 0, 256, 256);
+      const imageData = dirtCtx.getImageData(0, 0, 256, 256);
+      const type = damageVariant(obj.id, obj.damage.family);
+      applyDamageMaterial({ data: imageData.data, width: 256, height: 256, stage: obj.damage.stage as 1 | 2 | 3, type });
+      dirtCtx.putImageData(imageData, 0, 0);
+      // 恢复已保存的擦除洞（同一批，不随机）
+      const saved = obj.careMask ? base64ToMask(obj.careMask) : null;
+      if (saved) { mask = saved; applyMaskToCanvas(); }
     }
-    dirtCtx.globalCompositeOperation = 'destination-over';
-    // 预洗进度：按已有进度随机透明化（部分清洁保留，R6）
-    if (localProgress > 0) {
-      dirtCtx.globalCompositeOperation = 'destination-out';
-      const rng = mulberry(obj.id.length * 7919 + Math.round(localProgress * 1000));
-      for (let i = 0; i < Math.round(localProgress * 220); i += 1) {
-        dirtCtx.beginPath();
-        dirtCtx.arc(rng() * 256, rng() * 256, 16, 0, Math.PI * 2);
-        dirtCtx.fill();
-      }
+    // 蘑菇独立层（清洗不掉菇、擦不到）
+    if (obj.damage && obj.damage.mushroom !== 'none') {
+      const shape = MUSHROOM_ASSET[obj.mushroomSpecies ?? 'oyster'] ?? 'round';
+      mushroomEl.src = `./assets/care/${shape}-${obj.damage.mushroom === 'mature' ? 'mature' : 'bud'}.png`;
     }
-    dirtCtx.globalCompositeOperation = 'source-over';
-    dirtInitial = measureDirt();
+    dirtInitial = Math.max(measureDirt(), 1);
     updateProgressUi();
   };
   img.src = obj.iconDataUrl;
-}
-
-function mulberry(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 function measureDirt(): number {
   const sample = dirtCtx.getImageData(0, 0, 256, 256).data;
   let opaque = 0;
   for (let i = 3; i < sample.length; i += 4 * 16) { if (sample[i] > 24) opaque += 1; }
-  return Math.max(opaque, 1);
-}
-
-function updateProgressUi(): void {
-  const pct = currentWipeable() ? Math.min(99, Math.round((1 - measureDirt() / dirtInitial) * 100)) : 0;
-  const shown = Math.max(pct, Math.round((currentId ? status?.objects.find((o) => o.id === currentId)?.careProgress ?? 0 : 0) * 100));
-  $('progress-fill').style.width = `${shown}%`;
-  $('progress-text').textContent = `${shown}%`;
+  return opaque;
 }
 
 function currentWipeable(): boolean {
@@ -164,9 +193,18 @@ function currentWipeable(): boolean {
   return Boolean(obj && obj.damage && obj.damage.stage > 0);
 }
 
+function updateProgressUi(): void {
+  let pct = 0;
+  if (currentWipeable() && dirtInitial > 0) {
+    pct = Math.max(0, Math.min(99, Math.round((1 - measureDirt() / dirtInitial) * 100)));
+  }
+  $('progress-fill').style.width = `${pct}%`;
+  $('progress-text').textContent = `${pct}%`;
+}
+
 function scrubRadius(): number {
   const owned = status?.owned ?? [];
-  return owned.includes('big-sponge') ? 26 : 20; // 大海绵 +30%（20→26）
+  return owned.includes('big-sponge') ? 26 : 20; // 大海绵 +30%
 }
 
 function canvasPoint(event: PointerEvent): { x: number; y: number } {
@@ -180,9 +218,20 @@ function wipeAt(x: number, y: number): void {
   dirtCtx.arc(x, y, scrubRadius(), 0, Math.PI * 2);
   dirtCtx.fill();
   dirtCtx.globalCompositeOperation = 'source-over';
+  // 记录掩码格
+  const gx0 = Math.max(0, Math.floor((x - scrubRadius()) / MASK_CELL));
+  const gx1 = Math.min(MASK_GRID - 1, Math.floor((x + scrubRadius()) / MASK_CELL));
+  const gy0 = Math.max(0, Math.floor((y - scrubRadius()) / MASK_CELL));
+  const gy1 = Math.min(MASK_GRID - 1, Math.floor((y + scrubRadius()) / MASK_CELL));
+  for (let gy = gy0; gy <= gy1; gy += 1) {
+    for (let gx = gx0; gx <= gx1; gx += 1) {
+      const cx = gx * MASK_CELL + MASK_CELL / 2;
+      const cy = gy * MASK_CELL + MASK_CELL / 2;
+      if (Math.hypot(cx - x, cy - y) <= scrubRadius()) mask[gy * MASK_GRID + gx] = 1;
+    }
+  }
 }
 
-dirt.style.pointerEvents = 'none';
 const wrap = $('canvas-wrap');
 wrap.addEventListener('pointerdown', (event) => {
   if (!currentWipeable()) return;
@@ -198,17 +247,17 @@ wrap.addEventListener('pointermove', (event) => {
   const now = Date.now();
   if (now - lastSaved > 1200) {
     lastSaved = now;
-    localProgress = Math.max(localProgress, 1 - measureDirt() / dirtInitial);
-    void window.damp!.native.careProgress(currentId!, localProgress);
+    const progress = Math.max(0, Math.min(0.98, 1 - measureDirt() / dirtInitial));
+    void window.damp!.native.careProgress(currentId!, progress, maskToBase64());
     updateProgressUi();
   }
 });
 const endWipe = () => {
   if (!wiping) return;
   wiping = false;
-  const pct = 1 - measureDirt() / dirtInitial;
-  void window.damp!.native.careProgress(currentId!, Math.max(0, Math.min(0.98, pct)));
-  if (pct >= 0.9) void finishCare(false); // 最后少量残渍自动收尾（R6）
+  const fraction = 1 - measureDirt() / dirtInitial;
+  void window.damp!.native.careProgress(currentId!, Math.max(0, Math.min(0.98, fraction)), maskToBase64());
+  if (fraction >= 0.9) void finishCare(false); // 最后少量残渍自动收尾
 };
 wrap.addEventListener('pointerup', endWipe);
 wrap.addEventListener('pointercancel', endWipe);
@@ -237,6 +286,7 @@ function selectObject(id: string): void {
   const obj = status?.objects.find((o) => o.id === id);
   if (!obj) return;
   $('stage-name').textContent = obj.displayName;
+  $('stage-name').title = obj.displayName;
   const badge = $('stage-badge');
   if (obj.damage && obj.damage.stage > 0) {
     badge.textContent = `${familyLabel(obj.damage.family)}·${['', '轻', '中', '重'][obj.damage.stage]}`;
@@ -256,6 +306,7 @@ function selectObject(id: string): void {
 
 // ---------- 收藏 ----------
 
+const SPECIES_ASSET: Record<string, string> = { oyster: 'round-mature', enoki: 'cluster-mature', shy: 'fan-bud', bolete: 'round-mature', lava: 'fan-mature' };
 const SPECIES_LABEL: Record<string, string> = { oyster: '平菇', enoki: '金针菇', shy: '胆小菇', bolete: '牛肝菌', lava: '熔岩菇' };
 
 function renderCollection(): void {
@@ -266,13 +317,15 @@ function renderCollection(): void {
   for (const entry of entries) {
     const card = document.createElement('div');
     card.className = 'card';
+    const img = document.createElement('img');
+    img.src = `./assets/care/${SPECIES_ASSET[entry.species] ?? 'round-mature'}.png`;
     const title = document.createElement('div');
     title.className = 'title';
     title.textContent = SPECIES_LABEL[entry.species] ?? entry.species;
     const sub = document.createElement('div');
     sub.className = 'sub';
     sub.textContent = `首次获得 ${new Date(entry.firstSeenAt).toLocaleDateString()} · 来自 ${entry.sourceName}`;
-    card.append(title, sub);
+    card.append(img, title, sub);
     grid.appendChild(card);
   }
 }
@@ -280,8 +333,8 @@ function renderCollection(): void {
 // ---------- 小铺 ----------
 
 const SHOP_ITEMS = [
-  { id: 'big-sponge', name: '大海绵', price: 12, desc: '擦洗范围 +30%，清理更快。' },
-  { id: 'care-mat', name: '护理垫', price: 8, desc: '立即更换护理台垫子外观。' },
+  { id: 'big-sponge', name: '大海绵', price: 12, desc: '擦洗范围 +30%，清理更快。', asset: 'sponge-active' },
+  { id: 'care-mat', name: '护理垫', price: 8, desc: '立即更换护理台垫子外观。', asset: 'mat' },
 ];
 
 function renderShop(): void {
@@ -290,6 +343,8 @@ function renderShop(): void {
   for (const item of SHOP_ITEMS) {
     const row = document.createElement('div');
     row.className = 'shop-item';
+    const img = document.createElement('img');
+    img.src = `./assets/care/${item.asset}.png`;
     const info = document.createElement('div');
     info.className = 'info';
     const title = document.createElement('div');
@@ -304,6 +359,8 @@ function renderShop(): void {
     btn.textContent = owned ? '已拥有' : `${item.price} 币购买`;
     if (owned) btn.disabled = true;
     btn.addEventListener('click', async () => {
+      const ok = await confirmDialog('购买确认', `花 ${item.price} 菇币购买「${item.name}」？`, '购买');
+      if (!ok) return;
       const result = await window.damp!.native.buy(item.id);
       toast(result.ok ? `已购买 ${item.name}` : (result.message ?? '购买失败'));
       await reload();
@@ -311,10 +368,9 @@ function renderShop(): void {
     const price = document.createElement('div');
     price.className = 'price';
     price.textContent = `${item.price} 币`;
-    row.append(info, price, btn);
+    row.append(img, info, price, btn);
     list.appendChild(row);
   }
-  // 护理垫拥有后换外观（R6：立即换外观）
   $('canvas-wrap').classList.toggle('mat-on', status?.owned.includes('care-mat') === true);
 }
 
@@ -342,6 +398,7 @@ async function searchCity(): Promise<void> {
   }
   for (const option of result.options) {
     const btn = document.createElement('button');
+    btn.className = 'city-opt';
     btn.textContent = [option.name, option.admin1, option.country].filter(Boolean).join(' · ');
     btn.addEventListener('click', async () => {
       const saved = await window.damp!.native.setLocation({ cityId: option.id, label: option.name, latitude: option.latitude, longitude: option.longitude });
@@ -368,6 +425,8 @@ $('pause-toggle').addEventListener('change', async (event) => {
 });
 
 $('btn-restore-pause').addEventListener('click', async () => {
+  const ok = await confirmDialog('恢复桌面图标并暂停', '将还原全部原生图标并停止自然变化；点"继续游戏"才会恢复存档外观。', '还原并暂停');
+  if (!ok) return;
   const result = await window.damp!.native.restoreAndPause();
   toast(result.message ?? '已还原并暂停');
   await reload();
@@ -379,14 +438,16 @@ $('btn-resume').addEventListener('click', async () => {
   await reload();
 });
 
-$('btn-quit').addEventListener('click', () => { void window.damp!.app.quit(); });
+$('btn-quit').addEventListener('click', async () => {
+  const ok = await confirmDialog('完全退出', '退出前会先恢复全部原生图标；游戏进度保留，下次启动回显。', '退出');
+  if (ok) void window.damp!.app.quit();
+});
 
 function renderSettings(): void {
   if (!status) return;
   ($('city-input') as HTMLInputElement).placeholder = status.location ? `当前：${status.location.label}` : '输入城市名，如：杭州';
   $('btn-resume').classList.toggle('hidden', !status.restored);
-  const pauseToggle = $('pause-toggle') as HTMLInputElement;
-  pauseToggle.checked = status.paused;
+  ($('pause-toggle') as HTMLInputElement).checked = status.paused;
   void window.damp!.native.getAutostart().then((r) => { ($('autostart') as HTMLInputElement).checked = r.on; });
 }
 
@@ -446,6 +507,7 @@ async function obSearch(input: HTMLInputElement, results: HTMLElement): Promise<
   }
   for (const option of result.options) {
     const btn = document.createElement('button');
+    btn.className = 'city-opt';
     btn.textContent = [option.name, option.admin1, option.country].filter(Boolean).join(' · ');
     btn.addEventListener('click', async () => {
       await window.damp!.native.setLocation({ cityId: option.id, label: option.name, latitude: option.latitude, longitude: option.longitude });
@@ -463,13 +525,13 @@ $('ob-next').addEventListener('click', async () => {
     await reload();
     return;
   }
-  if (onboardStep === 1) await window.damp!.native.onboardingDone(); // 完成练习即奖励（一次）
+  if (onboardStep === 1) await window.damp!.native.onboardingDone();
   onboardStep += 1;
   renderOnboarding();
   if (onboardStep === 2) { const s = await fetchStatus(); status = s; ensureCoins(); }
 });
 $('ob-skip').addEventListener('click', async () => {
-  await window.damp!.native.onboardingDone(); // 跳过同路径，只发一次
+  await window.damp!.native.onboardingDone();
   $('onboarding').classList.add('hidden');
   await reload();
 });
@@ -496,4 +558,4 @@ async function reload(): Promise<void> {
   renderAll();
 }
 
-void reload();
+void reload().finally(() => { $('boot-splash')?.remove(); });

@@ -92,7 +92,7 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
         const entry = entries.get(obj.id);
         return {
           id: obj.id, displayName: obj.displayName, kind: obj.kind,
-          realPath: obj.realPath, damage: obj.damage, careProgress: obj.careProgress ?? 0,
+          realPath: obj.realPath, damage: obj.damage, careProgress: obj.careProgress ?? 0, careMask: obj.careMask,
           mushroomSpecies: obj.mushroomSpecies, moldImmuneUntil: obj.moldImmuneUntil ?? 0,
           lastAdvanceAt: obj.lastAdvanceAt ?? 0,
           present: Boolean(entry), iconDataUrl: entry?.iconDataUrl ?? '',
@@ -146,9 +146,10 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     }
     const objectId: string = payload.objectId;
     const progress: number = payload.progress;
+    const mask = typeof payload.mask === 'string' && payload.mask.length <= 4096 ? payload.mask : undefined;
     return mutateSave((save) => {
       const obj = save.native!.objects[objectId];
-      if (obj) obj.careProgress = progress;
+      if (obj) { obj.careProgress = progress; if (mask !== undefined) obj.careMask = mask; }
     });
   });
 
@@ -167,7 +168,8 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
       // 完成护理立即落到桌面图标（干净+菇）；restored 模式下只存进度不写桌面（R8）
       const save = loadSave();
       if (save?.native?.restored !== true) {
-        void applyAppearance(entryToCandidate(iconEntry), damage).catch((error) =>
+        const species = save?.native?.objects[objectId]?.mushroomSpecies ?? undefined;
+        void applyAppearance(entryToCandidate(iconEntry), damage, species).catch((error) =>
           console.warn('[native] 护理图标更新失败:', error));
       }
     }
@@ -201,7 +203,8 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     if (outcome.ok && iconEntry) {
       const save = loadSave();
       if (save?.native?.restored !== true) {
-        void applyAppearance(entryToCandidate(iconEntry), damage).catch((error) =>
+        const species = (loadSave()?.native?.objects[objectId]?.mushroomSpecies) ?? undefined;
+        void applyAppearance(entryToCandidate(iconEntry), damage, species).catch((error) =>
           console.warn('[native] 采摘图标更新失败:', error));
       }
     }

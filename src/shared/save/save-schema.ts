@@ -123,6 +123,7 @@ export function validateSave(raw: unknown): SaveData | null {
         if (o[key] !== undefined && !isFiniteNumber(o[key])) return null;
       }
       if (o.careProgress !== undefined && !isUnit(o.careProgress)) return null;
+      if (o.careMask !== undefined && (!isStr(o.careMask) || o.careMask.length > 4096)) return null;
       if (o.mushroomSpecies !== undefined && !isStr(o.mushroomSpecies)) return null;
     }
     if (n.collection !== undefined) {

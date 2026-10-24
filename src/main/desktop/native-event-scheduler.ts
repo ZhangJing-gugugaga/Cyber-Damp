@@ -106,8 +106,8 @@ function sourcePng(candidate: CycleCandidate): Buffer {
   return Buffer.from(base64, 'base64');
 }
 
-async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | null, eventId: string): Promise<void> {
-  const png = await composeStateIconPng(sourcePng(candidate), damage);
+async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | null, eventId: string, species?: string): Promise<void> {
+  const png = await composeStateIconPng(sourcePng(candidate), damage, candidate.id, species);
   const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id,
     damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean']);
   const result = applyIconMutation({
@@ -118,8 +118,8 @@ async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | 
 }
 
 /** 供护理/采摘处理器复用的外观应用（同一合成与恢复登记管线）。 */
-export async function applyAppearance(entry: CycleCandidate, damage: DamageState | null): Promise<void> {
-  return applyObjectIcon(entry, damage, 'care');
+export async function applyAppearance(entry: CycleCandidate, damage: DamageState | null, species?: string): Promise<void> {
+  return applyObjectIcon(entry, damage, 'care', species);
 }
 
 /** 串行化：重复打开/并发触发不产生交叉写入。 */
@@ -178,11 +178,11 @@ async function executeCycle(
   // 预热：按纯核心的确定性预测，物化本轮需要的 ICO（异步阶段），核心回调只做同步引用写入
   const seeds = [newSeed(), newSeed(), newSeed(), newSeed()];
   const iconPaths = new Map<string, string>();
-  const warm = async (candidate: CycleCandidate | undefined, damage: DamageState | null): Promise<void> => {
+  const warm = async (candidate: CycleCandidate | undefined, damage: DamageState | null, species?: string): Promise<void> => {
     if (!candidate) return;
-    const png = await composeStateIconPng(sourcePng(candidate), damage);
-    const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id,
-      damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean']);
+    const png = await composeStateIconPng(sourcePng(candidate), damage, candidate.id, species);
+    const stateKey = damage ? `${damage.family}-${damage.stage}-${damage.mushroom}-${species ?? ''}` : 'clean';
+    const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id, stateKey]);
     iconPaths.set(`${candidate.id}|${damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean'}`, iconPath);
   };
   try {
@@ -190,13 +190,13 @@ async function executeCycle(
       const plan = planInit(candidates, snapshot, seeds[0], now);
       for (const target of plan.targets) {
         const candidate = candidates.find((c) => c.id === target.id);
-        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom }, native.objects[target.id]?.mushroomSpecies ?? speciesForWeather(snapshot));
       }
     } else if (branch === 'continue-init' && native.init && 'targets' in native.init) {
       for (const target of native.init.targets) {
         if (target.status !== 'pending') continue;
         const candidate = candidates.find((c) => c.id === target.id);
-        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom }, native.objects[target.id]?.mushroomSpecies ?? speciesForWeather(snapshot));
       }
     } else if ((branch === 'daily-create' || branch === 'daily-resume') && snapshot) {
       const recordSeed = branch === 'daily-resume' && todayRecord ? todayRecord.seed : seeds[1];
@@ -207,7 +207,7 @@ async function executeCycle(
         if (!obj || !candidate) continue;
         const family = obj.damage ? obj.damage.family : planCleanFamily(obj, snapshot, now, recordSeed);
         const advanced = advanceDamage(obj.damage, family);
-        await warm(candidate, advanced.damage);
+        await warm(candidate, advanced.damage, obj.mushroomSpecies ?? (advanced.damage.mushroom !== 'none' ? speciesForWeather(snapshot) : undefined));
       }
     }
   } catch (error) {
@@ -291,7 +291,7 @@ export async function reapplySavedAppearances(candidates: CycleCandidate[]): Pro
     if (!obj) continue;
     if (obj.damage && !restoredMode) {
       try {
-        await applyObjectIcon(c, obj.damage, 'echo');
+        await applyObjectIcon(c, obj.damage, 'echo', obj.mushroomSpecies);
         reapplied += 1;
       } catch (error) {
         console.warn('[native-events] 回显失败（保留原生状态）:', obj.displayName, error);

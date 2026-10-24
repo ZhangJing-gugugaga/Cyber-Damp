@@ -52,7 +52,7 @@ contextBridge.exposeInMainWorld('damp', {
     status: () => ipcRenderer.invoke('native:status'),
     setLocation: (location: unknown) => ipcRenderer.invoke('native:setLocation', location),
     setPaused: (paused: boolean) => ipcRenderer.invoke('native:setPaused', { paused }),
-    careProgress: (objectId: string, progress: number) => ipcRenderer.invoke('native:careProgress', { objectId, progress }),
+    careProgress: (objectId: string, progress: number, mask?: string) => ipcRenderer.invoke('native:careProgress', { objectId, progress, mask }),
     careComplete: (objectId: string) => ipcRenderer.invoke('native:careComplete', { objectId }),
     quickCare: (objectId: string) => ipcRenderer.invoke('native:quickCare', { objectId }),
     harvest: (objectId: string) => ipcRenderer.invoke('native:harvest', { objectId }),
