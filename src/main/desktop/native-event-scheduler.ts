@@ -9,18 +9,20 @@
  * - 退出恢复由 main/index before-quit 调 restoreAllIconReferences() 承接。
  * 所有写入先落恢复登记（R1），所有结算经存档持久化（R4 写前落盘）。
  */
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadSave, writeSave } from '../save/save-store';
-import { applyIconMutation, restoreIconReferences, type IconMutationKind } from './icon-mutate';
+import { applyIconMutation, restoreAllIconReferences, restoreIconReferences, type IconMutationKind } from './icon-mutate';
 import { findEntry } from './icon-restore-store';
 import { writeIcoCache } from '../icon/ico-builder';
 import { composeStateIconPng } from '../icon/state-icon';
 import { getWeather } from '../weather/weather-service';
 import {
-  advanceDamage, decideNativeBranch, localDateKey, planDailyOrder, planInit,
+  advanceDamage, decideNativeBranch, familyWeights, localDateKey, planDailyOrder, planInit,
 } from '../../world/native-events';
+import { runNativeCycle, type SchedulerState } from './native-scheduler';
 import type {
-  DailyEventRecord, DamageState, InitPlan,
+  DailyEventRecord, DamageFamily, DamageState, InitPlan,
 } from '../../shared/types/native';
 import type { NativeObjectSave, NativeSaveSection, SaveData } from '../../shared/types/save';
 
@@ -45,6 +47,13 @@ export interface CycleResult {
 }
 
 /** 事件/事务种子：创建时随机一次并持久化（重放确定性由纯领域层保证） */
+/** 由天气快照稳定选择菇品种（确定性映射；不外扩玩法）。 */
+function speciesForWeather(snapshot: NativeSaveSection['lastSnapshot']): string {
+  const species = ['oyster', 'enoki', 'shy', 'bolete', 'lava'];
+  if (!snapshot) return 'oyster';
+  return species[Math.abs(snapshot.weatherCode * 7 + Math.round(snapshot.temperatureC)) % species.length];
+}
+
 function newSeed(): number {
   return Math.floor(Math.random() * 0x7fffffff);
 }
@@ -105,6 +114,11 @@ async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | 
   if (!result.ok) throw new Error(result.reason);
 }
 
+/** 供护理/采摘处理器复用的外观应用（同一合成与恢复登记管线）。 */
+export async function applyAppearance(entry: CycleCandidate, damage: DamageState | null): Promise<void> {
+  return applyObjectIcon(entry, damage, 'care');
+}
+
 /** 串行化：重复打开/并发触发不产生交叉写入。 */
 let cycleTask: Promise<CycleResult> = Promise.resolve({ branch: 'idle', initChanged: 0, initSkipped: 0, dailyAdvanced: false, detail: '' });
 
@@ -127,8 +141,6 @@ async function executeCycle(
   mergeCandidates(native, candidates);
   save.savedAt = now;
 
-  const result: CycleResult = { branch: 'none-paused', initChanged: 0, initSkipped: 0, dailyAdvanced: false, detail: '' };
-
   // 天气（R3）：注入快照优先（测试），否则按所选城市取数
   let snapshot = null as NativeSaveSection['lastSnapshot'];
   let usableForEvents = false;
@@ -148,137 +160,144 @@ async function executeCycle(
   }
 
   const today = localDateKey(now);
-  const todayRecord: DailyEventRecord | null = native.dailyEvents[today] ?? null;
-  const initStatus = native.init?.status === 'legacy-initialized' ? 'completed'
-    : native.init === null ? 'not-generated'
-    : native.init.status === 'active' ? 'active' : 'completed';
-
+  const todayRecord = native.dailyEvents[today] ?? null;
+  const initStatus = native.init === null ? 'not-generated'
+    : native.init.status === 'legacy-initialized' ? 'completed'
+    : native.init.status;
+  const paused = native.paused === true || native.restored === true;
   const branch = decideNativeBranch({
-    paused: native.paused === true,
-    hasValidWeather: usableForEvents,
-    initStatus: initStatus as 'not-generated' | 'active' | 'completed',
+    paused,
+    hasValidWeather: usableForEvents && snapshot !== null,
+    initStatus,
     todayRecord: todayRecord ? { status: todayRecord.status } : null,
   });
-  result.branch = branch;
 
-  if (branch === 'generate-init') {
-    // R4.1：候选=真实 Shell 可见、可写、可恢复（本 Goal 仅 dir/普通 lnk）
-    const plan = planInit(candidates, snapshot!, newSeed(), now);
-    native.init = { ...plan, status: 'active' };
-    result.detail = `首批 K=${plan.k} N=${plan.n}`;
-  }
-
-  if (branch === 'generate-init' || branch === 'continue-init') {
-    const init = native.init as (InitPlan & { status: 'active' | 'completed' });
-    for (const target of init.targets) {
-      if (target.status !== 'pending') continue;
-      const candidate = candidates.find((c) => c.id === target.id);
-      if (!candidate) {
-        target.status = 'skipped';
-        target.skipReason = '对象已不存在（不复活、不覆盖新同名对象）';
-        result.initSkipped += 1;
-        continue;
+  // 预热：按纯核心的确定性预测，物化本轮需要的 ICO（异步阶段），核心回调只做同步引用写入
+  const seeds = [newSeed(), newSeed(), newSeed(), newSeed()];
+  const iconPaths = new Map<string, string>();
+  const warm = async (candidate: CycleCandidate | undefined, damage: DamageState | null): Promise<void> => {
+    if (!candidate) return;
+    const png = await composeStateIconPng(sourcePng(candidate), damage);
+    const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id,
+      damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean']);
+    iconPaths.set(`${candidate.id}|${damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean'}`, iconPath);
+  };
+  try {
+    if (branch === 'generate-init' && snapshot) {
+      const plan = planInit(candidates, snapshot, seeds[0], now);
+      for (const target of plan.targets) {
+        const candidate = candidates.find((c) => c.id === target.id);
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
       }
-      const attempts = (target.attempts ?? 0) + 1;
-      target.attempts = attempts;
-      try {
-        await applyObjectIcon(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom }, `init-${init.generatedAt}`);
-        target.status = 'done';
-        const obj = native.objects[target.id];
-        obj.damage = { family: target.family, stage: target.stage, mushroom: target.mushroom };
-        obj.lastAdvanceAt = now;
-        result.initChanged += 1;
-      } catch (error) {
-        if (attempts >= 3) {
-          target.status = 'skipped';
-          target.skipReason = error instanceof Error ? error.message : String(error);
-          result.initSkipped += 1;
-        }
-        // 未达上限：保留 pending，下次启动/重试继续（不阻塞其余对象）
+    } else if (branch === 'continue-init' && native.init && 'targets' in native.init) {
+      for (const target of native.init.targets) {
+        if (target.status !== 'pending') continue;
+        const candidate = candidates.find((c) => c.id === target.id);
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
+      }
+    } else if ((branch === 'daily-create' || branch === 'daily-resume') && snapshot) {
+      const recordSeed = branch === 'daily-resume' && todayRecord ? todayRecord.seed : seeds[1];
+      const order = planDailyOrder(Object.values(native.objects), snapshot, now, recordSeed);
+      for (const id of order.slice(0, 3)) {
+        const obj = native.objects[id];
+        const candidate = candidates.find((c) => c.id === id);
+        if (!obj || !candidate) continue;
+        const family = obj.damage ? obj.damage.family : planCleanFamily(obj, snapshot, now, recordSeed);
+        const advanced = advanceDamage(obj.damage, family);
+        await warm(candidate, advanced.damage);
       }
     }
-    if (init.targets.every((t) => t.status !== 'pending')) {
-      init.status = 'completed';
-      init.completedAt = now;
-      // R4.1：完成日占用当日唯一普通额度
-      if (!native.dailyEvents[today]) {
-        native.dailyEvents[today] = {
-          date: today, id: `init-${init.generatedAt}`, status: 'init_occupied',
-          seed: 0, candidateOrder: [], attempts: [],
-        };
-      }
-      result.detail += `；首批完成（成功${init.targets.filter((t) => t.status === 'done').length} 跳过${init.targets.filter((t) => t.status === 'skipped').length}）`;
+  } catch (error) {
+    console.warn('[native-events] 图标预热失败（回退为逐次写入）:', error);
+  }
+
+  // 幼菇品种（R5/R6）：核心不涉品种，落盘前补齐
+  for (const obj of Object.values(native.objects)) {
+    if (obj.damage?.mushroom === 'young' && !obj.mushroomSpecies) {
+      obj.mushroomSpecies = speciesForWeather(snapshot);
     }
   }
 
-  if (branch === 'daily-create') {
-    const seed = newSeed();
-    const order = planDailyOrder(
-      Object.values(native.objects).filter((o) => candidates.some((c) => c.id === o.id)),
-      snapshot!, now, seed,
-    );
-    native.dailyEvents[today] = {
-      date: today, id: `daily-${today}-${seed}`, status: order.length === 0 ? 'empty' : 'pending',
-      seed, candidateOrder: order, attempts: [], snapshot: snapshot ?? undefined,
-    };
-  }
-
-  if (branch === 'daily-create' || branch === 'daily-resume') {
-    const record = native.dailyEvents[today]!;
-    if (record.status === 'pending' || record.status === 'retryable') {
-      while (record.attempts.length < Math.min(record.candidateOrder.length, 3)) {
-        const nextId = record.candidateOrder.find((id) => !record.attempts.includes(id));
-        if (!nextId) break;
-        record.attempts.push(nextId);
-        const candidate = candidates.find((c) => c.id === nextId);
-        const obj = native.objects[nextId];
-        if (!candidate || !obj?.damage) continue; // 对象消失或状态缺失 → 尝试下一候选
-        const advanced = advanceDamage(obj.damage, obj.damage.family);
-        if (!advanced.advanced) continue;
-        try {
-          await applyObjectIcon(candidate, advanced.damage, record.id);
-          obj.damage = advanced.damage;
-          obj.lastAdvanceAt = now;
-          record.status = 'success';
-          record.snapshot = snapshot ?? undefined;
-          result.dailyAdvanced = true;
-          result.detail += `；日常推进 ${obj.displayName} → ${advanced.damage.family}/${advanced.damage.stage}${advanced.damage.mushroom !== 'none' ? `/${advanced.damage.mushroom}` : ''}`;
-          break;
-        } catch (error) {
-          result.detail += `；写入失败 ${obj.displayName}: ${error instanceof Error ? error.message : String(error)}`;
-        }
+  // 纯核心执行（R4.4 唯一入口）；图标写入失败返回 false 由核心记账重试/跳过
+  let seedIndex = 0;
+  native.paused = paused;
+  const core = runNativeCycle({
+    state: native as unknown as SchedulerState,
+    weather: snapshot,
+    weatherUsable: usableForEvents,
+    candidates,
+    now: () => now,
+    nextSeed: () => seeds[seedIndex++ % seeds.length],
+    applyIcon: (candidate, plan) => {
+      const key = `${candidate.id}|${plan ? `${plan.family}-${plan.stage}-${plan.mushroom}` : 'clean'}`;
+      const iconPath = iconPaths.get(key);
+      if (!iconPath) {
+        console.warn('[native-events] 预热缺失（预测与核心不一致）:', key);
+        return false;
       }
-      if (record.status === 'pending') {
-        record.status = record.candidateOrder.length === 0 ? 'empty' : 'retryable';
-      }
-    }
-  }
+      const result = applyIconMutation({
+        id: candidate.id, realPath: candidate.realPath, kind: candidate.kind as IconMutationKind,
+        iconPath, eventId: 'cycle',
+      });
+      if (!result.ok) console.warn('[native-events] 图标引用写入失败:', candidate.realPath, result.reason);
+      return result.ok;
+    },
+    exists: (realPath) => { try { return fs.existsSync(realPath); } catch { return false; } },
+  });
 
   writeSave(save);
-  return result;
+  return {
+    branch: core.action,
+    initChanged: core.initDone,
+    initSkipped: core.initSkipped,
+    dailyAdvanced: core.action === 'daily-create' || core.action === 'daily-resume',
+    detail: core.summary,
+  };
+}
+
+/** 与核心 pickDailyFamily 相同的干净对象族选择（预热预测用）。 */
+function planCleanFamily(obj: NativeObjectSave, snapshot: NonNullable<NativeSaveSection['lastSnapshot']>, now: number, seed: number): DamageFamily {
+  const weights = familyWeights(snapshot, (obj.moldImmuneUntil ?? 0) > now);
+  if (!weights) return 'damp';
+  const entries = (Object.entries(weights) as Array<[DamageFamily, number]>).filter(([, w]) => w > 0);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let h = seed ^ 0x9e3779b9;
+  for (let i = 0; i < obj.id.length; i += 1) h = Math.imul(h ^ obj.id.charCodeAt(i), 0x85ebca6b) >>> 0;
+  let roll = h % total;
+  for (const [family, w] of entries) {
+    roll -= w;
+    if (roll < 0) return family;
+  }
+  return entries[entries.length - 1][0];
 }
 
 /**
  * 回显（R4：不是自然事件，不计额度）：启动时把存档外观写到原生图标。
  * 有损伤/菇的对象重新合成写入；干净对象若登记中仍有我们的引用则恢复原值。
+ * "恢复桌面并暂停"（restored）下不回显损伤（R8），只清干净对象的遗留引用。
  */
 export async function reapplySavedAppearances(candidates: CycleCandidate[]): Promise<{ reapplied: number; restored: number }> {
   const save = loadSave();
   const native = save?.native;
   if (!native || native.init === null) return { reapplied: 0, restored: 0 };
+  const restoredMode = native.restored === true;
   let reapplied = 0;
   let restored = 0;
   for (const c of candidates) {
     const obj = native.objects[c.id];
     if (!obj) continue;
-    if (obj.damage) {
+    if (obj.damage && !restoredMode) {
       try {
         await applyObjectIcon(c, obj.damage, 'echo');
         reapplied += 1;
       } catch (error) {
         console.warn('[native-events] 回显失败（保留原生状态）:', obj.displayName, error);
       }
-    } else if (findEntry(c.realPath)) {
+    } else if (obj.damage && restoredMode && findEntry(c.realPath)) {
+      // 恢复暂停态：清掉我们遗留的引用，保持用户桌面干净
+      const [report] = restoreIconReferences({ ids: [c.id] });
+      if (report?.outcome === 'restored') restored += 1;
+    } else if (!obj.damage && findEntry(c.realPath)) {
       const [report] = restoreIconReferences({ ids: [c.id] });
       if (report?.outcome === 'restored') restored += 1;
     }
@@ -309,6 +328,25 @@ export function nativeStatusSummary(): {
 export function setNativePaused(paused: boolean): void {
   const save = ensureSave();
   save.native!.paused = paused;
+  save.savedAt = Date.now();
+  writeSave(save);
+}
+
+/** 恢复桌面并暂停（R8）：立即还原全部引用并持久化；继续游戏时由 resume 反向。 */
+export function restoreDesktopAndPause(): number {
+  const save = ensureSave();
+  save.native!.paused = true;
+  save.native!.restored = true;
+  save.savedAt = Date.now();
+  writeSave(save);
+  return restoreAllIconReferences().length;
+}
+
+/** 继续游戏（R8）：只有显式调用才恢复存档外观并重启日节奏；不追补暂停期间事件。 */
+export function resumeFromRestored(): void {
+  const save = ensureSave();
+  save.native!.restored = false;
+  save.native!.paused = false;
   save.savedAt = Date.now();
   writeSave(save);
 }

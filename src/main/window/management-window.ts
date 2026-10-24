@@ -1,10 +1,14 @@
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, powerMonitor, screen, Tray } from 'electron';
+import type { WebContents } from 'electron';
 import * as path from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { SceneStatus, ManagementSnapshot, ManagementCommand } from '../../shared/types/management';
 import { restoreDesktop, hideDesktopIcons, attachOverlayToDesktop, suspendDesktopHost } from '../native/win32-desktop';
 import { STARTUP_STAGES, type StartupStage } from '../../shared/types/management';
 import { openStartupWindow, updateStartupWindow } from './startup-window';
+
+/** Goal v9 产品模式：无覆盖层/无图标隐藏，胶囊 + 护理窗（H2）。旧路径仅限 QA/回归环境。 */
+export const NATIVE_MODE = typeof process !== 'undefined' && process.env.CD_QA !== '1' && process.env.CD_NO_ATTACH !== '1' && process.env.CD_LEGACY !== '1';
 
 let manager: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -14,6 +18,14 @@ let snapshot: ManagementSnapshot = { files: [], coins: 0, owned: [] };
 const status: SceneStatus = { paused: false, hidden: false, ready: false, shortcut: 'CommandOrControl+Alt+M' };
 let closing = false;
 let toolMode = false, escapeRegistered = false;
+/** 原生模式托盘扩展（胶囊显隐等），由 index 装配时注入 */
+let nativeTrayActions: { toggleCapsule(visible: boolean): void } | null = null;
+export function setNativeTrayActions(actions: { toggleCapsule(visible: boolean): void } | null): void {
+  nativeTrayActions = actions;
+}
+export function managementWebContents(): WebContents | null {
+  return manager && !manager.isDestroyed() ? manager.webContents : null;
+}
 /** Desktop child windows do not reliably receive keyboard focus. Reuse
  * Electron shortcuts only while a tool and the desktop are both active. */
 export function syncToolEscape(desktopActive: boolean): void {
@@ -35,8 +47,9 @@ function publish(): void {
   manager?.webContents.send('management:status', status);
   scene?.()?.webContents.send('management:status', status);
   tray?.setContextMenu(Menu.buildFromTemplate([
-    { label: '管理回南天', click: openManagement },
-    { label: status.hidden ? '显示场景' : '隐藏场景并暂停', click: () => void setHidden(!status.hidden) },
+    { label: '打开护理台', click: openManagement },
+    ...(NATIVE_MODE && nativeTrayActions ? [{ label: status.capsuleHidden ? '显示天气胶囊' : '隐藏天气胶囊', click: () => { const show = status.capsuleHidden === true; status.capsuleHidden = !show; nativeTrayActions!.toggleCapsule(show); publish(); } }] : []),
+    ...(NATIVE_MODE ? [] : [{ label: status.hidden ? '显示场景' : '隐藏场景并暂停', click: () => void setHidden(!status.hidden) } as Electron.MenuItemConstructorOptions]),
     { label: status.paused ? '继续' : '暂停', click: () => { status.paused = !status.paused; publish(); } },
     { label: '退出回南天', click: () => app.quit() },
   ]));
@@ -73,7 +86,8 @@ export function openManagement(): void {
   manager.once('ready-to-show', () => { manager?.show(); });
   manager.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   manager.on('close', event => { if (!closing) { event.preventDefault(); manager?.hide(); } });
-  void manager.loadFile(path.join(__dirname, '..', '..', 'renderer', 'manage.html'));
+  // 原生模式加载护理台页面；旧模式保持原管理页（回归用）
+  void manager.loadFile(path.join(__dirname, '..', '..', 'renderer', NATIVE_MODE ? 'care.html' : 'manage.html'));
 }
 export function isSceneHidden(): boolean { return status.hidden; }
 export function markSceneReady(): void { status.ready = true; delete status.displayError; publish(); }
@@ -149,7 +163,7 @@ export function installManagement(getScene: () => BrowserWindow | null, preloadP
     }
     return { ok: true };
   });
-  powerMonitor.on('suspend', () => { status.paused = true; publish(); });
-  powerMonitor.on('resume', () => { openManagement(); publish(); });
+  powerMonitor.on('suspend', () => { if (!NATIVE_MODE) { status.paused = true; } publish(); });
+  powerMonitor.on('resume', () => { if (!NATIVE_MODE) openManagement(); publish(); });
   app.on('before-quit', () => { closing = true; globalShortcut.unregisterAll(); tray?.destroy(); });
 }

@@ -10,8 +10,10 @@ import { registerHandlers } from './ipc/register-handlers';
 import { startCpuMonitor } from './system/cpu-monitor';
 import { installDesktopSafety, restoreDesktop, prepareDesktopProtection } from './native/win32-desktop';
 import { trackEvent } from './telemetry/event-log';
-import { installManagement, openManagement, showStartupFeedback } from './window/management-window';
+import { installManagement, openManagement, showStartupFeedback, NATIVE_MODE, setNativeTrayActions, managementWebContents } from './window/management-window';
+import { createCapsuleWindow } from './window/capsule-window';
 import { reconcilePendingEntries, restoreAllIconReferences } from './desktop/icon-mutate';
+import { registerNativeHandlers, bootstrapNativeMode } from './ipc/native-handlers';
 
 let win: BrowserWindow | null = null;
 const startedAt = Date.now();
@@ -48,7 +50,18 @@ if (!app.requestSingleInstanceLock()) {
       console.warn('[icon-restore] 启动核对失败（保留登记）:', error);
     }
     const preload = path.join(__dirname, '..', 'preload', 'index.js');
+
     installManagement(() => win, preload);
+
+    if (NATIVE_MODE) {
+      // Goal v9 产品模式（H2）：无全屏覆盖层、无图标隐藏；胶囊 + 护理窗 + 托盘
+      registerNativeHandlers(() => managementWebContents());
+      const capsule = createCapsuleWindow(preload, path.join(__dirname, '..', 'renderer', 'capsule.html'));
+      setNativeTrayActions({ toggleCapsule: (visible) => capsule.setVisible(visible) });
+      void bootstrapNativeMode().catch((error) => console.error('[native] 启动引导失败:', error));
+      return;
+    }
+
     if (process.env.CD_QA !== '1' && process.env.CD_NO_ATTACH !== '1') showStartupFeedback();
     // 产物布局：dist/main/index.js + dist/preload/index.js（rootDir=src 平铺）
     const created = createOverlayWindow(path.join(__dirname, '..', 'preload', 'index.js'));

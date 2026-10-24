@@ -122,7 +122,18 @@ export function validateSave(raw: unknown): SaveData | null {
       for (const key of ['lastAdvanceAt', 'lastCareCompletedAt', 'moldImmuneUntil'] as const) {
         if (o[key] !== undefined && !isFiniteNumber(o[key])) return null;
       }
+      if (o.careProgress !== undefined && !isUnit(o.careProgress)) return null;
+      if (o.mushroomSpecies !== undefined && !isStr(o.mushroomSpecies)) return null;
     }
+    if (n.collection !== undefined) {
+      if (!isPlainRecord(n.collection)) return null;
+      for (const entry of Object.values(n.collection)) {
+        const e = entry as Record<string, unknown>;
+        if (!e || !isStr(e.species) || !isStr(e.sourceName) || !isFiniteNumber(e.firstSeenAt)) return null;
+      }
+    }
+    if (n.onboarded !== undefined && typeof n.onboarded !== 'boolean') return null;
+    if (n.restored !== undefined && typeof n.restored !== 'boolean') return null;
     if (n.lastSnapshot !== null && n.lastSnapshot !== undefined) {
       const s = n.lastSnapshot as Record<string, unknown>;
       if (!s || !isFiniteNumber(s.weatherCode) || !isFiniteNumber(s.humidityPct)

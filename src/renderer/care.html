@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:" />
+  <title>回南天 · 护理台</title>
+  <link rel="stylesheet" href="./care.css" />
+</head>
+<body>
+  <div id="app">
+    <header id="titlebar">
+      <div class="brand">回南天 · 护理台</div>
+      <div id="coins" class="coins">🪙 0</div>
+      <div class="drag-zone"></div>
+      <button id="win-close" class="title-btn" title="关闭（回到托盘）">✕</button>
+    </header>
+    <nav id="tabs">
+      <button data-tab="care" class="tab active">护理台</button>
+      <button data-tab="collection" class="tab">收藏</button>
+      <button data-tab="shop" class="tab">小铺</button>
+      <button data-tab="settings" class="tab">设置</button>
+    </nav>
+
+    <main id="page-care" class="page active">
+      <aside id="object-list" aria-label="受影响对象"></aside>
+      <section id="care-stage">
+        <div id="stage-head">
+          <span id="stage-name">选择一个对象开始护理</span>
+          <span id="stage-badge" class="badge hidden"></span>
+        </div>
+        <div id="canvas-wrap" class="mat-off">
+          <img id="base-icon" alt="" />
+          <canvas id="dirt-layer" width="256" height="256"></canvas>
+        </div>
+        <div id="progress-row">
+          <div id="progress-bar"><div id="progress-fill"></div></div>
+          <span id="progress-text">0%</span>
+        </div>
+        <div id="tool-row">
+          <button id="tool-sponge" class="tool active" title="海绵：擦拭清洁">🧽 海绵</button>
+          <button id="btn-quick" class="tool" title="快速处理：直接完成清理（不自动采菇）">✨ 快速处理</button>
+          <button id="btn-harvest" class="tool harvest hidden" title="采摘成熟菇">🍄 采摘</button>
+        </div>
+        <div id="stage-tip">按住并拖动擦拭污渍；最后一点残渍会自动收尾。</div>
+      </section>
+    </main>
+
+    <main id="page-collection" class="page">
+      <div id="collection-grid" class="grid"></div>
+      <div id="collection-empty" class="empty hidden">还没有收藏。采到成熟菇后会记录品种与来源。</div>
+    </main>
+
+    <main id="page-shop" class="page">
+      <div class="shop-note">护理工具开局可用；购买立即生效。</div>
+      <div id="shop-list"></div>
+    </main>
+
+    <main id="page-settings" class="page">
+      <section class="setting-block">
+        <h3>城市与天气</h3>
+        <div class="row">
+          <input id="city-input" type="text" placeholder="输入城市名，如：杭州" />
+          <button id="city-search">搜索</button>
+        </div>
+        <div id="city-results" class="city-results"></div>
+        <div id="weather-attribution" class="muted">天气数据来源 <a href="https://open-meteo.com/" data-external>Open-Meteo</a>（非商业使用）</div>
+      </section>
+      <section class="setting-block">
+        <h3>运行</h3>
+        <label class="switch-row"><input type="checkbox" id="autostart" /> 开机自动启动（启动后只在托盘/胶囊出现，不弹窗口）</label>
+        <label class="switch-row"><input type="checkbox" id="pause-toggle" /> 暂停自然变化（保留当前外观，不积欠）</label>
+        <div class="row">
+          <button id="btn-restore-pause" class="danger">恢复桌面图标并暂停</button>
+          <button id="btn-resume" class="hidden">继续游戏</button>
+        </div>
+        <div class="muted">"恢复桌面图标并暂停"会把原生图标全部还原并停止变化；点"继续游戏"才恢复存档外观。</div>
+      </section>
+      <section class="setting-block">
+        <h3>应用</h3>
+        <div class="row">
+          <button id="btn-quit">完全退出（恢复原图标）</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="onboarding" class="overlay hidden">
+      <div class="panel">
+        <div id="ob-body"></div>
+        <div class="row ob-actions">
+          <button id="ob-next" class="primary">下一步</button>
+          <button id="ob-skip">跳过引导</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+  </div>
+  <script type="module" src="./care.ts"></script>
+</body>
+</html>

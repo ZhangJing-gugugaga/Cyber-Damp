@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:" />
+  <title>回南天天气胶囊</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; user-select: none; }
+    .capsule {
+      box-sizing: border-box; width: 352px; height: 48px; margin: 4px; border-radius: 24px;
+      background: rgba(18, 24, 32, 0.55); color: #eaf2fa;
+      font: 13px/1.35 "Microsoft YaHei", "PingFang SC", sans-serif;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 0 18px; -webkit-app-region: drag; cursor: default;
+      text-shadow: 0 1px 2px rgba(0,0,0,.55);
+    }
+    .row1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .place { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cond { white-space: nowrap; opacity: .95; }
+    .row2 { display: flex; justify-content: space-between; font-size: 11px; opacity: .82; margin-top: 1px; }
+    .stale { color: #ffd27f; }
+    .err { color: #ffb4a2; }
+  </style>
+</head>
+<body>
+  <div class="capsule" id="capsule" title="">
+    <div class="row1">
+      <span class="place" id="place">回南天</span>
+      <span class="cond" id="cond">正在获取天气…</span>
+    </div>
+    <div class="row2">
+      <span id="metrics">--°C · 湿度 --%</span>
+      <span id="updated" class=""></span>
+    </div>
+  </div>
+  <script type="module" src="./capsule.ts"></script>
+</body>
+</html>

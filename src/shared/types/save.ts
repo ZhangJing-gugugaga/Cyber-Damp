@@ -61,6 +61,17 @@ export interface NativeObjectSave {
   lastAdvanceAt?: number;
   lastCareCompletedAt?: number;
   moldImmuneUntil?: number;
+  /** 本轮护理进度 0..1（松手/关窗/退出时保存，重开继续；R6） */
+  careProgress?: number;
+  /** 菇品种（mushroom ≠ none 时存在；采摘进收藏，R6） */
+  mushroomSpecies?: string;
+}
+
+export interface NativeCollectionEntry {
+  species: string;
+  firstSeenAt: number;
+  /** 来源对象的显示名称（改名后以最新为准） */
+  sourceName: string;
 }
 
 export interface NativeSaveSection {
@@ -75,4 +86,10 @@ export interface NativeSaveSection {
   location?: { cityId: string; label: string; latitude: number; longitude: number } | null;
   /** 用户暂停（R4.3：不生成不积欠） */
   paused?: boolean;
+  /** 收藏（品种、首次获得、来源对象显示名；重启一致，R6） */
+  collection?: Record<string, NativeCollectionEntry>;
+  /** 首局引导已完成（完成练习或跳过均只发一次 24 菇币，R6） */
+  onboarded?: boolean;
+  /** "恢复桌面并暂停"（R8）：原生外观已还原、事件停发；显式"继续游戏"才恢复回显与节奏 */
+  restored?: boolean;
 }

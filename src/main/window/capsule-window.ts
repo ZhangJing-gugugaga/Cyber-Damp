@@ -11,7 +11,7 @@
  *  - Win+D 会最小化本窗（与"桌面及 Win+D 可见"存在已知冲突，
  *    标记为待用户确认降级，托盘/点击胶囊可唤回）。
  */
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, app, screen } from 'electron';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { applyGlass, clearGlass, type GlassMode } from '../native/win32-glass';
@@ -40,9 +40,13 @@ function clampToWorkArea(bounds: { x: number; y: number }): { x: number; y: numb
   return { x, y };
 }
 
+function stateDir(): string {
+  return process.env.CD_CAPSULE_STATE_DIR || app.getPath('userData');
+}
+
 function loadState(): CapsuleState {
   try {
-    const file = path.join(process.env.CD_CAPSULE_STATE_DIR || '', 'capsule-state.json');
+    const file = path.join(stateDir(), 'capsule-state.json');
     const raw = fs.readFileSync(file, 'utf8');
     const data = JSON.parse(raw) as CapsuleState;
     if (data?.remembered && Number.isFinite(data.remembered.x) && Number.isFinite(data.remembered.y)) return data;
@@ -51,8 +55,7 @@ function loadState(): CapsuleState {
 }
 
 function persistState(state: CapsuleState): void {
-  const dir = process.env.CD_CAPSULE_STATE_DIR;
-  if (!dir) return; // 原型/测试不落盘；生产传入 userData
+  const dir = stateDir();
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'capsule-state.json'), JSON.stringify(state), 'utf8');
 }
@@ -61,6 +64,7 @@ export interface CapsuleHandle {
   win: BrowserWindow;
   glassMode: GlassMode;
   unwatch: (() => void) | null;
+  setVisible(visible: boolean): void;
   destroy(): void;
 }
 
@@ -113,7 +117,9 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
   unwatch = startForegroundWatch(refreshCoverage);
 
   win.once('ready-to-show', () => win.showInactive());
-  void win.loadURL(htmlDataUrl);
+  // data: 供原型探针；生产传 care/capsule 页面文件路径
+  if (htmlDataUrl.startsWith('data:')) void win.loadURL(htmlDataUrl);
+  else void win.loadFile(htmlDataUrl);
 
   // 记忆拖动位置；显示器变化后夹回
   const remember = () => {
@@ -135,6 +141,11 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
     win,
     glassMode,
     unwatch,
+    setVisible(visible: boolean) {
+      if (win.isDestroyed()) return;
+      if (visible && !win.isVisible()) win.showInactive();
+      if (!visible && win.isVisible()) win.hide();
+    },
     destroy() {
       unwatch?.();
       screen.off('display-metrics-changed', onDisplayChanged);

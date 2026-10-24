@@ -48,6 +48,21 @@ contextBridge.exposeInMainWorld('damp', {
       ipcRenderer.invoke('icon:applyState', { items }),
     restoreAll: () => ipcRenderer.invoke('icon:restoreAll'),
   },
+  native: {
+    status: () => ipcRenderer.invoke('native:status'),
+    setLocation: (location: unknown) => ipcRenderer.invoke('native:setLocation', location),
+    setPaused: (paused: boolean) => ipcRenderer.invoke('native:setPaused', { paused }),
+    careProgress: (objectId: string, progress: number) => ipcRenderer.invoke('native:careProgress', { objectId, progress }),
+    careComplete: (objectId: string) => ipcRenderer.invoke('native:careComplete', { objectId }),
+    quickCare: (objectId: string) => ipcRenderer.invoke('native:quickCare', { objectId }),
+    harvest: (objectId: string) => ipcRenderer.invoke('native:harvest', { objectId }),
+    buy: (itemId: string) => ipcRenderer.invoke('native:buy', { itemId }),
+    onboardingDone: () => ipcRenderer.invoke('native:onboarding'),
+    restoreAndPause: () => ipcRenderer.invoke('native:restoreAndPause'),
+    resume: () => ipcRenderer.invoke('native:resume'),
+    setAutostart: (on: boolean) => ipcRenderer.invoke('native:setAutostart', { on }),
+    getAutostart: () => ipcRenderer.invoke('native:getAutostart'),
+  },
   system: {
     onCpu: (cb: (usage: number) => void) => {
       const h = (_: unknown, usage: number) => cb(usage);

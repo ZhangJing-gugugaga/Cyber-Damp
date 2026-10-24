@@ -41,6 +41,21 @@ declare global {
         applyState(items: Array<{ id: string; realPath: string; kind: 'dir' | 'lnk'; sourcePngBase64: string; eventId?: string }>): Promise<Array<{ id: string; ok: true } | { id: string; ok: false; reason: string; retryable: boolean }>>;
         restoreAll(): Promise<Array<{ id: string; realPath: string; kind: 'dir' | 'lnk'; outcome: 'restored' | 'kept-user-value' | 'missing' | 'failed'; detail?: string }>>;
       };
+      native: {
+        status(): Promise<import('../../shared/types/native-status').NativeStatusSnapshot>;
+        setLocation(location: { cityId: string; label: string; latitude: number; longitude: number }): Promise<{ ok: boolean; message?: string }>;
+        setPaused(paused: boolean): Promise<{ ok: boolean }>;
+        careProgress(objectId: string, progress: number): Promise<{ ok: boolean }>;
+        careComplete(objectId: string): Promise<{ ok: boolean; message?: string }>;
+        quickCare(objectId: string): Promise<{ ok: boolean; message?: string }>;
+        harvest(objectId: string): Promise<{ ok: boolean; message?: string; coins?: number }>;
+        buy(itemId: string): Promise<{ ok: boolean; message?: string }>;
+        onboardingDone(): Promise<{ ok: boolean; message?: string }>;
+        restoreAndPause(): Promise<{ ok: boolean; message?: string }>;
+        resume(): Promise<{ ok: boolean }>;
+        setAutostart(on: boolean): Promise<{ ok: boolean; on?: boolean; message?: string }>;
+        getAutostart(): Promise<{ on: boolean }>;
+      };
       system: {
         onCpu(cb: (usage: number) => void): () => void;
         onDisplayChanged(cb: (size: import('../../shared/types/desktop').DisplayChangedNotice) => void): () => void;
