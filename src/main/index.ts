@@ -55,6 +55,9 @@ if (!app.requestSingleInstanceLock()) {
 
     if (NATIVE_MODE) {
       // Goal v9 产品模式（H2）：无全屏覆盖层、无图标隐藏；胶囊 + 护理窗 + 托盘
+      // 通用通道（weather/save/app/quit…）必须注册——此前原生模式提前 return，
+      // weather:searchCity 等报 "No handler registered"，城市选择完全不可用
+      registerHandlers(() => null, () => null);
       registerNativeHandlers(() => managementWebContents());
       const capsule = createCapsuleWindow(preload, path.join(__dirname, '..', 'renderer', 'capsule.html'));
       setNativeTrayActions({ toggleCapsule: (visible) => capsule.setVisible(visible) });

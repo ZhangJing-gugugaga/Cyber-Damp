@@ -21,6 +21,23 @@ import type { DesktopEntry } from '../../shared/types/desktop';
 /** 最近一次真实桌面扫描（主进程原生模式自扫；缓存供图标操作取原图） */
 let latestEntries: DesktopEntry[] = [];
 
+/**
+ * 产品模式合法渲染层发送方（护理台窗、胶囊窗）。
+ * 旧通道（register-handlers）沿用场景窗校验；weather 组在原生模式下
+ * 由护理台/胶囊调用，须在此登记。弱引用清理：销毁的 wc 不再放行。
+ */
+const allowedSenders = new Set<Electron.WebContents>();
+export function allowSender(wc: Electron.WebContents | null): void {
+  if (wc && !wc.isDestroyed()) allowedSenders.add(wc);
+}
+export function isAllowedSender(wc: Electron.WebContents | null): boolean {
+  for (const entry of allowedSenders) {
+    if (entry.isDestroyed()) allowedSenders.delete(entry);
+    else if (entry === wc) return true;
+  }
+  return false;
+}
+
 export function updateNativeEntries(entries: DesktopEntry[]): void {
   latestEntries = entries;
 }
@@ -82,7 +99,8 @@ function mutateSave(mutator: (save: NonNullable<ReturnType<typeof loadSave>>) =>
 }
 
 export function registerNativeHandlers(getWc: () => WebContents | null): void {
-  ipcMain.handle('native:status', () => {
+  ipcMain.handle('native:status', (event) => {
+    allowSender(event.sender); // 护理台/胶囊每次调用自动登记（契约内的合法渲染层）
     const save = loadSave();
     const native = save?.native;
     const summary = nativeStatusSummary();

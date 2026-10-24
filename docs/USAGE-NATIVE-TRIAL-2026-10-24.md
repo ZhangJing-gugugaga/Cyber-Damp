@@ -6,7 +6,8 @@
 
 | 文件 | SHA256 | 用途 |
 |---|---|---|
-| `release/Cyber Damp Setup 0.1.24.exe` | `c489209ef93d022c2550f39795de2ea27c299bb7d8ad856e974343c3e9cbb778` | **当前推荐**：NSIS 当前用户安装包（修复轮：样式/CSP 修复 + 认可材质接入，替代 0.1.23） |
+| `release/Cyber Damp Setup 0.1.25.exe` | `427be46bcb8c9964e19af01b329c41f1149aa8e8a36e1a1b09d6485787101133` | **当前推荐**：修复原生模式未注册天气通道导致"无法选择城市"（0.1.24 存在此缺陷） |
+| `release/Cyber Damp Setup 0.1.24.exe` | `c489209ef93d022c2550f39795de2ea27c299bb7d8ad856e974343c3e9cbb778` | 已被 0.1.25 替代 |
 | `release/Cyber Damp Setup 0.1.23.exe` | `a1068016900727090fc71b39b5ec670a26aae6a85aa5a38ca9cf96c52f6e84ff` | 已被 0.1.24 替代（存在样式缺失缺陷，勿再分发） |
 | `release/Cyber Damp 0.1.24.exe` | portable，调试用 | 单文件便携版 |
 

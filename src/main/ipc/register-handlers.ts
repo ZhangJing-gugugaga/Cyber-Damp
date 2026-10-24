@@ -29,6 +29,7 @@ import { applyIconMutation, restoreAllIconReferences, type IconMutationKind, typ
 import { writeIcoCache } from '../icon/ico-builder';
 import { scanNativeDesktop } from '../desktop/native-desktop-scan';
 import { markSceneReady, isSceneHidden, reportDisplayError } from '../window/management-window';
+import { isAllowedSender } from './native-handlers';
 
 /** preload 出口浅校验（契约纪律 5）：非法载荷丢弃并 warn */
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -216,7 +217,9 @@ export function registerHandlers(
 
   // ---- 天气（R3：Open-Meteo current 快照；仅场景窗口可调用） ----
   ipcMain.handle('weather:current', async (event, payload: unknown): Promise<WeatherLookup> => {
-    if (event.sender !== getWc() || !isPlainObject(payload)) return { status: 'unavailable', error: 'invalid-request' };
+    // 原生模式：护理台/胶囊（已登记发送方）也可取天气；旧模式仍限场景窗
+    const allowed = event.sender === getWc() || isAllowedSender(event.sender);
+    if (!allowed || !isPlainObject(payload)) return { status: 'unavailable', error: 'invalid-request' };
     const { cityId, label, latitude, longitude, forceRefresh } = payload;
     if (typeof latitude !== 'number' || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
       || typeof longitude !== 'number' || !Number.isFinite(longitude) || longitude < -180 || longitude > 180
@@ -227,7 +230,8 @@ export function registerHandlers(
     return getWeather(location, forceRefresh === true);
   });
   ipcMain.handle('weather:searchCity', async (event, payload: unknown): Promise<{ ok: true; options: CityOption[] } | { ok: false; error: string }> => {
-    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.query !== 'string') {
+    const allowedSearch = event.sender === getWc() || isAllowedSender(event.sender);
+    if (!allowedSearch || !isPlainObject(payload) || typeof payload.query !== 'string') {
       return { ok: false, error: 'invalid-request' };
     }
     try {
