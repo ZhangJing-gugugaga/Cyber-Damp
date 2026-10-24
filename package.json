@@ -46,7 +46,16 @@
     ],
     "win": {
       "icon": "src/renderer/public/brand/rain-mushroom.ico",
-      "target": "portable"
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false
     },
     "directories": {
       "output": "release"

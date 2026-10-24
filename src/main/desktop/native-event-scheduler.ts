@@ -65,7 +65,10 @@ function defaultNative(): NativeSaveSection {
 function ensureSave(): SaveData {
   const existing = loadSave();
   if (existing) {
-    if (!existing.native) existing.native = defaultNative();
+    if (!existing.native) {
+      // 旧版本升级用户：标记 legacy-initialized，不重发首批/奖励（R4.1）
+      existing.native = { ...defaultNative(), init: { status: 'legacy-initialized' } };
+    }
     return existing;
   }
   // 尚无存档：编排器建立骨架（渲染层新开局会基于同一存档继续）
