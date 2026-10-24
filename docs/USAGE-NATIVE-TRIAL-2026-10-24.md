@@ -6,8 +6,9 @@
 
 | 文件 | SHA256 | 用途 |
 |---|---|---|
-| `release/Cyber Damp Setup 0.1.23.exe` | `a1068016900727090fc71b39b5ec670a26aae6a85aa5a38ca9cf96c52f6e84ff` | NSIS 当前用户安装包（推荐） |
-| `release/Cyber Damp 0.1.23.exe` | `ec93c8e1111b9f28bf769372169dcbfbb038f9daffb2aa73341794234539aca6`（对应重建前构建；重建后以 Setup 包为准） | 单文件便携版（调试用） |
+| `release/Cyber Damp Setup 0.1.24.exe` | `c489209ef93d022c2550f39795de2ea27c299bb7d8ad856e974343c3e9cbb778` | **当前推荐**：NSIS 当前用户安装包（修复轮：样式/CSP 修复 + 认可材质接入，替代 0.1.23） |
+| `release/Cyber Damp Setup 0.1.23.exe` | `a1068016900727090fc71b39b5ec670a26aae6a85aa5a38ca9cf96c52f6e84ff` | 已被 0.1.24 替代（存在样式缺失缺陷，勿再分发） |
+| `release/Cyber Damp 0.1.24.exe` | portable，调试用 | 单文件便携版 |
 
 安装位置：`%LOCALAPPDATA%\Programs\cyber-damp\`；数据目录：`%APPDATA%\cyber-damp\`（存档 `save.json`、图标恢复登记 `icon-restores.json`、天气缓存 `weather-cache.json`、ICO 缓存 `icon-cache\`）。卸载不删除数据目录（`deleteAppDataOnUninstall: false`）。
 
@@ -30,7 +31,7 @@
 
 ## 已知限制（如实记录）
 
-- 首批/日常的图标变化使用**占位合成材质**（族色叠加 + 菇斑）；已认可资产管线（care-assets-v1）的正式材质接入在后续迭代。
-- 喷壶/烟灰海绵/补色滚轮等工具族细分（A16）未在本版实现，当前为海绵+快速处理。
+- 桌面 ICO 与护理台污染层已共用同一认可材质管线（material-effects-lab 12 款移植 + 蘑菇资产分层）。护理台的接触反馈小件（foam/crumbs/stump）与喷壶/烟灰海绵/补色滚轮等工具族细分（A16）未接入，当前为海绵擦拭 + 快速处理。
+- repair-tools-v1 的 blotter/blower/desiccant/absorb/airflow 等扩展工具未接入，不在界面伪装可用。
 - 胶囊的 Acrylic 玻璃在 Windows 10 经 SetWindowCompositionAttribute 实现；Windows 11 的 DWM 背板分支未在本机实测。
 - 原生输入全量走查（单击/双击/框选/拖放/多屏混合 DPI）与用户视觉确认（A14/A19/A23 部分项）待用户试玩验收。

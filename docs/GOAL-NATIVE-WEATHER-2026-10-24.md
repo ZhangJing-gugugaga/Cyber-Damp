@@ -57,7 +57,13 @@
   - 领域层 `world/native-care.ts`（9 项测试）：完整清理+240h 免疫、采摘不重复结算、收藏品种/来源、引导 24 币一次性、大海绵 12 币（+30% 擦洗）、护理垫 8 币。
   - 产品模式（NATIVE_MODE，H2）：无覆盖层、无图标隐藏；胶囊窗（生产页面、userData 位置记忆、托盘显隐、acrylic）+ 护理窗四页（擦拭 ≥90% 自动收尾、快速处理、采摘、收藏、小铺、设置）+ 一次性引导 + 自启 + 恢复并暂停/继续游戏 + 完全退出。
   - 待收口（如实标注）：A16 工具族细分（喷壶/烟灰海绵/补色滚轮）、A14/A15/A17/A18 用户视觉与操作细节、A24 性能采样。
-- [ ] 阶段 4：交付阶段（NSIS 安装、卸载恢复、DPI、性能采样、使用说明、原生 UAT）。
+- [x] 阶段 4（完成）+ 修复轮（2026-10-24 第二批授权）：
+  - **CSP 根因（CDP 实证）**：care.html `style-src 'unsafe-inline'` 缺 `'self'` 拦掉外部 care.css（computedStyle 证实样式从未生效）。已修 `style-src 'self' 'unsafe-inline'`，安装版控制台无 CSS/资源错误。
+  - **视觉重构**：深雨青玻璃外壳（#1B3035 边带、#233B3E 内容面 @0.97、苔绿/琥珀点缀）、自绘标题栏 44px（品牌/币/最小化/关闭 no-drag）、四导航真图标、对象列表 205px/36px 图标省略、工作台 + 护理垫 + 工具托盘；图片全部 object-fit:contain 定容；页面无级联滚动条；900×640 夹工作区（最小 720×540）；boot 兜底与窗口内确认对话替代原生消息框。
+  - **认可材质接入**：`shared/material/effects.ts` 逐行移植 material-effects-lab 12 款材质（只改 RGB 保 alpha、蓝原图水渍走暗沉、stage 阈值一致）+ 对象 ID 稳定款式派生；主进程 ICO 合成 = 原图层 + 材质损伤层 + care-assets-v1 蘑菇 PNG（品种→形状映射，bud/mature）；护理台污染层共用同一模块/款式（桌面图标与窗口同一对象）。擦拭掩码 64×64 持久化（重开还原同一批擦除洞）；stage=0 真正无污染；清洗不掉菇、采摘只去菇。
+  - **资产接入表**：蘑菇 6（bud/mature×3）→ 主进程合成 + 收藏/采摘/蘑菇层 ✓进包✓截图；海绵 idle/active、cloth-active → 导航/工具托盘 ✓；mat → 护理垫背景与商品 ✓；basket → 币数/商品 ✓；droplets → 最小化钮 ✓；36 个 png/svg 经 vite public 进 asar（strings 验证）。**未接入**：foam/crumbs/stump/scissors（接触反馈小件，已拷贝未引用）、repair-tools-v1 的 blotter/blower/desiccant/absorb/airflow（诚实列出不伪装）。
+  - **安装验证**：0.1.24 静默安装 → CDP 无错误、样式生效（渐变+14px 圆角）、13 图 0 坏图、care/shop 页截图（logs/csp-probe/）；端到端回环 14/14 重跑通过（新材质管线）。
+  - 版本 0.1.24（Setup SHA256 `c489209e…bb778`），替代存在样式缺陷的 0.1.23。
 
 ## 3. 验收表（A01–A24）
 

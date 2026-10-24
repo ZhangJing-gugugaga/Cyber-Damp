@@ -1,7 +1,11 @@
 # IPC 契约：window.damp（Phase 2 唯一联调依据）
 
 > 本项目无 HTTP 服务端，故无 OpenAPI 面。本文件是前后端（main/preload ↔ renderer）的唯一契约，作用等同于 openapi.yaml：renderer 与 main 均按本表实现，变更必须走 Team Lead 同步并升版本号。
-> 契约版本：v1.11（2026-10-24）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+> 契约版本：v1.12（2026-10-24）。contextIsolation: true，sandbox: true；preload 经 contextBridge 暴露。
+
+## v1.12 护理台视觉修复（Goal v9 修复轮）
+
+`native:status` 的对象条目增加 `careMask?: string`（64×64 擦拭掩码 base64，行优先 1bit/格）。`native:careProgress` 载荷增加可选 `mask`，与 `progress` 一同持久化——重开还原同一批擦除洞。`native:careComplete`/`native:quickCare` 成功时由领域层清空掩码与进度。CSP 修订：产品页 `style-src 'self' 'unsafe-inline'`（file:// 页面的外部样式表需要 'self'）；脚本仍走 `default-src 'self'`。渲染层新增 `window.damp.native` 出口（v1.11 表中的 icon:applyState/restoreAll 保留）。
 
 ## v1.11 天气与原生图标引用（Goal v9 阶段1）
 
