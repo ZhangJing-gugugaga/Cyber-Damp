@@ -1,6 +1,6 @@
 # IPC 契约：window.damp
 
-契约 v1.14，2026-10-25：用户明确要求彻底退役旧版后，只保留原生图标护理与胶囊接口。contextIsolation 与 sandbox 均保持开启。旧 v1.13 原文（含工作区已有修改）见 [history/preload-api-v1.13.md](history/preload-api-v1.13.md)，不是活动接口清单。
+契约 v1.14，2026-10-25：用户明确要求彻底退役旧版后，只保留原生图标护理与胶囊接口。contextIsolation 与 sandbox 均保持开启。历史接口已保存在[远端存档提交](https://github.com/ZhangJing-gugugaga/Cyber-Damp/tree/8442b3388bf4896b881ec48261d1bac45a126f63)，不在当前文件树保留并行接口。
 
 所有方法经 contextBridge 暴露；定义对齐 `src/preload/index.ts`、`src/renderer/types/damp.d.ts`、`src/shared/types/` 与 `src/main/ipc/`。
 

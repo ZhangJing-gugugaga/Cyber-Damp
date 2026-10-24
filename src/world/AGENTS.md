@@ -20,7 +20,7 @@
 
 ## Work Guidance
 
-- 对照 [Goal v9](../../docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及最新用户裁决；历史规格不重新激活旧玩法。
+- 对照[当前产品规格](../../docs/PRODUCT.md)及最新用户裁决；历史规格不重新激活旧玩法。
 - 新缺陷用固定条件覆盖行为；规则测试不能替代生产调度、原生引用和显示验证。
 
 ## Verification

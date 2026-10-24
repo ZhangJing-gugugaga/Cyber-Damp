@@ -1,6 +1,6 @@
 /**
  * 原生体验 IPC（Goal v9 阶段3；独立于 register-handlers 以减少旧通道耦合）
- * 契约：docs/contracts/preload-api.md v1.12 native 组。
+ * 契约：docs/contracts/preload-api.md v1.14 native 组。
  * 纪律：sender 校验 + 载荷浅校验；领域操作经 src/world 纯函数；每次变更原子写存档。
  */
 import { app, ipcMain } from 'electron';

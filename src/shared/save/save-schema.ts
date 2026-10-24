@@ -1,6 +1,6 @@
 /**
  * 存档校验与版本迁移（shared 叶子层，手写无 zod）
- * 契约：docs/contracts/save-schema.json（schemaVersion: 1）
+ * 契约：docs/contracts/save-format.md（当前v3与旧档迁移）
  * AC-24/27：读路径任何结构不满足返回 null；写路径同样必须过此校验（防 NaN 落盘后静默清档）
  */
 import type { SaveData } from '../types/save';

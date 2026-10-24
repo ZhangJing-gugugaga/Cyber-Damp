@@ -3,13 +3,13 @@
  *
  * 360×56 DIP，主屏工作区顶部居中，距顶 24 DIP；可拖动并记忆位置，
  * 重置回默认；DPI/显示器变化后夹回可见工作区。
- * 层级策略（阶段1原型结论，详见 docs/GOAL-NATIVE-WEATHER-2026-10-24.md）：
+ * 层级策略（阶段1原型结论，详见 docs/PRODUCT.md）：
  *  - 采用"普通非置顶顶层窗口"：不压普通应用（后激活的应用盖住它）、
  *    不抢焦点（showInactive）、透明留白穿透、点击区域仅限胶囊本体；
  *  - 不采用 WorkerW 嵌入：该层位于图标输入层之下，截获点击需要输入钩取/转发，
  *    违反 H2；实测证据见阶段1记录。
  *  - Win+D 会最小化本窗（与"桌面及 Win+D 可见"存在已知冲突，
- *    标记为待用户确认降级，托盘/点击胶囊可唤回）。
+ *    用户已接受此降级，托盘/程序入口可唤回）。
  */
 import { BrowserWindow, app, screen } from 'electron';
 import * as fs from 'node:fs';
@@ -88,7 +88,7 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
     skipTaskbar: true,
     focusable: false,
     hasShadow: false,
-    alwaysOnTop: false, // R2：不压普通应用；代价是 Win+D 会最小化（待用户裁决）
+    alwaysOnTop: false, // R2：不压普通应用；代价是 Win+D 会最小化（已接受）
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,

@@ -2,16 +2,16 @@
 
 Windows 桌面轻量玩具：天气驱动少量原生文件夹与快捷方式图标受潮、发霉或发焦；在普通护理窗口擦拭、采菇、收藏和购买小道具。
 
-当前源码版本 0.1.25。2026-10-25 已按用户要求彻底退役旧覆盖层、替身输入、绳索物理、旧图集、专属预览及测试；当前构建仅含护理台和天气胶囊。原生图标变更/恢复、天气、当前材质、护理资产、品牌图标及旧存档迁移继续保留。清理前已有的交互和天气修改未回退。
+当前源码版本 0.1.25，构建仅含护理台和天气胶囊。原生图标变更/恢复、天气、当前材质、护理资产、品牌图标及旧存档迁移继续保留。
 
-**构建通过不等于用户验收通过。** 当前已知交互缺陷及留存判断见[体验评估](docs/REVIEW-RETENTION-2026-10-25.md)；本轮范围是旧版退役，并未顺带解决该报告中的全部缺陷。
+**构建通过不等于用户验收通过。** 已有能力、已知缺陷与未测范围见[当前实现状态](docs/CURRENT-STATUS.md)。
 
 ## 当前入口
 
-- 产品规格：[原生图标与天气胶囊 Goal v9](docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)。胶囊层级及后续裁决见[执行记录](docs/GOAL-NATIVE-WEATHER-2026-10-24.md)。当前工作区保留默认长沙、离线默认天气和省市选择增量，默认数据须明确标识。
+- 产品规格：[当前产品规格](docs/PRODUCT.md)。已合并默认长沙、离线默认天气、省市选择、Win+D 与旧版退役的有效决定。
 - 接口：[preload 契约 v1.14](docs/contracts/preload-api.md)。历史接口仅作档案，不再注册。
 - 验收：[当前护理/原生桌面验收](docs/CARE-DESKTOP-UAT.md)及[项目 UAT 技能](.agents/skills/cyber-damp-uat/SKILL.md)。
-- 清理范围、恢复位置与验证：[旧版退役记录](docs/LEGACY-RETIREMENT-2026-10-25.md)。
+- 存档兼容：[当前存档契约](docs/contracts/save-format.md)。
 
 ## 开发与构建
 
@@ -39,4 +39,4 @@ Electron、TypeScript、Vite、koffi/Win32；护理台使用 Canvas/DOM。旧 Pi
 
 `src/renderer/public/assets/care/` 为当前护理素材，`public/brand/` 为品牌。`src/shared/material/effects.ts` 为桌面 ICO 与护理台共用材质。来源与作者工具见[资产清单](src/renderer/public/assets/care/PROVENANCE.md)及[当前预览目录](previews/visual-assets-2026-10-24/README.md)。
 
-历史设计、评估、验收与交付哈希保留在 `docs/`，其中旧文件路径、玩法及性能数字只描述当时版本。旧版恢复脚本和覆盖层环境变量不再作为当前入口使用。
+旧规格、日期报告、评估与接口档案已先推送保存于[存档提交8442b33](https://github.com/ZhangJing-gugugaga/Cyber-Damp/tree/8442b3388bf4896b881ec48261d1bac45a126f63)。最新文件树只保留现行规范与素材；需要历史资料时从该提交按文件查看或恢复。

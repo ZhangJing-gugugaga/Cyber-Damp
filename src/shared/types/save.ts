@@ -1,7 +1,7 @@
 /**
  * 存档数据模型（shared 叶子层类型）
- * 机器可读契约：docs/contracts/save-schema.json（schemaVersion: 1）
- * 只存逻辑态，不存物理刚体；mtime/x/y/name/ext/size 由真实桌面扫描重建，不入存档
+ * 存档契约：docs/contracts/save-format.md（schemaVersion: 1/2兼容，当前v3）
+ * 主进程持有原生事件与护理状态；旧files/ropes字段仅供迁移兼容。
  */
 import type { FileActionState, MushroomState } from './file-runtime';
 import type { DailyEventRecord, DamageFamily, DamageStage, InitPlan, MushroomStage, NativeWeatherSnapshot } from './native';

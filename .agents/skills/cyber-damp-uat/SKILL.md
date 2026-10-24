@@ -5,9 +5,9 @@ description: Validate the current native-icon Cyber Damp on Windows with CursorT
 
 # Cyber Damp native UAT
 
-Read root AGENTS.md, docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md,
-docs/GOAL-NATIVE-WEATHER-2026-10-24.md (including the accepted Win+D downgrade),
-and docs/CARE-DESKTOP-UAT.md. The old overlay, WorkerW takeover, icon hiding,
+Read root AGENTS.md, docs/PRODUCT.md (including the accepted Win+D behavior),
+docs/CURRENT-STATUS.md and docs/CARE-DESKTOP-UAT.md.
+The old overlay, WorkerW takeover, icon hiding,
 rope physics, desktop tool forwarding and dedicated previews were retired by
 the user on 2026-10-25. Do not run their archived scripts or reactivate them.
 
