@@ -1,7 +1,7 @@
 {
   "name": "cyber-damp",
   "version": "0.1.25",
-  "description": "回南天 Cyber Damp - 桌面文件受潮发霉/拉绳晾晒/蘑菇养成的数字家务模拟器 MVP",
+  "description": "回南天 Cyber Damp - 原生桌面图标天气变化与轻量护理",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",
   "contributors": [
@@ -13,14 +13,11 @@
     "dev": "vite",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "node scripts/build-main.mjs",
     "typecheck": "tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.main.json --noEmit",
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win --x64 --config.electronDist=node_modules/electron/dist",
-    "test:constants": "node --test scripts/check-shared.mjs",
-    "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-world.mjs",
-    "qa:cdp": "node scripts/qa-cdp.mjs",
-    "qa:window": "node scripts/qa-window.mjs",
+    "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-native-events.mjs scripts/test-native-care.mjs",
     "qa:dox": "node scripts/check-dox.mjs"
   },
   "devDependencies": {
@@ -31,17 +28,19 @@
     "vite": "8.3.4"
   },
   "dependencies": {
+    "china-division": "^2.7.0",
     "koffi": "^3.3.3",
-    "lucide": "1.58.0",
-    "pixi-filters": "6.1.5",
-    "pixi.js": "8.21.0",
     "png-to-ico": "^2.1.8"
   },
   "build": {
     "appId": "com.moonzj.cyberdamp",
     "productName": "Cyber Damp",
     "files": [
-      "dist/**/*",
+      "dist/main/**/*",
+      "dist/preload/**/*",
+      "dist/shared/**/*",
+      "dist/world/**/*",
+      "dist/renderer/**/*",
       "package.json"
     ],
     "win": {

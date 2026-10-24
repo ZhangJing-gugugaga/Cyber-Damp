@@ -1,7 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"blank-before"},
-  {"tool":"Move","arguments":{"loc":[1830,600]},"label":"blank-hover"},
-  {"tool":"Click","arguments":{"loc":[1830,600],"button":"right"},"label":"blank-right-click"},
-  {"tool":"Screenshot","arguments":{},"label":"desktop-context-menu"},
-  {"tool":"Shortcut","arguments":{"shortcut":"esc"},"label":"dismiss-menu"}
-]

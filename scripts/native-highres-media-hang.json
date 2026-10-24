@@ -1,6 +1,0 @@
-[
-  {"tool":"Move","arguments":{"loc":[440,195]},"label":"highres-media-hover"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"highres-media-capture"},
-  {"tool":"Move","arguments":{"from_loc":[440,195],"loc":[1020,850],"drag":true,"duration":0.15},"label":"highres-media-drag","targetWindowTitle":"回南天 Cyber Damp"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"highres-media-hung"}
-]

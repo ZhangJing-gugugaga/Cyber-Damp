@@ -1,5 +1,7 @@
 # POINTER-EVENTS.md — 指针事件可断言元素清单 v1.0
 
+> **历史档案（2026-10-25 已退役）**：本文件正文保留旧版本的设计、约束与验收语境，不再作为当前实现或开发门槛；文中“唯一依据”“已锁定”“开发暂停”等表述仅描述当时状态。当前入口见 [README](../README.md)、[原生产品规格](../docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及最新用户裁决。旧图集、覆盖层、旧 token 和专属检查已退出活动代码，正文路径可能仅存在于历史记录或仓库外备份。
+
 > 项目：回南天 Cyber Damp | 设计师：颜好看 | 日期：2026-10-17
 > 用途：Phase 3 UI 层实现 + QA 验收断言（Spec §9 AC-36 的展开表）
 > 背景纪律：窗口常态是点击穿透（`setIgnoreMouseEvents` + hit-test 状态机）。DOM chrome 默认不吃事件；

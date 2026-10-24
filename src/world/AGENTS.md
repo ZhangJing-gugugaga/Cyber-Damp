@@ -2,33 +2,31 @@
 
 ## Purpose
 
-负责文件受潮、霉变、生长、材料和轻量交互的纯领域状态及模拟。先读[项目根指南](../../AGENTS.md)。
+负责原生图标自然事件、护理、采摘和轻量经济的纯领域逻辑。先读[根指南](../../AGENTS.md)。
 
 ## Ownership
 
-- [file-entity.ts](file-entity.ts) 管实体，[evolution.ts](evolution.ts) 管演进；其他文件承载布局、材料、天气、绳索及辅助经济规则。
-- 可依赖 `src/shared/` 的契约与常量；领域层不依赖 Electron、Pixi、DOM、原生句柄或桌面文件 I/O。
+- [native-events.ts](native-events.ts) 定义首批、日额度、天气倾向与免疫。
+- [native-care.ts](native-care.ts) 定义清理、采摘、奖励和购买。旧连续演进、物理绳索、颜料与旧商店已退役。
+- 只依赖 shared 类型/常量，不依赖 Electron、DOM、Pixi、Win32 或文件 I/O。
 
 ## Local Contracts
 
-- 对时间、随机和环境条件使用显式输入，保持相关测试可复现；不把帧数当作固定秒数。
-- 霉变、损坏和护理改变模拟状态，不操作用户真实文件。来源文件身份、改名/修改识别与存档恢复行为遵循有效规格，不能只依赖 mtime 猜测全部身份变化。
-- 检查 NaN、非有限数、越界值及存档边界；不要仅为了通过测试而隐藏非法输入或更改已确认数值。
-- 经济与道具是辅助体验，不自行增加经营目标、惩罚或未批准的正式数值。
-- economy.ts的harvestPrice复用现有临时单菇计价，普通采摘与剪落物售卖共用；剪落时记录品相。生长不形成额外成熟禁采，特殊工具约束保留，D05正式经济平衡仍待确认。
-- 日常菇生长共用shared/constants.ts的既有普通菇速率；特殊菇不得沿用旧版8秒长满，dryCare同时阻止其新生与继续长大。Opening的4秒展示进度与日常逻辑分离。
-- 类型或存档语义改变时核对 `src/shared/`、渲染装配及持久化消费方；保持已有有效存档的处理路径明确。
+- 时间、种子和天气显式输入，规则可重复验证。首批一次性固定计划；后续全局每天至多一个对象推进一级，暂停不积欠。
+- 完整护理刷新连续 240h 防霉，仍可按天气受潮/发焦；清理保留菇，采菇保留损伤与部分护理进度，不重复结算。
+- 经济辅助体验，不自行扩充经营或强制护理。价格与一次性奖励以有效规格及当前常量为准。
+- 保留共享存档中的旧字段和 v1/v2→v3 迁移校验；退役旧玩法不等于删除用户数据。
+- 遇到 NaN、非法存档和状态边界应明确拒绝，不为通过测试掩盖非法输入。
 
 ## Work Guidance
 
-- 修改前核对现有行为与[已确认产品决策](../../docs/superpowers/specs/2026-10-19-care-and-desktop-design.md)，不要仅从旧代码注释推断新目标。
-- 缺陷使用固定条件构造回归场景；复用现有测试风格，避免为每个实现细节建立一份镜像测试。
+- 对照 [Goal v9](../../docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及最新用户裁决；历史规格不重新激活旧玩法。
+- 新缺陷用固定条件覆盖行为；规则测试不能替代生产调度、原生引用和显示验证。
 
 ## Verification
 
-- 世界逻辑：`npm run test:world`；共享常量：`npm run test:constants`。
-- `npm test` 会先编译并覆盖世界、特殊蘑菇、颜料、掉落、共享常量等现有场景；需要跨模块回归时使用它，避免重复运行已覆盖的整套检查。
-- 相关入口为 [scripts/test-world.mjs](../../scripts/test-world.mjs)、[scripts/test-special-mushrooms.mjs](../../scripts/test-special-mushrooms.mjs)、[scripts/test-pigment.mjs](../../scripts/test-pigment.mjs) 和 [scripts/test-falling.mjs](../../scripts/test-falling.mjs)。领域测试通过不代表原生视觉通过。
+- `npm run test:world` 检查事件与护理；`npm test` 另含调度、迁移、天气、材质与原生引用基础检查。
+- [事件测试](../../scripts/test-native-events.mjs)、[护理测试](../../scripts/test-native-care.mjs)、[调度测试](../../scripts/test-native-scheduler.mjs)均不宣称完成真实桌面验收。
 
 ## Child DOX Index
 

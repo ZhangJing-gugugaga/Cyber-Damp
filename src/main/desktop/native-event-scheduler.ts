@@ -17,6 +17,7 @@ import { findEntry } from './icon-restore-store';
 import { writeIcoCache } from '../icon/ico-builder';
 import { composeStateIconPng } from '../icon/state-icon';
 import { getWeather } from '../weather/weather-service';
+import { DEFAULT_LOCATION } from '../../shared/native-defaults';
 import {
   advanceDamage, decideNativeBranch, familyWeights, localDateKey, planDailyOrder, planInit,
 } from '../../world/native-events';
@@ -144,14 +145,16 @@ async function executeCycle(
   mergeCandidates(native, candidates);
   save.savedAt = now;
 
-  // 天气（R3）：注入快照优先（测试），否则按所选城市取数
+  // 天气（R3）：注入快照优先（测试）；否则按所选城市取数，未选城市用
+  // 内置默认城市（长沙）开箱即跑；实况彻底不可用时 getWeather 已回退内置快照
   let snapshot = null as NativeSaveSection['lastSnapshot'];
   let usableForEvents = false;
   if (options.injectSnapshot) {
     snapshot = { ...options.injectSnapshot, observedAt: new Date(now).toISOString(), fetchedAt: now };
     usableForEvents = true;
-  } else if (native.location) {
-    const lookup = await getWeather({ cityId: native.location.cityId, label: native.location.label, latitude: native.location.latitude, longitude: native.location.longitude });
+  } else {
+    const location = native.location ?? DEFAULT_LOCATION;
+    const lookup = await getWeather({ cityId: location.cityId, label: location.label, latitude: location.latitude, longitude: location.longitude });
     if (lookup.snapshot) {
       snapshot = {
         temperatureC: lookup.snapshot.temperatureC, humidityPct: lookup.snapshot.humidityPct,

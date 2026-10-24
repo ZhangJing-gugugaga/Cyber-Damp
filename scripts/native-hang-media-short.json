@@ -1,7 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"media-short-before"},
-  {"tool":"Move","arguments":{"loc":[499,210]},"label":"media-short-hover"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"media-short-wait"},
-  {"tool":"Move","arguments":{"from_loc":[499,210],"loc":[1050,430],"drag":true,"duration":0.15},"label":"media-short-hang"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"media-short-hung"}
-]

@@ -1,5 +1,7 @@
 # MASTER.md — 回南天 Cyber Damp 全局设计源（机器可读优先）
 
+> **历史档案（2026-10-25 已退役）**：本文件正文保留旧版本的设计、约束与验收语境，不再作为当前实现或开发门槛；文中“唯一依据”“已锁定”“开发暂停”等表述仅描述当时状态。当前入口见 [README](../README.md)、[原生产品规格](../docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及最新用户裁决。旧图集、覆盖层、旧 token 和专属检查已退出活动代码，正文路径可能仅存在于历史记录或仓库外备份。
+
 2026-10-21实现增量：管理窗与折叠桌面工具共用 `src/renderer/ui/rain-cabinet.css` 六个基础色；独立管理以物品分类/列表/详情/购买状态为中心。两种布局和连续材质预览的入口见 [样片说明](../previews/material-library/README.md)，源码与验收限制见 [体验记录](../docs/EXPERIENCE-INCREMENT-2026-10-21.md)。下方旧深色token仍供保留的旧面板使用，不将其误记为本轮已认可视觉。
 
 > 2026-10-21 当前设计覆盖：[修订目标与计划](../docs/superpowers/specs/2026-10-21-experience-direction-and-plan.md)。采用游戏交互后台与收拢工具入口，复用旧版资产，补回原生选中反馈；下方旧色值/布局记录仅作历史与复用参考，不能阻止当前 UI 重构。

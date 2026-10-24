@@ -1,8 +1,0 @@
-{
-  "tool": "built-in image_gen",
-  "generatedAt": "2026-10-18",
-  "path": "src/renderer/assets/bolete-intact.png",
-  "reference": "src/renderer/assets/mushrooms-atlas.png",
-  "prompt": "Use case: precise-object-edit. Asset type: transparent PNG game sprite for Cyber Damp. Input image is an edit target/reference atlas: keep ONLY the ochre bolete mushroom in the bottom-left quadrant, remove the other three mushrooms and all background. Make the output one centered, complete, upright bolete. Crucial edit: repair the blue wounded cut patch on its stem into intact pale creamy-yellow textured flesh; there must be NO cut surface, NO blue anywhere, NO exposed cross-section, NO soil clump. Keep the same warm ochre rounded cap, yellow pore underside, organic photographic moist texture and front orthographic lighting/style. Full mushroom including bottom end, generous transparent padding on every side, centered bottom anchor. No text, no labels, no shadows outside the mushroom, no colored fringe, genuine transparent alpha. This is the uncut asset; code will draw a pale-to-blue cross-section only AFTER harvesting.",
-  "usage": "Uncut bolete has an intact cream stem. HarvestController alone draws the cut surface and animates pale yellow to blue after harvesting."
-}

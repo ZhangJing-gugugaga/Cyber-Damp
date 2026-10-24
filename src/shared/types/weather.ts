@@ -33,6 +33,8 @@ export interface WeatherLookup {
   error?: string;
   /** 码不在认可集合或字段无效时为 false：可展示但不得驱动自然事件（R3/R5） */
   usableForEvents?: boolean;
+  /** true = 实况不可用，使用内置默认快照（shared/native-defaults）；UI 须标注"内置默认" */
+  defaulted?: boolean;
 }
 
 export interface WeatherLocation {

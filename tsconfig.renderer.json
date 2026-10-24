@@ -6,6 +6,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "outDir": "dist/renderer",
     "noEmit": false,
+    "resolveJsonModule": true,
     "types": []
   },
   "include": ["src/renderer", "src/shared"]

@@ -105,7 +105,7 @@ body {
 }
 #canvas-wrap.mat-on::before {
   content: ""; position: absolute; inset: 6px; border-radius: 12px;
-  background: url("./assets/care/mat.png") center/contain no-repeat;
+  background: url("/assets/care/mat.png") center/contain no-repeat;
   opacity: .9;
 }
 #canvas-wrap .layer { position: absolute; inset: 14px; width: 236px; height: 236px; object-fit: contain; pointer-events: none; }
@@ -192,3 +192,9 @@ input[type="text"]:focus { border-color: var(--accent); }
   background: #1b3035; color: var(--ink);
 }
 #boot-splash img { width: 64px; height: 64px; object-fit: contain; }
+
+/* ---------- 省市级联城市选择（china-division 数据） ---------- */
+.city-picker select { flex: 0 1 auto; min-width: 130px; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--line);
+  color: var(--ink); border-radius: 8px; padding: 8px 8px; outline: none; min-height: 34px; }
+.city-picker select:focus { border-color: var(--accent); }
+.city-picker select option { background: #233b3e; color: var(--ink); }

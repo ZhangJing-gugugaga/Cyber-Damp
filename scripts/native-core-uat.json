@@ -1,9 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"uat-start"},
-  {"tool":"Move","arguments":{"loc":[65,180]},"label":"hover-wet-folder"},
-  {"tool":"Move","arguments":{"from_loc":[65,180],"loc":[700,400],"drag":true,"duration":1.0},"label":"drag-wet-folder"},
-  {"tool":"Screenshot","arguments":{},"label":"drag-result"},
-  {"tool":"Move","arguments":{"loc":[1808,44]},"label":"settings-hover"},
-  {"tool":"Click","arguments":{"loc":[1808,44]},"label":"settings-click"},
-  {"tool":"Screenshot","arguments":{},"label":"settings-result"}
-]

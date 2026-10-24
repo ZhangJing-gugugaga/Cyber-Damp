@@ -23,13 +23,13 @@
 ## Ownership
 
 - 根文件覆盖未单独建指南的目录，尤其 `src/preload/`、`src/shared/`、`scripts/`、`docs/` 和项目技能。
-- 源码技术栈为 Electron、Pixi.js、TypeScript 和 Win32；实际依赖版本、脚本以 [package.json](package.json) 及锁文件为准。只改源码，不直接修补 `dist/` 或 `release/`。
+- 源码技术栈为 Electron、Canvas/DOM、TypeScript 和 Win32；实际依赖版本、脚本以 [package.json](package.json) 及锁文件为准。只改源码，不直接修补 `dist/` 或 `release/`。
 - 本项目指南由项目维护；Skillshare 管全局技能与共享偏好，CC Switch 管供应商。不要让全局同步器覆盖本项目自维护文档树。
 
 ## Local Contracts
 
-- 先由 [README](README.md) 确认规格入口。产品行为核对[已确认设计及后续补充](docs/superpowers/specs/2026-10-19-care-and-desktop-design.md)，视觉任务读取[美术方向](design-system/ART-DIRECTION.md)，原生/护理验收读取[当前验收要求](docs/CARE-DESKTOP-UAT.md)。只读取任务需要的部分。
-- 旧 PRD、SPEC、代码注释及技能中的冲突条款不覆盖已确认的新决策。当前启动回放要求是 3–5 秒；发现新冲突且无法确定有效决策时说明并澄清。
+- 先由 [README](README.md) 确认规格入口。产品行为核对[原生图标与天气胶囊规格](docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及[后续裁决](docs/GOAL-NATIVE-WEATHER-2026-10-24.md)，视觉任务读取[美术方向](design-system/ART-DIRECTION.md)，原生/护理验收读取[当前验收要求](docs/CARE-DESKTOP-UAT.md)。只读取任务需要的部分。
+- 旧 PRD、SPEC、代码注释及技能中的冲突条款不覆盖已确认的新决策。旧覆盖层与其 3–5 秒回放已于 2026-10-25 由用户明确要求退役；发现新冲突且无法确定有效决策时说明并澄清。
 - 不改写真实文件内容、名称、权限或 Explorer 图标位置；模拟损坏仅在存档和画面中。允许的桌面扫描/打开行为仍需遵守当前任务及测试授权，不运行未知可执行文件。
 - 跨进程契约涉及 [preload 出口](src/preload/index.ts)、[共享类型](src/shared/types)、[IPC 注册](src/main/ipc/register-handlers.ts) 和[契约文档](docs/contracts/preload-api.md)；新增或修改接口时核对这些位置，不只修一端。
 - 保留用户已有修改；不擅自重置工作区、升级依赖或提交/推送。项目是否暂停、恢复或进入下一阶段，以当前用户授权为准，不把临时进度固化为全局禁令。
@@ -37,7 +37,7 @@
 ## Work Guidance
 
 - 开发硬规则：编码前先搜索 GitHub 是否有现成项目；能复用的代码绝不重新写；Codex 只开发缺少的功能。优先盘点本项目旧版资产、代码与已有依赖，保留来源及必要的最小适配说明；跨项目规则的共享来源为 `D:/AI-Config/instructions/AGENTS.md`，由 Skillshare 维护和同步。
-- 当前方向以 [2026-10-21 目标与计划及后续补充](docs/superpowers/specs/2026-10-21-experience-direction-and-plan.md) 为准：用户最新反馈重新打开启动与运行卡顿、工具冲突问题，优先恢复功能与性能体验；统一游戏式商城/HUD，复用旧版并扩充动态样片，遮挡上限90%、原图可辨认。历史性能认可不代表新版本通过。
+- 当前仅保留原生图标变化、天气胶囊与护理台。用户 2026-10-25 明确要求彻底移除旧覆盖层、专属预览、旧图集与测试；不再通过环境变量启用旧版。当前资产/材质和旧存档迁移保留，范围与验证见[退役记录](docs/LEGACY-RETIREMENT-2026-10-25.md)。历史体验认可不代表当前通过。
 
 - UI、桌面融合、领域逻辑分别进入下面的子域指南；涉及多个域时读取所有适用链。
 - 复现缺陷后选择覆盖相关行为的检查；测试环境和产物模式必须与所声称验证的行为一致。
@@ -46,7 +46,7 @@
 ## Verification
 
 - 文档树与加载路径：`npm run qa:dox`；定位规则链：`npm run qa:dox -- --paths src/main/index.ts`。
-- 类型和跨进程接口：`npm run typecheck`；跨模块逻辑：`npm test`，后者已包含世界、常量等检查，不机械重复整套测试。
+- 类型和跨进程接口：`npm run typecheck`；跨模块逻辑：`npm test`，后者已包含当前事件、护理、调度、迁移、天气与材质检查，不机械重复整套测试。
 - 运行效果前：`npm run build`；交付便携包：`npm run dist:win`，相关行为在实际打包产物上验证。
 - 原生交互按[项目 UAT 技能](.agents/skills/cyber-damp-uat/SKILL.md)执行。CDP 只能辅助诊断，不能替代原生输入与截图。未运行或不可观察的项目记为 NOT TESTED。
 
@@ -54,6 +54,6 @@
 
 <!-- dox-children:start -->
 - [src/main/AGENTS.md](src/main/AGENTS.md)：桌面接入、窗口、Win32、退出恢复与主进程职责。
-- [src/renderer/AGENTS.md](src/renderer/AGENTS.md)：Pixi、界面、输入、视觉与渲染装配。
+- [src/renderer/AGENTS.md](src/renderer/AGENTS.md)：护理台、天气胶囊、Canvas 输入与视觉。
 - [src/world/AGENTS.md](src/world/AGENTS.md)：纯领域状态、演进、模拟与逻辑测试。
 <!-- dox-children:end -->

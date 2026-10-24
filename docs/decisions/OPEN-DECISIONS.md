@@ -1,5 +1,7 @@
 # OPEN-DECISIONS — 回南天 Cyber Damp MVP
 
+> **历史档案（2026-10-25 已退役）**：本文件正文保留旧版本的设计、约束与验收语境，不再作为当前实现或开发门槛；文中“唯一依据”“已锁定”“开发暂停”等表述仅描述当时状态。当前入口见 [README](../../README.md)、[原生产品规格](../superpowers/specs/2026-10-24-native-weather-goal-prompt.md)及最新用户裁决。旧图集、覆盖层、旧 token 和专属检查已退出活动代码，正文路径可能仅存在于历史记录或仓库外备份。
+
 > 2026-10-21 当前方向见 [目标与计划](../superpowers/specs/2026-10-21-experience-direction-and-plan.md)。下方历史决策不覆盖用户最新规则。
 
 > 悬而未决登记册。铁律：只追加 + 就地关闭（OPEN → RESOLVED，补 Resolution 字段）。

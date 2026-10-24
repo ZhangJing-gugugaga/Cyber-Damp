@@ -1,7 +1,0 @@
-[
-  {"tool":"Move","arguments":{"loc":[442,325]},"label":"rope-weight-light-hover"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"rope-weight-light-ready"},
-  {"tool":"Move","arguments":{"from_loc":[442,325],"loc":[880,558],"drag":true,"duration":0.15},"label":"rope-weight-light-hang","targetWindowTitle":"回南天 Cyber Damp"},
-  {"tool":"Wait","arguments":{"duration":8},"label":"rope-weight-light-settle"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"rope-weight-light"}
-]

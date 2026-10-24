@@ -1,6 +1,0 @@
-[
-  {"tool":"Move","arguments":{"loc":[1058,338]},"label":"pigment-held-media-hover"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"pigment-held-media-ready"},
-  {"tool":"Move","arguments":{"from_loc":[1058,338],"loc":[1058,338],"drag":true,"duration":6.8},"label":"pigment-held-media","targetWindowTitle":"回南天 Cyber Damp"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"pigment-after-drips"}
-]

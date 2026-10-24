@@ -1,1 +1,0 @@
-[{"tool":"Move","arguments":{"loc":[1570,244]},"label":"physiology-notepad-close-hover"},{"tool":"Click","arguments":{"loc":[1570,244]},"targetWindowTitle":"Cyber Damp UAT-01522521-paper.txt - 记事本","label":"physiology-notepad-close"},{"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"physiology-after-open"}]

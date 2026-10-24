@@ -1,1 +1,0 @@
-window.ICON_META={"label":"work","source":"Windows Desktop / work (Shell icon, read only)","sourcePixels":{"width":256,"height":256},"iconSize":48,"sizeVerified":true,"displayScale":1.25};

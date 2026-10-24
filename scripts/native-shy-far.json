@@ -1,6 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"shy-hidden-before-far"},
-  {"tool":"Move","arguments":{"loc":[900,500]},"label":"shy-retreat"},
-  {"tool":"Wait","arguments":{"duration":3},"label":"shy-three-seconds"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"shy-emerged-native"}
-]

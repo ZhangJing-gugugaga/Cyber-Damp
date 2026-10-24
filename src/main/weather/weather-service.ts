@@ -20,6 +20,8 @@ import {
   WEATHER_CACHE_TTL_MS, WEATHER_STALE_MAX_MS, WEATHER_TIMEOUT_MS,
 } from '../../shared/types/weather';
 import { validateCurrentWeather } from '../../shared/weather-validate';
+import { mergeCityResults, suggestSuffixedQuery, type RankableCity } from '../../shared/weather-rank';
+import { DEFAULT_WEATHER_SNAPSHOT } from '../../shared/native-defaults';
 import type { CityOption, WeatherLocation, WeatherLookup, WeatherSnapshot } from '../../shared/types/weather';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -106,8 +108,18 @@ export async function getWeather(location: WeatherLocation, forceRefresh = false
     if (entry && age <= WEATHER_STALE_MAX_MS) {
       return toLookup('stale', entry.snapshot, age);
     }
+    // 实况彻底不可用：回退内置默认快照（用户裁决：硬编码长沙，
+    // 开箱即用、断网可用）。必须带 defaulted 标记，UI 标注"内置默认"。
     return {
-      status: 'unavailable',
+      status: 'ok',
+      snapshot: {
+        ...DEFAULT_WEATHER_SNAPSHOT,
+        fetchedAt: Date.now(),
+        source: 'open-meteo' as const,
+      },
+      ageMs: 0,
+      usableForEvents: true,
+      defaulted: true,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -120,18 +132,39 @@ function toLookup(status: WeatherLookup['status'], snapshot: WeatherSnapshot, ag
   };
 }
 
-/** 城市搜索（成熟地理编码接口）；失败或无结果由调用方保留输入重试（R3）。 */
+/** 城市搜索：原词 + "市"后缀双查询合并重排。中文短名（如"长沙"）在
+ * 地理编码里会被同名乡镇淹没，真正的城市要靠后缀别名与人口重排才能
+ * 稳定排在首位（R3 城市选择可辨识性；纯排序逻辑见 shared/weather-rank）。 */
 export async function searchCities(query: string): Promise<CityOption[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
-  const url = `${GEOCODING_URL}?name=${encodeURIComponent(trimmed)}&count=5&language=zh&format=json`;
+  const suffix = suggestSuffixedQuery(trimmed);
+  const groups = await Promise.all([
+    fetchCityGroup(trimmed),
+    suffix ? fetchCityGroup(suffix).catch(() => [] as GeocodeRaw[]) : Promise.resolve([] as GeocodeRaw[]),
+  ]);
+  const merged = mergeCityResults(groups, 10);
+  return merged.map((result) => ({
+    id: result.id, name: result.name, admin1: result.admin1,
+    country: result.country, latitude: result.latitude, longitude: result.longitude,
+  }));
+}
+
+interface GeocodeRaw extends RankableCity { }
+
+async function fetchCityGroup(name: string): Promise<GeocodeRaw[]> {
+  const url = `${GEOCODING_URL}?name=${encodeURIComponent(name)}&count=10&language=zh&format=json`;
   const response = await fetch(url, { signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`城市搜索返回 ${response.status}`);
   const body = (await response.json()) as {
-    results?: Array<{ id: number; name: string; latitude: number; longitude: number; admin1?: string; country?: string }>;
+    results?: Array<{
+      id: number; name: string; latitude: number; longitude: number;
+      admin1?: string; country?: string; feature_code?: string; population?: number;
+    }>;
   };
   return (body.results ?? []).map((result) => ({
     id: String(result.id), name: result.name, admin1: result.admin1,
     country: result.country, latitude: result.latitude, longitude: result.longitude,
+    featureCode: result.feature_code, population: result.population,
   }));
 }

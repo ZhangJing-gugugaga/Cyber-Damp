@@ -4,7 +4,11 @@
  * 擦拭只作用于污染层（原图/蘑菇不受影响）；64×64 掩码持久化，重开还原同一批擦除洞。
  */
 import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
+import { DEFAULT_LOCATION } from '../shared/native-defaults';
 import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
+import type { CityOption } from '../shared/types/weather';
+
+type CitySearchResult = { ok: true; options: CityOption[] } | { ok: false; error: string };
 
 let status: NativeStatusSnapshot | null = null;
 let currentId: string | null = null;
@@ -18,6 +22,8 @@ const MASK_CELL = 256 / MASK_GRID;
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 let onboardStep = 0;
+/** 引导内已成功设置城市（引导第 1 步"完成练习"的前置条件） */
+let obCityChosen = false;
 
 async function fetchStatus(): Promise<NativeStatusSnapshot> {
   return (await window.damp!.native.status())!;
@@ -92,7 +98,12 @@ function renderList(): void {
     if (obj.damage?.mushroom === 'mature') flag.textContent = '🍄可采';
     else if (obj.damage && obj.damage.stage > 0) flag.textContent = familyLabel(obj.damage.family);
     item.append(img, name, flag);
+    item.tabIndex = 0;
+    item.setAttribute('role', 'button');
     item.addEventListener('click', () => { selectObject(obj.id); });
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectObject(obj.id); }
+    });
     list.appendChild(item);
   }
 }
@@ -152,6 +163,7 @@ function applyMaskToCanvas(): void {
 
 function buildDirt(obj: NativeObjectView): void {
   base.src = obj.iconDataUrl || '';
+  mushroomEl.classList.add('hidden');
   mushroomEl.src = '';
   dirtCtx.clearRect(0, 0, 256, 256);
   clearMask();
@@ -166,16 +178,19 @@ function buildDirt(obj: NativeObjectView): void {
       const type = damageVariant(obj.id, obj.damage.family);
       applyDamageMaterial({ data: imageData.data, width: 256, height: 256, stage: obj.damage.stage as 1 | 2 | 3, type });
       dirtCtx.putImageData(imageData, 0, 0);
+      // 满污渍基准必须在恢复擦除洞之前量取：否则重开窗口会把已保存的
+      // 进度重新算成 0%（存档里 62.7%、进度条归 0 的实测缺陷）。
+      dirtInitial = Math.max(measureDirt(), 1);
       // 恢复已保存的擦除洞（同一批，不随机）
       const saved = obj.careMask ? base64ToMask(obj.careMask) : null;
       if (saved) { mask = saved; applyMaskToCanvas(); }
     }
-    // 蘑菇独立层（清洗不掉菇、擦不到）
+    // 蘑菇独立层（清洗不掉菇、擦不到）；空 src 会渲染破图占位符，须隐藏
     if (obj.damage && obj.damage.mushroom !== 'none') {
       const shape = MUSHROOM_ASSET[obj.mushroomSpecies ?? 'oyster'] ?? 'round';
+      mushroomEl.classList.remove('hidden');
       mushroomEl.src = `./assets/care/${shape}-${obj.damage.mushroom === 'mature' ? 'mature' : 'bud'}.png`;
     }
-    dirtInitial = Math.max(measureDirt(), 1);
     updateProgressUi();
   };
   img.src = obj.iconDataUrl;
@@ -184,7 +199,10 @@ function buildDirt(obj: NativeObjectView): void {
 function measureDirt(): number {
   const sample = dirtCtx.getImageData(0, 0, 256, 256).data;
   let opaque = 0;
-  for (let i = 3; i < sample.length; i += 4 * 16) { if (sample[i] > 24) opaque += 1; }
+  // 必须逐像素计数：掩码回放的擦除洞是 4px 网格上 r≈2.5 的小圆，
+  // 16px 步进采样点(16j,16i)离最近圆心 2.83px，几何上永远采不到洞，
+  // 重开窗口的进度就会归零（实测缺陷）。
+  for (let i = 3; i < sample.length; i += 4) { if (sample[i] > 24) opaque += 1; }
   return opaque;
 }
 
@@ -257,6 +275,7 @@ const endWipe = () => {
   wiping = false;
   const fraction = 1 - measureDirt() / dirtInitial;
   void window.damp!.native.careProgress(currentId!, Math.max(0, Math.min(0.98, fraction)), maskToBase64());
+  updateProgressUi(); // 松手立即落到最终值，不等下一次节流刷新
   if (fraction >= 0.9) void finishCare(false); // 最后少量残渍自动收尾
 };
 wrap.addEventListener('pointerup', endWipe);
@@ -264,7 +283,7 @@ wrap.addEventListener('pointercancel', endWipe);
 wrap.addEventListener('pointerleave', () => { if (wiping) endWipe(); });
 
 async function finishCare(quick: boolean): Promise<void> {
-  if (!currentId) return;
+  if (!currentId) { toast('先在左侧选择一个对象'); return; }
   const result = quick
     ? await window.damp!.native.quickCare(currentId)
     : await window.damp!.native.careComplete(currentId);
@@ -275,7 +294,7 @@ async function finishCare(quick: boolean): Promise<void> {
 
 $('btn-quick').addEventListener('click', () => void finishCare(true));
 $('btn-harvest').addEventListener('click', async () => {
-  if (!currentId) return;
+  if (!currentId) { toast('先在左侧选择一个对象'); return; }
   const result = await window.damp!.native.harvest(currentId);
   toast(result.ok ? (result.message ?? '已采摘') : (result.message ?? '暂无可采的菇'));
   await reload();
@@ -356,7 +375,7 @@ function renderShop(): void {
     info.append(title, desc);
     const owned = status?.owned.includes(item.id);
     const btn = document.createElement('button');
-    btn.textContent = owned ? '已拥有' : `${item.price} 币购买`;
+    btn.textContent = owned ? '已拥有' : '购买';
     if (owned) btn.disabled = true;
     btn.addEventListener('click', async () => {
       const ok = await confirmDialog('购买确认', `花 ${item.price} 菇币购买「${item.name}」？`, '购买');
@@ -376,40 +395,102 @@ function renderShop(): void {
 
 // ---------- 设置 ----------
 
-async function searchCity(): Promise<void> {
-  const query = ($('city-input') as HTMLInputElement).value.trim();
-  const box = $('city-results');
-  box.innerHTML = '';
-  if (!query) return;
-  const result = await window.damp!.weather.searchCity(query);
-  if (!result.ok) {
-    const err = document.createElement('div');
-    err.className = 'muted';
-    err.textContent = `搜索失败：${result.error}。可重试。`;
-    box.appendChild(err);
-    return;
+/** 省市级联数据：npm `china-division`（MIT，github.com/modood/Administrative-divisions-of-China），不自行维护区划表。 */
+import provinces from 'china-division/dist/provinces.json';
+import cities from 'china-division/dist/cities.json';
+
+interface Division { code: string; name: string; provinceCode?: string }
+
+/** 搜索偶发网络抖动时自动补试一次（仅作"市名→坐标"桥接；选择本身走级联，无歧义）。 */
+async function searchCityWithRetry(query: string, attempts = 2): Promise<CitySearchResult> {
+  let last: CitySearchResult = { ok: false, error: '未发起搜索' };
+  for (let i = 0; i < attempts; i += 1) {
+    const result = await window.damp!.weather.searchCity(query);
+    if (result.ok) return result;
+    last = result;
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 700));
   }
-  if (result.options.length === 0) {
-    const none = document.createElement('div');
-    none.className = 'muted';
-    none.textContent = '没有找到该城市，请换个名字。';
-    box.appendChild(none);
-    return;
-  }
-  for (const option of result.options) {
-    const btn = document.createElement('button');
-    btn.className = 'city-opt';
-    btn.textContent = [option.name, option.admin1, option.country].filter(Boolean).join(' · ');
-    btn.addEventListener('click', async () => {
-      const saved = await window.damp!.native.setLocation({ cityId: option.id, label: option.name, latitude: option.latitude, longitude: option.longitude });
-      toast(saved.ok ? `城市已设为 ${option.name}，等待有效天气后开始` : (saved.message ?? '设置失败'));
-      await refreshStatusOnly();
-    });
-    box.appendChild(btn);
-  }
+  return last;
 }
-$('city-search').addEventListener('click', () => void searchCity());
-$('city-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') void searchCity(); });
+
+function provinceShortName(provinceName: string): string {
+  return provinceName.replace(/(?:特别行政区|(?:壮族|回族|维吾尔)?自治区|省|市)$/u, '');
+}
+
+/** 省+市确定后解析坐标：默认城市直接用内置坐标（零网络）；其余经地理编码桥接。 */
+async function applyCity(provinceName: string, cityName: string, statusEl: HTMLElement | null): Promise<boolean> {
+  const report = (text: string): void => { if (statusEl) statusEl.textContent = text; };
+  report('正在设置城市…');
+  if (cityName === DEFAULT_LOCATION.label) {
+    const saved = await window.damp!.native.setLocation({
+      cityId: DEFAULT_LOCATION.cityId, label: cityName,
+      latitude: DEFAULT_LOCATION.latitude, longitude: DEFAULT_LOCATION.longitude,
+    });
+    if (saved.ok) { report(`当前：${provinceName} ${cityName}`); await reload(); return true; }
+    report(saved.message ?? '设置失败，可重试');
+    return false;
+  }
+  const result = await searchCityWithRetry(cityName);
+  if (!result.ok) { report(`坐标解析失败：${result.error}。可重试。`); return false; }
+  const short = provinceShortName(provinceName);
+  const matched = result.options.find((o) => {
+    if (!o.admin1) return false;
+    return o.admin1.includes(short) || short.includes(o.admin1);
+  }) ?? result.options[0];
+  if (!matched) { report('没有找到该城市的坐标，可重试。'); return false; }
+  const saved = await window.damp!.native.setLocation({
+    cityId: matched.id, label: cityName,
+    latitude: matched.latitude, longitude: matched.longitude,
+  });
+  if (!saved.ok) { report(saved.message ?? '设置失败，可重试'); return false; }
+  report(`当前：${provinceName} ${cityName}`);
+  await reload();
+  return true;
+}
+
+/** 挂载省市级联选择器（设置页与引导复用）。返回卸载函数。 */
+function mountCityPicker(root: HTMLElement, statusEl: HTMLElement | null, onPicked: () => void): () => void {
+  const provinceSelect = document.createElement('select');
+  const citySelect = document.createElement('select');
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'primary';
+  applyBtn.textContent = '确定';
+  provinceSelect.setAttribute('aria-label', '选择省份');
+  citySelect.setAttribute('aria-label', '选择城市');
+  for (const p of provinces as Division[]) {
+    const opt = document.createElement('option');
+    opt.value = p.code; opt.textContent = p.name;
+    provinceSelect.appendChild(opt);
+  }
+  const fillCities = (): void => {
+    citySelect.innerHTML = '';
+    for (const c of cities as Division[]) {
+      if (c.provinceCode !== provinceSelect.value) continue;
+      const opt = document.createElement('option');
+      opt.value = c.code; opt.textContent = c.name;
+      citySelect.appendChild(opt);
+    }
+  };
+  fillCities();
+  provinceSelect.addEventListener('change', fillCities);
+  let busy = false;
+  const onApply = (): void => {
+    if (busy) return;
+    const province = (provinces as Division[]).find((p) => p.code === provinceSelect.value);
+    const city = (cities as Division[]).find((c) => c.code === citySelect.value);
+    if (!province || !city) return;
+    busy = true;
+    void applyCity(province.name, city.name, statusEl).then((ok) => { busy = false; if (ok) onPicked(); });
+  };
+  applyBtn.addEventListener('click', onApply);
+  root.append(provinceSelect, citySelect, applyBtn);
+  return () => {
+    provinceSelect.removeEventListener('change', fillCities);
+    applyBtn.removeEventListener('click', onApply);
+  };
+}
+
+let unmountSettingsPicker: (() => void) | null = null;
 
 $('autostart').addEventListener('change', async (event) => {
   const on = (event.target as HTMLInputElement).checked;
@@ -445,7 +526,7 @@ $('btn-quit').addEventListener('click', async () => {
 
 function renderSettings(): void {
   if (!status) return;
-  ($('city-input') as HTMLInputElement).placeholder = status.location ? `当前：${status.location.label}` : '输入城市名，如：杭州';
+  $('city-status').textContent = status.location ? `当前：${status.location.label}` : '当前：长沙市（内置默认，可在上方更换）';
   $('btn-resume').classList.toggle('hidden', !status.restored);
   ($('pause-toggle') as HTMLInputElement).checked = status.paused;
   void window.damp!.native.getAutostart().then((r) => { ($('autostart') as HTMLInputElement).checked = r.on; });
@@ -460,25 +541,13 @@ function renderOnboarding(): void {
   if (onboardStep === 0) {
     body.innerHTML = `<h2>欢迎来到回南天</h2>
       <p>真实天气会让桌面上的文件夹和快捷方式慢慢受潮、发霉、发焦。清理它们、采收蘑菇，换点装备。</p>
-      <p>先选一个城市，天气从这里来：</p>`;
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = 'ob-city';
-    input.placeholder = '输入城市名';
-    const results = document.createElement('div');
-    results.className = 'city-results';
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') void obSearch(input, results); });
-    const search = document.createElement('button');
-    search.textContent = '搜索';
-    search.addEventListener('click', () => void obSearch(input, results));
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.append(input, search);
-    body.append(row, results);
+      <p>选择所在省份和城市；不选也可以，默认用长沙的天气，随时能在设置里换：</p>
+      <div id="ob-picker" class="row city-picker"></div>`;
+    mountCityPicker(document.getElementById('ob-picker')!, null, () => { obCityChosen = true; });
     $('ob-next').textContent = '下一步';
   } else if (onboardStep === 1) {
     body.innerHTML = `<h2>首批变化状态</h2><div class="summary">${initSummaryText()}</div>
-      <p class="muted">城市有效天气到达后，最久未动的几个对象会开始变化。断网也不会丢进度。</p>`;
+      <p class="muted">天气就绪后，最久未动的几个对象会开始变化。断网也不会丢进度。</p>`;
     $('ob-next').textContent = '完成练习';
   } else {
     body.innerHTML = `<h2>准备好了</h2><p>奖励已到账，去挑一件工具吧（可选）。</p>`;
@@ -488,34 +557,12 @@ function renderOnboarding(): void {
 
 function initSummaryText(): string {
   if (!status) return '';
-  if (!status.location) return '未选地点 → 选择城市后开始';
+  if (!status.location) return '使用内置默认天气（长沙），可在设置中更换城市';
   if (status.initStatus === 'not-generated') return '首批待天气：联网取得有效天气后开始';
   if (status.initStatus === 'active') return `首批进行中（${status.initProgress || '等待中'}）`;
   if (status.initStatus === 'legacy-initialized') return '老玩家已初始化，直接进入日常节奏';
   if (status.todayStatus === 'init_occupied') return '首批已完成（今日由首批占用）';
   return `首批已完成（${status.initProgress}）`;
-}
-
-async function obSearch(input: HTMLInputElement, results: HTMLElement): Promise<void> {
-  const query = input.value.trim();
-  if (!query) return;
-  const result = await window.damp!.weather.searchCity(query);
-  results.innerHTML = '';
-  if (!result.ok || result.options.length === 0) {
-    results.innerHTML = `<div class="muted">${result.ok ? '没有找到该城市' : '搜索失败，可重试'}</div>`;
-    return;
-  }
-  for (const option of result.options) {
-    const btn = document.createElement('button');
-    btn.className = 'city-opt';
-    btn.textContent = [option.name, option.admin1, option.country].filter(Boolean).join(' · ');
-    btn.addEventListener('click', async () => {
-      await window.damp!.native.setLocation({ cityId: option.id, label: option.name, latitude: option.latitude, longitude: option.longitude });
-      input.value = option.name;
-      results.innerHTML = `<div class="muted">已选 ${option.name}，等天气到达后开始首批。</div>`;
-    });
-    results.appendChild(btn);
-  }
 }
 
 $('ob-next').addEventListener('click', async () => {
@@ -546,16 +593,30 @@ function renderAll(): void {
   renderSettings();
   renderOnboarding();
   if (currentId) selectObject(currentId);
-}
-
-async function refreshStatusOnly(): Promise<void> {
-  status = await fetchStatus();
-  renderAll();
+  else {
+    // 未选中对象时不展示动作按钮（此前"快速处理"可见可点却静默无操作）
+    $('btn-quick').classList.add('hidden');
+    $('btn-harvest').classList.add('hidden');
+  }
 }
 
 async function reload(): Promise<void> {
   status = await fetchStatus();
   renderAll();
 }
+
+// 关闭=隐藏到托盘，DOM 会滞留旧状态；从托盘唤回时立即同步（INIT/DAILY
+// 在主进程发生，页面不重开也要跟上）。
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') void reload();
+});
+// 打开期间轻量轮询兜底；正在擦拭时不刷新，避免重建画布打断手势
+setInterval(() => {
+  if (document.visibilityState === 'visible' && !wiping) void reload();
+}, 60_000);
+
+// 设置页级联选择器只挂载一次：60 秒轮询的 renderAll 不得重建下拉框
+// （否则用户选到一半的省份/城市会被重置）。
+mountCityPicker($('city-picker'), $('city-status'), () => { /* applyCity 内已 reload */ });
 
 void reload().finally(() => { $('boot-splash')?.remove(); });

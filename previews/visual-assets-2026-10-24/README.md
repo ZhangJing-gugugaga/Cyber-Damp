@@ -1,16 +1,16 @@
+> 2026-10-25：已移除 art-drafts 和 mold-composite-demo 历史方案；保留本目录当前护理素材、认可材质、工具设计与必要图标参照。旧覆盖层预览已退役。
+
 # 回南天视觉资产快照 · 2026-10-24
 
-入口：[修复工具台](repair-tools-v1/index.html)、[采摘与护理新资产](care-assets-v1/index.html)、[材质试验台](material-effects-lab/index.html)、[护理台概念小样](care-table-demo/index.html)。直接用浏览器打开。
+入口：[修复工具台](repair-tools-v1/index.html)、[采摘与护理新资产](care-assets-v1/index.html)、[材质试验台](material-effects-lab/index.html)。直接用浏览器打开。
 
 - repair-tools-v1：基于 EPA、美国国家档案馆、国会图书馆等资料补充 10 种工具与道具，25 件 SVG / PNG；单图标分层护理预览。调研及游戏化边界见其 RESEARCH.md，新工具待用户视觉确认。
 
 - care-assets-v1：18 件新增 SVG / PNG（蘑菇、工具、操作反馈、护理垫、收集篮）；单图标交互，待用户视觉确认。
 
 - material-effects-lab：用户认可的 12 种材质方向，6 个图标、3 档强度，共 216 张透明 PNG；包含生成器和结构验证记录。
-- mold-composite-demo：前期六套霉斑探索，共 72 张；作为历史方案保留。
-- art-drafts：内置 imagegen 制作的三档动漫发霉文件夹及提示词。
 - native-icon-reference：本机提取的原图标，只用于适配参照；Windows / 第三方商标不作为本项目原创素材或通用授权素材。
-- care-table-demo：页面内的护理交互概念，不连接真实桌面。
+
 
 当前产品决策：取消游戏覆盖层，完整保留原生桌面交互；每天自然推进一个图标；护理、采摘、商城、设置进入普通窗口。本文记录方向，不表示产品代码已完成上述改造。
 

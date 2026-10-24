@@ -1,7 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"baseline-input"},
-  {"tool":"Move","arguments":{"loc":[1808,44]},"label":"hover-settings"},
-  {"tool":"Click","arguments":{"loc":[1808,44]},"label":"click-settings-before"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"settle-before"},
-  {"tool":"Screenshot","arguments":{},"label":"settings-before"}
-]

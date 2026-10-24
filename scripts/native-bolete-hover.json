@@ -1,5 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"bolete-012-before"},
-  {"tool":"Move","arguments":{"loc":[938,716]},"label":"bolete-012-hover"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"bolete-012-ready"}
-]

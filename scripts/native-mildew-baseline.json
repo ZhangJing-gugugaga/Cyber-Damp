@@ -1,5 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"mildew-old-product-before-action","review":true},
-  {"tool":"Shortcut","arguments":{"shortcut":"win+d"},"label":"mildew-old-product-show-desktop"},
-  {"tool":"Screenshot","arguments":{},"label":"mildew-old-product-desktop"}
-]

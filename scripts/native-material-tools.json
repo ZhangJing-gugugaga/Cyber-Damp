@@ -1,6 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"material-before-tools"},
-  {"tool":"Move","arguments":{"loc":[48,1030]},"label":"material-toolbox-hover"},
-  {"tool":"Click","arguments":{"loc":[48,1030]},"label":"material-open-toolbox"},
-  {"tool":"Screenshot","arguments":{},"label":"material-toolbox"}
-]

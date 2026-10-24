@@ -1,5 +1,0 @@
-[
-  {"tool":"Move","arguments":{"loc":[1300,950]},"label":"rope-fixed-clear-hover"},
-  {"tool":"Wait","arguments":{"duration":1},"label":"rope-fixed-clear-ready"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"rope-fixed-three-clear"}
-]

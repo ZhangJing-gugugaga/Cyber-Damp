@@ -1,5 +1,4 @@
 import { app, nativeImage, screen, shell } from 'electron';
-import type { BrowserWindow } from 'electron';
 import { stat } from 'node:fs/promises';
 import * as path from 'node:path';
 import { queryShellLayout } from './shell-layout';
@@ -7,15 +6,14 @@ import { queryShellIcons } from './shell-icons';
 import { desktopUsageId } from './desktop-usage';
 import { extToCategory } from '../../shared/constants';
 import type { DesktopEntry } from '../../shared/types/desktop';
-import { overlayScreenRect } from '../native/win32-desktop';
 import { projectShellGeometry, unionScreenRects } from '../../shared/desktop-viewport';
 
 /** Shell's actual view is authoritative, including virtual and hidden-item policy. */
-export async function scanNativeDesktop(win?: BrowserWindow, canvasScale = screen.getPrimaryDisplay().scaleFactor): Promise<DesktopEntry[]> {
+export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay().scaleFactor): Promise<DesktopEntry[]> {
   const started = performance.now();
   const { view, rects } = await queryShellLayout();
   const layoutMs = performance.now() - started;
-  const work = win ? overlayScreenRect(win) : unionScreenRects(screen.getAllDisplays().map(display => screen.dipToScreenRect(null, display.workArea)));
+  const work = unionScreenRects(screen.getAllDisplays().map(display => screen.dipToScreenRect(null, display.workArea)));
   if (!work) throw new Error('无法读取桌面画布的物理坐标');
   const requests = view.items.map(item => {
     const realPath = item.parsingName;

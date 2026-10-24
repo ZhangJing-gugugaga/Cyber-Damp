@@ -1,41 +1,31 @@
 ---
 name: cyber-damp-uat
-description: Validate Cyber Damp on the real Windows desktop using CursorTouch Windows-MCP, native screenshots and input, and the user sensory UAT.
+description: Validate the current native-icon Cyber Damp on Windows with CursorTouch Windows-MCP and honest sensory UAT.
 ---
 
 # Cyber Damp native UAT
 
-Read the root `AGENTS.md` and the effective product decisions in
-`docs/superpowers/specs/2026-10-21-experience-direction-and-plan.md` before acceptance.
-The 2026-10-19 care design remains applicable where it does not conflict.
-Use `docs/CARE-DESKTOP-UAT.md` for current requirements. `docs/REPAIR-PLAN.md`
-and `docs/UAT-SOURCE.md` retain earlier context; superseded requirements do not
-override the user's confirmed decisions. Keep historical evidence unchanged.
-Use the project `windows-mcp` MCP server. If the current client has not loaded
-the project configuration, run `uvx --from windows-mcp==0.8.8 python
-scripts/windows-mcp-client.py <steps.json>` to call the same server over stdio.
-Do not replace native acceptance with CDP input or QA-window-only results.
+Read root AGENTS.md, docs/superpowers/specs/2026-10-24-native-weather-goal-prompt.md,
+docs/GOAL-NATIVE-WEATHER-2026-10-24.md (including the accepted Win+D downgrade),
+and docs/CARE-DESKTOP-UAT.md. The old overlay, WorkerW takeover, icon hiding,
+rope physics, desktop tool forwarding and dedicated previews were retired by
+the user on 2026-10-25. Do not run their archived scripts or reactivate them.
 
-1. Build and run the production desktop mode (no CD_QA or CD_NO_ATTACH).
-2. Call Snapshot before native actions. Inspect its actual screenshot.
-3. Use Move / Click / Shortcut for native input; retain screenshot/text evidence.
-   Verify single-click selection, blank-space clearing, Ctrl multi-selection and
-   focus feedback before checking that double click still opens the real item.
-4. Verify normal windows fully cover the toy, native icons have correct artwork,
-   all user/public desktop items exist, drag follows immediately, double click
-   opens a real folder, blank desktop right-click works, and normal/forced exit
-   restores Explorer within 500 ms without changing icon positions.
-5. Inspect the complete 3–5-second startup replay required by the current confirmed
-   design, plus each applicable visual/physical case. Check actual behavior rather
-   than treating an old comment or previous UAT result as a current pass.
-6. Check the unified collapsible desktop controls and game-style shop/settings,
-   plus the applicable mildew/shrink/curl/wrinkle samples. The current occlusion
-   ceiling is 90%, with recognizability at native size still required. User-accepted
-   performance is not reopened as a blanket optimization gate.
-7. Record PASS only for observed results. Use FAIL or NOT TESTED for missing
-   features, unavailable audio/microphone or unobserved behavior.
-
-CDP may provide read-only state assertions and captures between native actions.
-Native screenshots are authoritative for layering and visible appearance.
-Never read desktop document contents as part of testing, open unknown executables,
-or alter the user's original desktop icon layout.
+1. Build the current application. Distinguish source, packaged build and installed build.
+2. Use the project CursorTouch Windows-MCP. Snapshot and inspect before native input.
+   Fallback: uvx --from windows-mcp==0.8.8 python scripts/windows-mcp-client.py <steps.json>.
+3. For mutation tests, isolate save data with CD_UAT=1 and CD_UAT_DATA_DIR and constrain
+   candidates with CD_NATIVE_PROBE_DIR. Never inspect document contents or launch unknown
+   executables. Do not replace user saves or move existing icons. Read probe prerequisites.
+4. Verify Explorer selection, double click, right click, box selection, drag/drop and keyboard
+   remain native. Verify only supported folder/shortcut references change and restore exactly.
+5. Verify capsule click, drag, transparent margins, application coverage, full-screen hiding,
+   Win+D hiding and tray recall independently. Drag must not accidentally open care.
+6. Verify care loading, object selection, wiping, release/blur/cancel, partial mask persistence,
+   completion, harvesting, collection, purchases, pause/resume and quit restoration. Compare
+   desktop appearance with the same object in care at native icon sizes.
+7. Verify event triggers separately from pure rules: first batch, repeated startup, midnight
+   while resident, sleep/wake, offline/default labels, pause and 240h immunity boundaries.
+8. Record PASS only for observed results, otherwise FAIL or NOT TESTED. Measure startup,
+   input/feedback and hidden CPU with machine/display conditions. User sensory approval is
+   independent of automated checks. CDP diagnostics do not replace native input/screenshots.

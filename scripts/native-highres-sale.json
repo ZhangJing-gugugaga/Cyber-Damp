@@ -1,5 +1,0 @@
-[
-  {"tool":"Move","arguments":{"loc":[938,817]},"label":"portable-012-sale-hover"},
-  {"tool":"Move","arguments":{"from_loc":[938,817],"loc":[1718,44],"drag":true,"duration":0.15},"label":"portable-012-sale-drag","targetWindowTitle":"回南天 Cyber Damp"},
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"portable-012-after-sale"}
-]

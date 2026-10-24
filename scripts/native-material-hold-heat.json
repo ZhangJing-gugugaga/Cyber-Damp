@@ -1,5 +1,0 @@
-[
-  {"tool":"Snapshot","arguments":{"use_vision":true,"use_annotation":false,"use_ui_tree":false},"label":"material-heat-before"},
-  {"tool":"Move","arguments":{"loc":[443,188],"from_loc":[443,188],"drag":true,"duration":6.8},"label":"material-hold-heat"},
-  {"tool":"Screenshot","arguments":{},"label":"material-heat-after"}
-]

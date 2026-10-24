@@ -52,13 +52,20 @@ function ensureApi(): ForegroundApi | null {
   return api;
 }
 
+// RECT 与 WinEventProto 必须分开 try：win32-desktop 若先加载会已注册 RECT，
+// 重复注册抛错被吞掉后 proto 也随之漏登记，ensureApi 的 func 声明就会报
+// "Unknown or invalid type name 'WinEventProc'"（0.1.25 生产路径钩子未生效的根因）。
 try {
   if (process.platform === 'win32') {
     koffi.struct('RECT', { left: 'long', top: 'long', right: 'long', bottom: 'long' });
+  }
+} catch { /* 重复注册（与 win32-desktop 共享 RECT）忽略 */ }
+try {
+  if (process.platform === 'win32') {
     // 回调类型须在 user32.func 声明引用它之前登记（同 win32-desktop 的 EnumWindowsProc 惯例）
     koffi.proto('void __stdcall WinEventProc(void *hHook, uint32 event, void *hwnd, int32 idObject, int32 idChild, uint32 idThread, uint32 dwmsEventTime)');
   }
-} catch { /* 重复注册（与 win32-desktop 共享 RECT）忽略 */ }
+} catch { /* 重复注册忽略 */ }
 
 
 function windowClassName(hwnd: unknown): string {

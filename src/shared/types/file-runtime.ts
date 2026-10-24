@@ -1,6 +1,6 @@
 /**
  * 文件运行时状态（shared 叶子层类型）
- * 演化字段由 world/evolution.ts 状态机推进；stage 由 mtime 差派生
+ * 仅为 v1/v2 旧存档读取和迁移保留；旧连续演化实现已退役
  */
 
 /** 冷落度四阶段（命名与设计文档 NeglectStage 对齐） */

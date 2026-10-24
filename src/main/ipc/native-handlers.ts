@@ -6,6 +6,7 @@
 import { app, ipcMain } from 'electron';
 import type { WebContents } from 'electron';
 import { loadSave, writeSave } from '../save/save-store';
+import { setManagementPausedFlag } from '../window/management-window';
 import {
   applyAppearance, nativeStatusSummary, restoreDesktopAndPause, resumeFromRestored,
   reapplySavedAppearances, runNativeEventCycle, setNativeLocation, setNativePaused,
@@ -153,6 +154,8 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
       return { ok: false };
     }
     setNativePaused(payload.paused);
+    // 回落托盘菜单与状态投影，避免护理台暂停后托盘文案陈旧
+    setManagementPausedFlag(payload.paused);
     return { ok: true };
   });
 
