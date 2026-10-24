@@ -71,6 +71,8 @@ export interface NativeSaveSection {
   objects: Record<string, NativeObjectSave>;
   /** 最近一次有效天气快照（按城市坐标缓存另存 weather-cache.json） */
   lastSnapshot: NativeWeatherSnapshot | null;
+  /** 用户所选城市（R3：用户选择，不推断；新城市连同有效天气一起成功后才保存） */
+  location?: { cityId: string; label: string; latitude: number; longitude: number } | null;
   /** 用户暂停（R4.3：不生成不积欠） */
   paused?: boolean;
 }

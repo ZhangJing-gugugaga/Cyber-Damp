@@ -41,6 +41,8 @@ export interface InitTargetPlan {
   /** 成功 / 跳过（附原因） */
   status: 'pending' | 'done' | 'skipped';
   skipReason?: string;
+  /** 全事务累计写入尝试次数（首次 + 最多 2 次重试，R4.1） */
+  attempts?: number;
 }
 
 export interface InitPlan {

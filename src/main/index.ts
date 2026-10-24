@@ -11,7 +11,7 @@ import { startCpuMonitor } from './system/cpu-monitor';
 import { installDesktopSafety, restoreDesktop, prepareDesktopProtection } from './native/win32-desktop';
 import { trackEvent } from './telemetry/event-log';
 import { installManagement, openManagement, showStartupFeedback } from './window/management-window';
-import { reconcilePendingEntries } from './desktop/icon-mutate';
+import { reconcilePendingEntries, restoreAllIconReferences } from './desktop/icon-mutate';
 
 let win: BrowserWindow | null = null;
 const startedAt = Date.now();
@@ -79,6 +79,13 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     trackEvent('session_duration', { sec: Math.round((Date.now() - startedAt) / 1000) });
     if (win && !win.isDestroyed()) win.webContents.send('app:beforeQuit');
+    // R8 完全退出：先恢复本程序修改的图标引用（进度保留在存档，重启后回显）
+    try {
+      const reports = restoreAllIconReferences();
+      if (reports.length) console.info('[icon-restore] 退出恢复:', JSON.stringify(reports));
+    } catch (error) {
+      console.warn('[icon-restore] 退出恢复失败（登记保留）:', error);
+    }
     restoreDesktop();
   });
 }

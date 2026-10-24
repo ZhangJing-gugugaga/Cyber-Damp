@@ -94,6 +94,7 @@ export function validateSave(raw: unknown): SaveData | null {
           if (!isFiniteNumber(tt.stage) || (tt.stage as number) < 0 || (tt.stage as number) > 3) return null;
           if (!isStr(tt.mushroom) || !['none', 'young', 'mature'].includes(tt.mushroom as string)) return null;
           if (!isStr(tt.status) || !['pending', 'done', 'skipped'].includes(tt.status as string)) return null;
+          if (tt.attempts !== undefined && (!isFiniteNumber(tt.attempts) || (tt.attempts as number) < 0)) return null;
         }
         const snapshot = init.snapshot as Record<string, unknown> | undefined;
         if (!snapshot || !isFiniteNumber(snapshot.weatherCode) || !isFiniteNumber(snapshot.humidityPct)
@@ -128,6 +129,12 @@ export function validateSave(raw: unknown): SaveData | null {
         || !isFiniteNumber(s.temperatureC) || !isStr(s.observedAt) || !isFiniteNumber(s.fetchedAt)) return null;
     }
     if (n.paused !== undefined && typeof n.paused !== 'boolean') return null;
+    if (n.location !== undefined && n.location !== null) {
+      const loc = n.location as Record<string, unknown>;
+      if (!loc || !isStr(loc.cityId) || !isStr(loc.label) || loc.label.length > 100
+        || !isFiniteNumber(loc.latitude) || loc.latitude < -90 || loc.latitude > 90
+        || !isFiniteNumber(loc.longitude) || loc.longitude < -180 || loc.longitude > 180) return null;
+    }
   }
 
   return raw as SaveData;
