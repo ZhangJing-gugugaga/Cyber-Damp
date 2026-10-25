@@ -270,6 +270,8 @@ export interface PlantSporePayload {
 
 export interface NativeStatusV4Fields {
   forecast: DailyForecast | null;
+  /** 精细护理累计次数（图鉴统计；接线后由主进程提供） */
+  fineCareCount?: number;
   alert: AlertState;
   spores: SporeInventory;
   planted: PlantedSpore[];
@@ -279,12 +281,13 @@ export interface NativeStatusV4Fields {
 }
 
 export interface NativeObjectViewV4Fields {
-  objectCategory: ObjectCategory;
+  /** 扫描时 classifyObject 判定；接线前可缺省（渲染层以 other 兜底） */
+  objectCategory?: ObjectCategory;
   careSession?: CareSessionState;
   plantedSpecies?: NewSpeciesId;
   glossUntil?: number;
-  /** 相邻对象 ID（由真实桌面坐标计算，只读，不移动图标） */
-  neighbors: string[];
+  /** 相邻对象 ID（由真实桌面坐标计算，只读，不移动图标）；接线前可缺省 */
+  neighbors?: string[];
 }
 
 type Outcome = { ok: boolean; message?: string };

@@ -1,9 +1,11 @@
 /** 一次性探针：加载 dev.html，收集控制台错误，验证 window.damp 与 status()。 */
 const { app, BrowserWindow } = require('electron');
+const { startStaticServer } = require('./static-server.cjs');
 
-const URL = process.argv[2] || 'http://127.0.0.1:4173/dev.html';
+let URL = process.argv[2] || '';
 
 app.whenReady().then(async () => {
+  if (!URL) URL = await startStaticServer(4517) + '/dev.html';
   const win = new BrowserWindow({ show: false, width: 1280, height: 900 });
   const errors = [];
   win.webContents.on('console-message', (_e, level, message, line, source) => {

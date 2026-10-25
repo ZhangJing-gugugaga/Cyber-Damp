@@ -22,6 +22,7 @@
     </header>
     <nav id="tabs">
       <button data-tab="care" class="tab active"><img src="./assets/care/sponge-idle.png" alt="" />护理台</button>
+      <button data-tab="wall" class="tab" id="tab-wall"><img src="./assets/care/stump.png" alt="" />墙面</button>
       <button data-tab="collection" class="tab"><img src="./assets/care/round-bud.png" alt="" />收藏</button>
       <button data-tab="shop" class="tab"><img src="./assets/care/basket.png" alt="" />小铺</button>
       <button data-tab="settings" class="tab"><img src="./assets/care/cloth-idle.png" alt="" />设置</button>
@@ -30,6 +31,11 @@
     <main id="page-care" class="page active">
       <aside id="object-list" aria-label="受影响对象"></aside>
       <section id="care-stage">
+        <div id="forecast-card" class="hidden">
+          <div id="forecast-headline"></div>
+          <div id="forecast-lines"></div>
+          <div id="forecast-alert" class="hidden">回南天警报生效中 · 今日额度 5</div>
+        </div>
         <div id="stage-head">
           <span id="stage-name">选择一个对象开始护理</span>
           <span id="stage-badge" class="badge hidden"></span>
@@ -37,6 +43,8 @@
         <div id="canvas-wrap">
           <img id="base-icon" class="layer" alt="" />
           <canvas id="dirt-layer" class="layer" width="256" height="256"></canvas>
+          <canvas id="soften-layer" class="layer" width="256" height="256"></canvas>
+          <canvas id="highlight-layer" class="layer" width="256" height="256"></canvas>
           <img id="mushroom-layer" class="layer" alt="" />
         </div>
         <div id="progress-row">
@@ -47,9 +55,31 @@
           <button id="tool-sponge" class="tool active" title="海绵：擦拭清洁"><img src="./assets/care/sponge-idle.png" alt="" />海绵</button>
           <button id="btn-quick" class="tool" title="快速处理：直接完成清理与免疫（不自动采菇）"><img src="./assets/care/cloth-active.png" alt="" />快速处理</button>
           <button id="btn-harvest" class="tool harvest hidden" title="采摘成熟菇"><img src="./assets/care/round-mature.png" alt="" />采摘</button>
+          <button id="btn-plant" class="tool hidden" title="把孢子播种到当前对象（占用自然事件额度）"><img src="./assets/care/round-bud.png" alt="" />播种孢子</button>
+          <button id="btn-highlight" class="tool" title="按住空格或点按高亮剩余损伤（不会清除）">高亮</button>
         </div>
+        <div id="v2-tool-row" class="hidden"></div>
         <div id="stage-tip">按住并拖动擦拭污渍；松手自动保存进度，最后一点残渍自动收尾。</div>
       </section>
+    </main>
+
+    <main id="page-wall" class="page">
+      <div class="wall-note" id="wall-status">壁纸效果由玩家主动开启；开启后会把天气雾气合成到原壁纸的副本上，原壁纸文件不改动。</div>
+      <div id="wall-canvas-wrap">
+        <canvas id="wall-base" width="480" height="270"></canvas>
+        <canvas id="wall-fog" class="layer" width="480" height="270"></canvas>
+      </div>
+      <div id="wall-info" class="muted"></div>
+      <div id="wall-progress-row">
+        <div id="wall-bar"><div id="wall-fill"></div></div>
+        <span id="wall-text">0%</span>
+      </div>
+      <div class="row">
+        <button id="wall-enable" class="primary">开启壁纸效果</button>
+        <button id="wall-confirm" class="primary hidden">确认擦拭</button>
+        <button id="wall-reset" class="hidden">重擦</button>
+      </div>
+      <div class="muted">用刮水器长条拖动擦雾；松手暂存，确认后才提交合成。擦雾不计日额度、不产菇币。</div>
     </main>
 
     <main id="page-collection" class="page">

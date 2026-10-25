@@ -12,10 +12,12 @@
  * 运行：先 vite preview/dev，再 npx electron scripts/probe-dev-flow.cjs <url>
  */
 const { app, BrowserWindow } = require('electron');
+const { startStaticServer } = require('./static-server.cjs');
 
-const URL = process.argv[2] || 'http://127.0.0.1:4173/dev.html';
+let URL = process.argv[2] || '';
 
 app.whenReady().then(async () => {
+  if (!URL) URL = await startStaticServer(4517) + '/dev.html';
   const win = new BrowserWindow({ show: false, width: 1280, height: 900 });
   const errors = [];
   win.webContents.on('console-message', (_e, level, message) => {

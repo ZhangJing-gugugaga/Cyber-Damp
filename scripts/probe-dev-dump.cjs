@@ -1,25 +1,30 @@
-/** 调试：重置后 dump 关键 fixture 与 __domain 存在性。 */
+/** 调试：care-v2 启动状态与桥接。 */
 const { app, BrowserWindow } = require('electron');
-const URL = process.argv[2] || 'http://127.0.0.1:4173/dev.html';
+const { startStaticServer } = require('./static-server.cjs');
+let URL = process.argv[2] || '';
 app.whenReady().then(async () => {
-  const win = new BrowserWindow({ show: false });
+  if (!URL) URL = await startStaticServer(4517) + '/dev.html';
+  const win = new BrowserWindow({ show: false, width: 1280, height: 900 });
+  const errors = [];
+  win.webContents.on('console-message', (_e, level, message) => {
+    errors.push(`L${level}: ${message}`);
+  });
   await win.loadURL(URL);
-  await win.webContents.executeJavaScript('new Promise((r) => setTimeout(r, 1500))', true);
-  await win.webContents.executeJavaScript('window.__mockDamp.reset()', true).catch(() => {});
-  await new Promise((r) => setTimeout(r, 1200));
-  await win.loadURL(URL);
-  await win.webContents.executeJavaScript('new Promise((r) => setTimeout(r, 1500))', true);
-  const dump = await win.webContents.executeJavaScript(`(() => ({
-    hasDomain: !!window.__domain,
-    hasMockCare: !!window.__mockCare,
-    hasMock: !!window.__mockDamp,
-    objects: window.damp ? null : 'no damp',
-  }))()`, true).catch((e) => ({ evalError: String(e) }));
-  console.log(JSON.stringify(dump));
-  const states = await win.webContents.executeJavaScript(`(async () => {
-    const s = await window.damp.native.status();
-    return s.objects.map((o) => o.id + '=' + (o.damage ? o.damage.family + ':' + o.damage.stage + ':' + o.damage.mushroom : 'clean'));
-  })()`, true).catch((e) => [String(e)]);
-  console.log(JSON.stringify(states));
+  await win.webContents.executeJavaScript('new Promise((r) => setTimeout(r, 2000))', true);
+  await win.webContents.executeJavaScript(`(() => {
+    [...document.querySelectorAll('.obj-item')].find(i => i.title && i.title.includes('项目归档'))?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  })()`, true);
+  await new Promise((r) => setTimeout(r, 3200));
+  const diag = await win.webContents.executeJavaScript(`({
+    hasDampV2: !!(window.damp && window.damp.native.careProgressV2 && window.damp.wallpaper),
+    hasBridge: !!window.__careBridge,
+    selectedId: window.__careBridge ? window.__careBridge.getSelectedId() : null,
+    v2RowHtml: document.getElementById('v2-tool-row').innerHTML.slice(0, 120),
+    v2RowHidden: document.getElementById('v2-tool-row').classList.contains('hidden'),
+    forecastHidden: document.getElementById('forecast-card').classList.contains('hidden'),
+    stageName: document.getElementById('stage-name').textContent,
+  })`, true);
+  console.log(JSON.stringify(diag, null, 1));
+  console.log('console:', errors.slice(0, 6));
   app.exit(0);
 });

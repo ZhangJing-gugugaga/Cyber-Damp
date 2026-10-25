@@ -5,6 +5,7 @@
  */
 import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
 import { CARE_MASK_CELLS, decodeCareMask, encodeCareMask } from '../shared/care-mask';
+import './care-v2';
 import { DEFAULT_LOCATION } from '../shared/native-defaults';
 import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
 import type { CityOption } from '../shared/types/weather';
@@ -329,6 +330,8 @@ function scheduleProgressUi(): void {
 
 const wrap = $('canvas-wrap');
 wrap.addEventListener('pointerdown', (event) => {
+  // care-v2 分层工具接管画布期间，v1 单层擦拭让位（见 care-v2.ts）
+  if (wrap.dataset.v2Claimed === '1') return;
   if (!currentWipeable() || currentId === null) return;
   wiping = true;
   wrap.setPointerCapture(event.pointerId);
@@ -874,3 +877,14 @@ setInterval(() => {
 mountCityPicker($('city-picker'), $('city-status'), () => { /* applyCity 内已 reload */ });
 
 void reload().finally(() => { $('boot-splash')?.remove(); });
+
+// ---------- care-v2 桥接（分层工具/墙面页/图鉴；见 care-v2.ts） ----------
+// v2 通道可用时 care-v2.ts 接管分层护理与新增页面；不可用时一切照旧。
+(window as unknown as Record<string, unknown>).__careBridge = {
+  getSelectedId: () => currentId,
+  getStatus: () => status,
+  reload,
+  toast,
+  advanceToNextObject,
+  setV2Claimed: (claimed: boolean) => { wrap.dataset.v2Claimed = claimed ? '1' : '0'; },
+};
