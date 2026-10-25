@@ -97,13 +97,17 @@ test('startup uses native components even with retired flags and exit retains ic
       };
       if (id.includes('native-handlers')) return {
         registerNativeHandlers: () => calls.push('native-ipc'), bootstrapNativeMode: async () => calls.push('bootstrap'),
+        scanForNative: async () => calls.push('scan'), latestCycleCandidates: () => [],
       };
+      if (id.includes('native-event-scheduler')) return { runNativeEventCycle: async () => calls.push('cycle') };
+      if (id.includes('resident-watch')) return { installResidentWatch: () => calls.push('resident-watch') };
       throw new Error(`Unexpected retired startup dependency: ${id}`);
     },
   });
   await Promise.resolve();
   assert.ok(calls.includes('bootstrap'));
   assert.ok(calls.includes('tray'));
+  assert.ok(calls.includes('resident-watch'), '常驻跨日/唤醒必须接线');
   events.get('second-instance')();
   assert.equal(calls.at(-1), 'open');
   events.get('before-quit')();

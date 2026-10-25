@@ -57,13 +57,11 @@ async function refresh(): Promise<void> {
   capsule.title = `${placeEl.textContent} · ${ATTRIBUTION}`;
 }
 
-// 透明留白穿透：仅胶囊本体可交互（R2 可见区域外不截获桌面点击）
-document.documentElement.addEventListener('mousemove', (event) => {
-  const hit = event.target === capsule || capsule.contains(event.target as Node);
-  void window.damp?.window.setIgnoreMouseEvents(!hit, true);
-});
-// 点击胶囊打开护理台；拖动由 -webkit-app-region 提供（松手不会误打开：拖动由系统阈值区分）
-capsule.addEventListener('click', () => { void window.damp?.management.open(); });
+// 透明留白穿透与点击/拖动区分由主进程 WM_NCHITTEST 子类化接管
+// （win32-capsule-hittest）：留白 HTTRANSPARENT 穿透，本体 HTCAPTION →
+// 系统拖动阈值区分纯点击（开护理台）与拖动（移窗），渲染层不再参与
+// 命中翻转（setIgnoreMouseEvents(forward) 在 focusable:false 透明窗上
+// 实测不投递事件，旧 mousemove 翻转方案永不可达）。
 
 void refresh();
 // 状态 30s 轮询：城市设置/INIT 发生在主进程，此前 30 分钟才刷新一次，

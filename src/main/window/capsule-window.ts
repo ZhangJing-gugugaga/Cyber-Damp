@@ -16,6 +16,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { applyGlass, clearGlass, type GlassMode } from '../native/win32-glass';
 import { foregroundCoversRect, startForegroundWatch } from '../native/win32-foreground';
+import { installCapsuleHitTest } from '../native/win32-capsule-hittest';
 
 export const CAPSULE_WIDTH = 360;
 export const CAPSULE_HEIGHT = 56;
@@ -68,11 +69,20 @@ export interface CapsuleHandle {
   destroy(): void;
 }
 
+/** Windows 非客户区消息：drag 区域的按下/抬起（HTCAPTION） */
+const WM_NCLBUTTONDOWN = 0x00a1;
+const WM_NCLBUTTONUP = 0x00a2;
+
 /**
  * 创建胶囊窗。HTML 由调用方提供（生产用胶囊页面；原型可传 data URL）。
  * boundsOffset 供多实例原型偏移，生产忽略。
+ * onCapsuleClick：按下→抬起期间窗口未移动（系统拖动阈值内的纯点击）时回调。
  */
-export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): CapsuleHandle {
+export function createCapsuleWindow(
+  preloadPath: string,
+  htmlDataUrl: string,
+  hooks: { onCapsuleClick?: () => void } = {},
+): CapsuleHandle {
   const state = loadState();
   const start = state.remembered ? clampToWorkArea(state.remembered) : defaultBounds();
   const win = new BrowserWindow({
@@ -96,8 +106,10 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
       backgroundThrottling: false,
     },
   });
-  // 透明留白不截获桌面点击：渲染层按胶囊内容边界调用 window:setIgnoreMouseEvents
-  win.setIgnoreMouseEvents(true, { forward: true });
+  // 透明留白穿透 + 内容命中（R2）：不再用 setIgnoreMouseEvents(forward)——
+  // 实测 focusable:false 透明窗上转发不投递事件（见 win32-capsule-hittest）。
+  // WM_NCHITTEST 子类化：留白 HTTRANSPARENT 穿透，本体 HTCAPTION 供拖动/点击。
+  const uninstallHitTest = installCapsuleHitTest(win, 4);
   const glassMode = applyGlass(hwndNumber(win));
 
   let unwatch: (() => void) | null = null;
@@ -117,6 +129,19 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
   unwatch = startForegroundWatch(refreshCoverage);
 
   win.once('ready-to-show', () => win.showInactive());
+  // R2 点击/拖动按系统拖动阈值区分：drag 区域的鼠标事件全部以非客户区
+  // 消息到达主进程（DOM 收不到 click）。按下→抬起之间窗口位置变过 = 拖动，
+  // 不误开护理台；未移动 = 纯点击，打开护理台。
+  let pressing = false;
+  let pressMoved = false;
+  const onMoveDuringPress = () => { if (pressing) pressMoved = true; };
+  win.on('move', onMoveDuringPress);
+  win.hookWindowMessage(WM_NCLBUTTONDOWN, () => { pressing = true; pressMoved = false; });
+  win.hookWindowMessage(WM_NCLBUTTONUP, () => {
+    if (!pressing) return;
+    pressing = false;
+    if (!pressMoved) hooks.onCapsuleClick?.();
+  });
   // data: 供原型探针；生产传 care/capsule 页面文件路径
   if (htmlDataUrl.startsWith('data:')) void win.loadURL(htmlDataUrl);
   else void win.loadFile(htmlDataUrl);
@@ -150,6 +175,10 @@ export function createCapsuleWindow(preloadPath: string, htmlDataUrl: string): C
       unwatch?.();
       screen.off('display-metrics-changed', onDisplayChanged);
       if (!win.isDestroyed()) {
+        uninstallHitTest();
+        win.unhookWindowMessage(WM_NCLBUTTONDOWN);
+        win.unhookWindowMessage(WM_NCLBUTTONUP);
+        win.off('move', onMoveDuringPress);
         clearGlass(hwndNumber(win));
         win.destroy();
       }

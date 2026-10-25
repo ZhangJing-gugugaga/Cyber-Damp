@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   advanceDamage, applyCareImmunity, availableFamilies, createRand, dailyWeight,
   decideNativeBranch, familyWeights, isEligibleForDaily, localDateKey,
-  moldImmuneUntilAfterCare, planDailyOrder, planInit,
+  moldImmuneUntilAfterCare, pickDailyFamily, planDailyOrder, planInit,
 } from '../dist/test/world/native-events.js';
 import { MOLD_IMMUNITY_MS } from '../dist/test/shared/types/native.js';
 
@@ -229,4 +229,61 @@ test('localDateKey 按系统本地日期', () => {
   const d = new Date(2026, 9, 24, 23, 50).getTime(); // 本地 2026-10-24 23:50
   assert.equal(localDateKey(d), '2026-10-24');
   assert.equal(localDateKey(d + 20 * 60 * 1000), '2026-10-25'); // 跨午夜
+});
+
+// ---------- R5 换族（Goal 阶段一：护理完成后不被旧损伤族锁死） ----------
+
+function baseObj(overrides = {}) {
+  return {
+    id: 'd-1', realPath: 'E:/Desktop/obj1', kind: 'dir',
+    displayName: '对象1', originalMtime: T0 - 30 * DAY, damage: null, ...overrides,
+  };
+}
+
+test('R5: 完整清理（stage 0）后按当日天气进入新族，不被旧族锁死', () => {
+  const obj = baseObj({
+    damage: { family: 'mold', stage: 0, mushroom: 'none' },
+    moldImmuneUntil: T0 + MOLD_IMMUNITY_MS,
+  });
+  // 干燥高温晴天：可用族只剩受潮/焦化，霉变权重 0（免疫再叠加仍为 0）
+  const dry = snap(0, 40, 35);
+  assert.equal(isEligibleForDaily(obj, dry, T0), true, '已清理对象在干燥日应可入选');
+  const family = pickDailyFamily(obj, dry, T0, 42);
+  assert.ok(['damp', 'char'].includes(family), `干燥日选族结果 ${family}`);
+  const advanced = advanceDamage(obj.damage, family);
+  assert.equal(advanced.advanced, true);
+  assert.equal(advanced.damage.family, family);
+  assert.equal(advanced.damage.stage, 1);
+});
+
+test('R5: 换族进入轻度时保留既有成熟菇（菇独立于损伤）', () => {
+  const cleaned = { family: 'mold', stage: 0, mushroom: 'mature' };
+  const switched = advanceDamage(cleaned, 'damp');
+  assert.deepEqual(switched.damage, { family: 'damp', stage: 1, mushroom: 'mature' });
+  // 干净对象（无损伤记录）首次引入仍无菇
+  const fresh = advanceDamage(null, 'damp');
+  assert.deepEqual(fresh.damage, { family: 'damp', stage: 1, mushroom: 'none' });
+  // 已清理的同族对象再推进同样保留菇
+  const sameFamily = advanceDamage(cleaned, 'mold');
+  assert.deepEqual(sameFamily.damage, { family: 'mold', stage: 1, mushroom: 'mature' });
+});
+
+test('R5: 未清理对象仍锁定主族（stage>0 的霉变对象在干燥日不入选）', () => {
+  const obj = baseObj({ damage: { family: 'mold', stage: 2, mushroom: 'none' } });
+  const dry = snap(0, 40, 35);
+  assert.equal(isEligibleForDaily(obj, dry, T0), false, '霉变对象在干燥日应跳过');
+  const wet = snap(61, 85);
+  assert.equal(isEligibleForDaily(obj, wet, T0), true, '同族适配日仍可推进');
+  assert.equal(pickDailyFamily(obj, wet, T0, 7), 'mold', '未清理对象沿主族推进');
+});
+
+test('R5: 免疫期已清理对象不引入霉变（权重硬排除，多种子）', () => {
+  const obj = baseObj({
+    damage: { family: 'mold', stage: 0, mushroom: 'none' },
+    moldImmuneUntil: T0 + MOLD_IMMUNITY_MS,
+  });
+  const wet = snap(61, 85); // 常规权重 受潮85/霉变15
+  for (const seed of [1, 7, 42, 999, 123456]) {
+    assert.notEqual(pickDailyFamily(obj, wet, T0, seed), 'mold', `种子 ${seed} 不得引入霉变`);
+  }
 });

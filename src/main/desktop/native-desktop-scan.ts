@@ -32,7 +32,7 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
       fallbackPath: artworkPath !== realPath ? realPath : undefined };
   });
   const artwork = await queryShellIcons(requests);
-  const entries = await Promise.all(view.items.map(async (item, index): Promise<DesktopEntry> => {
+  const entries = (await Promise.all(view.items.map(async (item, index): Promise<DesktopEntry | null> => {
     const rect = rects.items[index];
     const dip = screen.screenToDipRect(null, rect.icon);
     const display = screen.getDisplayNearestPoint({ x: dip.x, y: dip.y });
@@ -43,12 +43,32 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
     const geometry = projectShellGeometry(rect.icon, rect.label, size, display.scaleFactor, work, canvasScale);
     const realPath = item.parsingName;
     const virtual = realPath.startsWith('::');
-    const info = virtual ? null : await stat(realPath);
+    // Shell 视图可能残留已删除对象的幽灵条目（外部 rm 不产生 Shell 通知）：
+    // stat 失败按"对象不存在"跳过，不让单个幽灵拖死整次启动扫描。
+    let info: Awaited<ReturnType<typeof stat>> | null = null;
+    if (!virtual) {
+      try { info = await stat(realPath); } catch { info = null; }
+    }
+    if (!virtual && !info) {
+      console.warn('[startup:scan] 跳过不可访问的对象（可能已被删除）:', item.displayName, realPath);
+      return null;
+    }
     const recycle = realPath.toLowerCase().includes('645ff040-5081-101b-9f08-00aa002f954e');
     const raw = artwork[index];
     let icon = raw ? nativeImage.createFromBitmap(Buffer.from(raw.pixels), { width: raw.width, height: raw.height }) : null;
-    if (!icon && !virtual) icon = await app.getFileIcon(realPath, { size: 'large' });
-    if (!icon || icon.isEmpty()) throw new Error(`无法读取图标：${item.displayName}`);
+    if (!icon && !virtual) {
+      // 个别对象（如失效网络目标的快捷方式）的提取可能长时间不返回：
+      // 限时回退，仍读不到就跳过该对象，不拖死整次桌面扫描（R1 单个失败
+      // 不阻塞其余可处理对象）。
+      icon = await Promise.race([
+        app.getFileIcon(realPath, { size: 'large' }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000)),
+      ]);
+    }
+    if (!icon || icon.isEmpty()) {
+      console.warn('[startup:scan] 跳过图标不可读的对象:', item.displayName, realPath);
+      return null;
+    }
     const name = virtual ? item.displayName : path.basename(realPath);
     const ext = info?.isDirectory() || virtual ? '' : path.extname(name).slice(1).toLowerCase();
     return {
@@ -59,7 +79,7 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
       iconDataUrl: icon.toDataURL(),
       geometry,
     };
-  }));
+  }))).filter((entry) => entry !== null);
   console.info('[startup:scan]', JSON.stringify({ items: entries.length, layoutMs: Math.round(layoutMs), artworkMs: Math.round(performance.now() - started - layoutMs) }));
   return entries;
 }

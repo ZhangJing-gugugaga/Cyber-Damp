@@ -8,11 +8,12 @@ import type { WebContents } from 'electron';
 import { loadSave, writeSave } from '../save/save-store';
 import { setManagementPausedFlag } from '../window/management-window';
 import {
-  applyAppearance, nativeStatusSummary, restoreDesktopAndPause, resumeFromRestored,
-  reapplySavedAppearances, runNativeEventCycle, setNativeLocation, setNativePaused,
-  type CycleCandidate,
+  applyAppearance, nativeStatusSummary, pristineDataUrlFor, restoreDesktopAndPause,
+  resumeFromRestored, reapplySavedAppearances, runNativeEventCycle, setNativeLocation,
+  setNativePaused, type CycleCandidate,
 } from '../desktop/native-event-scheduler';
 import { restoreIconReferences } from '../desktop/icon-mutate';
+import { getWeather } from '../weather/weather-service';
 import {
   buyNativeItem, completeCare, grantOnboarding, harvestMushroom,
 } from '../../world/native-care';
@@ -88,15 +89,31 @@ function entryToCandidate(entry: DesktopEntry): CycleCandidate {
   };
 }
 
-function mutateSave(mutator: (save: NonNullable<ReturnType<typeof loadSave>>) => string | void): { ok: boolean; message?: string } {
+/** 领域操作结果：失败必须走 ok:false，调用方据此决定不扣币、不发奖励、不改图标。 */
+type MutatorResult = { ok: true; message?: string } | { ok: false; message: string };
+type MutateOutcome = { ok: boolean; message?: string };
+
+function succeed(message?: string): MutatorResult {
+  return message ? { ok: true, message } : { ok: true };
+}
+function fail(message: string): MutatorResult {
+  return { ok: false, message };
+}
+
+/**
+ * 读-改-写存档。领域层返回失败时不写盘（存档保持原样）；写盘失败也返回 ok:false。
+ * 之前把领域错误文案当成成功消息返回，导致护理/采摘/购买失败时界面仍显示成功。
+ */
+function mutateSave(mutator: (save: NonNullable<ReturnType<typeof loadSave>>) => MutatorResult): MutateOutcome {
   const save = loadSave();
   if (!save) return { ok: false, message: '存档尚未建立' };
   if (!save.native) save.native = { init: null, dailyEvents: {}, objects: {}, lastSnapshot: null };
-  const message = mutator(save);
+  const result = mutator(save);
+  if (!result.ok) return { ok: false, message: result.message };
   save.savedAt = Date.now();
-  const result = writeSave(save);
-  if (!result.ok) return { ok: false, message: '存档写入失败' };
-  return message ? { ok: true, message } : { ok: true };
+  const written = writeSave(save);
+  if (!written.ok) return { ok: false, message: '存档写入失败，本次操作未生效' };
+  return result.message ? { ok: true, message: result.message } : { ok: true };
 }
 
 export function registerNativeHandlers(getWc: () => WebContents | null): void {
@@ -114,7 +131,10 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
           realPath: obj.realPath, damage: obj.damage, careProgress: obj.careProgress ?? 0, careMask: obj.careMask,
           mushroomSpecies: obj.mushroomSpecies, moldImmuneUntil: obj.moldImmuneUntil ?? 0,
           lastAdvanceAt: obj.lastAdvanceAt ?? 0,
-          present: Boolean(entry), iconDataUrl: entry?.iconDataUrl ?? '',
+          present: Boolean(entry),
+          // 护理台基图为原图：对象当前桌面图标可能是我们生成的损伤态，
+          // 直接回传会把"损伤叠损伤"带进窗口预览（R7 原图作为合成输入）。
+          iconDataUrl: entry ? pristineDataUrlFor(obj.id, obj.realPath, entry.iconDataUrl) : '',
         };
       })
       .sort((a, b) => {
@@ -134,7 +154,7 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     };
   });
 
-  ipcMain.handle('native:setLocation', (event, payload: unknown) => {
+  ipcMain.handle('native:setLocation', async (event, payload: unknown) => {
     if (event.sender !== getWc() || !isPlainObject(payload)) return { ok: false, message: 'invalid-request' };
     const { cityId, label, latitude, longitude } = payload;
     if (typeof cityId !== 'string' || typeof label !== 'string' || label.length > 100
@@ -142,8 +162,13 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
       || typeof longitude !== 'number' || !Number.isFinite(longitude)) {
       return { ok: false, message: 'invalid-location' };
     }
-    // R3：新城市连同有效天气一起成功后才保存——由事件循环取数验证；这里先记待取数
-    setNativeLocation({ cityId, label, latitude, longitude });
+    // R3：先取得新城市的天气，成功后才保存城市；失败保留原城市与原缓存，不冒充新城市
+    const target = { cityId, label, latitude, longitude };
+    const lookup = await getWeather(target);
+    if (!lookup.snapshot || lookup.status === 'unavailable') {
+      return { ok: false, message: '该城市天气暂不可用，已保留原城市，可稍后重试' };
+    }
+    setNativeLocation(target);
     void runNativeEventCycle(latestCycleCandidates()).catch((error) =>
       console.warn('[native] 改城后事件循环失败:', error));
     return { ok: true };
@@ -170,20 +195,25 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     const mask = typeof payload.mask === 'string' && payload.mask.length <= 4096 ? payload.mask : undefined;
     return mutateSave((save) => {
       const obj = save.native!.objects[objectId];
-      if (obj) { obj.careProgress = progress; if (mask !== undefined) obj.careMask = mask; }
+      if (!obj) return fail('对象不存在');
+      // 已干净（完成或被自然事件重置）的旧进度回执不得覆盖新状态
+      if (!obj.damage || obj.damage.stage === 0) return fail('该对象已经干净，进度未记录');
+      obj.careProgress = progress;
+      if (mask !== undefined) obj.careMask = mask;
+      return succeed();
     });
   });
 
-  const finishCare = (objectId: unknown, sender: WebContents | null): { ok: boolean; message?: string } => {
+  const finishCare = (objectId: unknown, sender: WebContents | null): MutateOutcome => {
     if (sender !== getWc() || typeof objectId !== 'string') return { ok: false, message: 'invalid-request' };
     let iconEntry: DesktopEntry | null = null;
     let damage: DamageState | null = null;
     const outcome = mutateSave((save) => {
       const result = completeCare(save.native!, objectId, Date.now());
-      if (!result.ok) return result.error;
+      if (!result.ok) return fail(result.error ?? '清理失败');
       iconEntry = findEntryFor(objectId);
       damage = save.native!.objects[objectId]?.damage ?? null;
-      return `已清理完成，10 天内不再发霉（可受潮/发焦）`;
+      return succeed('已清理完成，10 天内不再发霉（可受潮/发焦）');
     });
     if (outcome.ok && iconEntry && typeof damage !== 'undefined') {
       // 完成护理立即落到桌面图标（干净+菇）；restored 模式下只存进度不写桌面（R8）
@@ -215,21 +245,22 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     let damage: DamageState | null = null;
     const outcome = mutateSave((save) => {
       const result = harvestMushroom(save.native!, objectId, Date.now(), 'oyster');
-      if (!result.ok) return result.error;
-      if (result.coins) { save.player.coins += result.coins; coinsDelta = result.coins; }
+      if (!result.ok) return fail(result.error ?? '采摘失败');
+      save.player.coins += result.coins ?? 0;
+      coinsDelta = result.coins ?? 0;
       iconEntry = findEntryFor(objectId);
       damage = save.native!.objects[objectId]?.damage ?? null;
-      return `采摘 +${coinsDelta} 菇币，已收入收藏`;
+      return succeed(`采摘 +${coinsDelta} 菇币，已收入收藏`);
     });
     if (outcome.ok && iconEntry) {
       const save = loadSave();
       if (save?.native?.restored !== true) {
-        const species = (loadSave()?.native?.objects[objectId]?.mushroomSpecies) ?? undefined;
+        const species = (save?.native?.objects[objectId]?.mushroomSpecies) ?? undefined;
         void applyAppearance(entryToCandidate(iconEntry), damage, species).catch((error) =>
           console.warn('[native] 采摘图标更新失败:', error));
       }
     }
-    return { ...outcome, coins: coinsDelta };
+    return { ...outcome, coins: outcome.ok ? coinsDelta : 0 };
   });
 
   ipcMain.handle('native:buy', (event, payload: unknown) => {
@@ -239,9 +270,10 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     const itemId: string = payload.itemId;
     return mutateSave((save) => {
       const result = buyNativeItem(save.native!, save.player.coins, save.player.owned, itemId);
-      if (!result.ok) return result.error;
+      if (!result.ok) return fail(result.error ?? '购买失败');
       save.player.coins = result.coins!;
       save.player.owned = result.owned!;
+      return succeed(`已购买 ${itemId}`);
     });
   });
 
@@ -249,8 +281,9 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     if (event.sender !== getWc()) return { ok: false };
     return mutateSave((save) => {
       const result = grantOnboarding(save.native!, save.player.coins);
+      if (result.alreadyDone) return succeed(); // 重复完成不重发奖励
       save.player.coins = result.coins;
-      return result.alreadyDone ? undefined : '新手奖励 +24 菇币';
+      return succeed('新手奖励 +24 菇币');
     });
   });
 

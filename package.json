@@ -1,6 +1,6 @@
 {
   "name": "cyber-damp",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "回南天 Cyber Damp - 原生桌面图标天气变化与轻量护理",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",
@@ -18,7 +18,9 @@
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win --x64 --config.electronDist=node_modules/electron/dist",
     "test:world": "tsc -p tsconfig.test.json && node --test scripts/test-native-events.mjs scripts/test-native-care.mjs",
-    "qa:dox": "node scripts/check-dox.mjs"
+    "qa:dox": "node scripts/check-dox.mjs",
+    "uat:ipc": "electron scripts/uat-ipc-failure.cjs",
+    "uat:care-ui": "electron scripts/uat-care-ui.cjs"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

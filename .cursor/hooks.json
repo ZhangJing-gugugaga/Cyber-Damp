@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ],
+    "beforeTabFileRead": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ],
+    "afterTabFileEdit": [
+      {
+        "command": "\"c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-hook.exe\""
+      }
+    ]
+  }
+}

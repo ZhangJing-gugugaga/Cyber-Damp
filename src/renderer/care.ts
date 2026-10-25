@@ -4,6 +4,7 @@
  * 擦拭只作用于污染层（原图/蘑菇不受影响）；64×64 掩码持久化，重开还原同一批擦除洞。
  */
 import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
+import { CARE_MASK_CELLS, decodeCareMask, encodeCareMask } from '../shared/care-mask';
 import { DEFAULT_LOCATION } from '../shared/native-defaults';
 import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
 import type { CityOption } from '../shared/types/weather';
@@ -15,8 +16,10 @@ let currentId: string | null = null;
 let wiping = false;
 let lastSaved = 0;
 let dirtInitial = 1;
-/** 64×64 擦拭掩码（本地工作副本，节流持久化） */
-let mask: Uint8Array = new Uint8Array(new ArrayBuffer(64 * 64));
+/** 当前对象的损伤层标记（与 dirtInitial 对应；null 表示无可擦损伤） */
+let dirtLayer: Uint8Array | null = null;
+/** 64×64 擦拭掩码（本地工作副本，节流持久化；编解码见 shared/care-mask） */
+let mask: Uint8Array = new Uint8Array(new ArrayBuffer(CARE_MASK_CELLS));
 const MASK_GRID = 64;
 const MASK_CELL = 256 / MASK_GRID;
 
@@ -69,21 +72,52 @@ function familyLabel(family: string): string {
   return family === 'damp' ? '受潮' : family === 'mold' ? '霉变' : '焦化';
 }
 
+/**
+ * 列表状态（优先级：可采摘 > 待护理/部分完成 > 有幼菇 > 已干净）。
+ * 干净但带菇的对象也保留在列表中，不会因为没有污渍而消失。
+ */
+function listStateOf(o: NativeObjectView): { rank: number; label: string; harvest: boolean } {
+  if (o.damage?.mushroom === 'mature') return { rank: 0, label: '🍄可采', harvest: true };
+  if (o.damage && o.damage.stage > 0) {
+    const fam = familyLabel(o.damage.family);
+    return o.careProgress > 0
+      ? { rank: 1, label: `部分完成·${fam}`, harvest: false }
+      : { rank: 1, label: `待护理·${fam}`, harvest: false };
+  }
+  if (o.damage?.mushroom === 'young') return { rank: 2, label: '有幼菇', harvest: false };
+  return { rank: 3, label: '已干净', harvest: false };
+}
+
+/** 没有可操作对象时说明实际原因（不只给空白页） */
+function emptyReason(): string {
+  if (!status) return '正在读取状态…';
+  if (status.paused) return '已暂停自然变化，恢复后继续。';
+  if (status.initStatus === 'not-generated') return '首批尚未开始：等待有效天气后，最久未动的对象会开始变化。';
+  if (status.initStatus === 'active') return '首批进行中：完成后这里会列出受影响的对象。';
+  if (status.restored) return '桌面外观已还原。点击设置中的“继续游戏”后恢复。';
+  return '当前没有受影响的对象。';
+}
+
 function renderList(): void {
   const list = $('object-list');
   list.innerHTML = '';
-  const objects = status?.objects ?? [];
-  const affected = objects.filter((o) => o.present && (o.damage === null || o.damage.stage > 0 || o.damage.mushroom === 'mature'));
-  const dirty = affected.filter((o) => o.damage && o.damage.stage > 0);
-  const clean = affected.filter((o) => !o.damage || o.damage.stage === 0);
-  const ordered = [...dirty, ...clean];
-  if (ordered.length === 0) {
+  const objects = (status?.objects ?? []).filter((o) => o.present);
+  const ordered = [...objects].sort((a, b) => listStateOf(a).rank - listStateOf(b).rank || b.lastAdvanceAt - a.lastAdvanceAt);
+  const actionable = ordered.some((o) => listStateOf(o).rank <= 2);
+  if (!actionable) {
     const empty = document.createElement('div');
     empty.className = 'empty';
-    empty.textContent = '都收拾好了，桌面很干净。';
+    empty.textContent = ordered.length === 0 ? emptyReason() : '都收拾好了，桌面很干净。';
     list.appendChild(empty);
+    const practiceBtn = document.createElement('button');
+    practiceBtn.className = 'primary';
+    practiceBtn.style.margin = '8px 0 0';
+    practiceBtn.textContent = '练习一下擦拭与采菇';
+    practiceBtn.addEventListener('click', openPractice);
+    list.appendChild(practiceBtn);
   }
   for (const obj of ordered) {
+    const state = listStateOf(obj);
     const item = document.createElement('div');
     item.className = `obj-item${obj.id === currentId ? ' selected' : ''}`;
     item.title = obj.displayName;
@@ -94,9 +128,8 @@ function renderList(): void {
     name.className = 'name';
     name.textContent = obj.displayName;
     const flag = document.createElement('span');
-    flag.className = 'flag' + (obj.damage?.mushroom === 'mature' ? ' harvest' : '');
-    if (obj.damage?.mushroom === 'mature') flag.textContent = '🍄可采';
-    else if (obj.damage && obj.damage.stage > 0) flag.textContent = familyLabel(obj.damage.family);
+    flag.className = 'flag' + (state.harvest ? ' harvest' : '');
+    flag.textContent = state.label;
     item.append(img, name, flag);
     item.tabIndex = 0;
     item.setAttribute('role', 'button');
@@ -120,45 +153,59 @@ const MUSHROOM_ASSET: Record<string, string> = {
 };
 
 function maskToBase64(): string {
-  let binary = '';
-  for (let i = 0; i < mask.length; i += 1) binary += mask[i] ? '1' : '0';
-  // 8 位一组转 base64
-  let out = '';
-  for (let i = 0; i < 64; i += 1) out += String.fromCharCode(parseInt(binary.slice(i * 8, i * 8 + 8), 2));
-  return btoa(out);
+  return encodeCareMask(mask);
 }
 
 function base64ToMask(value: string): Uint8Array | null {
-  try {
-    const bytes = atob(value);
-    if (bytes.length !== 64) return null;
-    const out = new Uint8Array(new ArrayBuffer(4096));
-    for (let i = 0; i < 64; i += 1) {
-      const byte = bytes.charCodeAt(i);
-      for (let b = 0; b < 8; b += 1) out[i * 8 + b] = (byte >> (7 - b)) & 1;
-    }
-    return out;
-  } catch {
-    return null;
-  }
+  return decodeCareMask(value);
 }
 
 function clearMask(): void {
-  mask = new Uint8Array(new ArrayBuffer(64 * 64));
+  mask = new Uint8Array(new ArrayBuffer(CARE_MASK_CELLS));
 }
 
-/** 把掩码表现为污染层上的擦除洞（每格 4×4px，圆角近似） */
+/**
+ * 把掩码表现为污染层上的擦除洞。按格整块填充（4×4px），与 wipeAt 的标记规则配套：
+ * 凡与擦除圆相交的格都被标记，因此回放的擦除区域一定覆盖实际擦过的区域，
+ * 重开后进度只会相同或更高，不会缩水。
+ */
 function applyMaskToCanvas(): void {
   dirtCtx.globalCompositeOperation = 'destination-out';
   for (let gy = 0; gy < MASK_GRID; gy += 1) {
     for (let gx = 0; gx < MASK_GRID; gx += 1) {
       if (!mask[gy * MASK_GRID + gx]) continue;
-      dirtCtx.beginPath();
-      dirtCtx.arc(gx * MASK_CELL + MASK_CELL / 2, gy * MASK_CELL + MASK_CELL / 2, MASK_CELL * 0.62, 0, Math.PI * 2);
-      dirtCtx.fill();
+      dirtCtx.fillRect(gx * MASK_CELL, gy * MASK_CELL, MASK_CELL, MASK_CELL);
     }
   }
   dirtCtx.globalCompositeOperation = 'source-over';
+}
+
+/**
+ * 损伤层 = 材质实际改变了 RGB 的像素。进度只计这些像素被擦掉的比例，
+ * 不再按整枚图标的不透明面积计算（图标本身的颜色与轮廓不计入）。
+ */
+/** 256×256 画布的像素总数（损伤层按像素，不是 64×64 掩码格） */
+const CANVAS_PIXELS = 256 * 256;
+
+function buildDamageLayer(pristine: Uint8ClampedArray, damaged: Uint8ClampedArray): Uint8Array {
+  const layer = new Uint8Array(CANVAS_PIXELS);
+  for (let p = 0; p < CANVAS_PIXELS; p += 1) {
+    const i = p * 4;
+    if (pristine[i + 3] < 24) continue;
+    const delta = Math.abs(damaged[i] - pristine[i]) + Math.abs(damaged[i + 1] - pristine[i + 1]) + Math.abs(damaged[i + 2] - pristine[i + 2]);
+    if (delta > 6) layer[p] = 1;
+  }
+  return layer;
+}
+
+function remainingDamage(ctx: CanvasRenderingContext2D, layer: Uint8Array | null): number {
+  if (!layer) return 0;
+  const sample = ctx.getImageData(0, 0, 256, 256).data;
+  let left = 0;
+  for (let p = 0; p < CANVAS_PIXELS; p += 1) {
+    if (layer[p] && sample[p * 4 + 3] > 24) left += 1;
+  }
+  return left;
 }
 
 function buildDirt(obj: NativeObjectView): void {
@@ -167,6 +214,7 @@ function buildDirt(obj: NativeObjectView): void {
   mushroomEl.src = '';
   dirtCtx.clearRect(0, 0, 256, 256);
   clearMask();
+  dirtLayer = null;
   if (!obj.iconDataUrl) return;
 
   const img = new Image();
@@ -174,13 +222,15 @@ function buildDirt(obj: NativeObjectView): void {
     dirtCtx.clearRect(0, 0, 256, 256);
     if (obj.damage && obj.damage.stage > 0) {
       dirtCtx.drawImage(img, 0, 0, 256, 256);
+      const pristine = new Uint8ClampedArray(dirtCtx.getImageData(0, 0, 256, 256).data);
       const imageData = dirtCtx.getImageData(0, 0, 256, 256);
       const type = damageVariant(obj.id, obj.damage.family);
       applyDamageMaterial({ data: imageData.data, width: 256, height: 256, stage: obj.damage.stage as 1 | 2 | 3, type });
       dirtCtx.putImageData(imageData, 0, 0);
+      dirtLayer = buildDamageLayer(pristine, imageData.data);
       // 满污渍基准必须在恢复擦除洞之前量取：否则重开窗口会把已保存的
       // 进度重新算成 0%（存档里 62.7%、进度条归 0 的实测缺陷）。
-      dirtInitial = Math.max(measureDirt(), 1);
+      dirtInitial = Math.max(dirtLayer.reduce((sum, v) => sum + v, 0), 1);
       // 恢复已保存的擦除洞（同一批，不随机）
       const saved = obj.careMask ? base64ToMask(obj.careMask) : null;
       if (saved) { mask = saved; applyMaskToCanvas(); }
@@ -196,14 +246,9 @@ function buildDirt(obj: NativeObjectView): void {
   img.src = obj.iconDataUrl;
 }
 
+/** 仍留在损伤层上的像素数（只计 dirtLayer 标记的像素，逐像素统计） */
 function measureDirt(): number {
-  const sample = dirtCtx.getImageData(0, 0, 256, 256).data;
-  let opaque = 0;
-  // 必须逐像素计数：掩码回放的擦除洞是 4px 网格上 r≈2.5 的小圆，
-  // 16px 步进采样点(16j,16i)离最近圆心 2.83px，几何上永远采不到洞，
-  // 重开窗口的进度就会归零（实测缺陷）。
-  for (let i = 3; i < sample.length; i += 4) { if (sample[i] > 24) opaque += 1; }
-  return opaque;
+  return remainingDamage(dirtCtx, dirtLayer);
 }
 
 function currentWipeable(): boolean {
@@ -230,77 +275,151 @@ function canvasPoint(event: PointerEvent): { x: number; y: number } {
   return { x: (event.clientX - rect.left) * (256 / rect.width), y: (event.clientY - rect.top) * (256 / rect.height) };
 }
 
+/** 写入护理进度与掩码；存档失败时明确提示，不让玩家误以为已保存。 */
+function saveProgress(objectId: string, progress: number): Promise<void> {
+  return window.damp!.native.careProgress(objectId, progress, maskToBase64()).then((result) => {
+    if (!result.ok && result.message?.includes('存档')) toast(result.message);
+  });
+}
+
+/**
+ * 擦除一个圆并记录掩码。格子只要与圆相交就标记（而不是只看格中心），
+ * 保证 applyMaskToCanvas 重放时覆盖范围 ⊇ 实际擦过的区域。
+ */
 function wipeAt(x: number, y: number): void {
+  const r = scrubRadius();
   dirtCtx.globalCompositeOperation = 'destination-out';
   dirtCtx.beginPath();
-  dirtCtx.arc(x, y, scrubRadius(), 0, Math.PI * 2);
+  dirtCtx.arc(x, y, r, 0, Math.PI * 2);
   dirtCtx.fill();
   dirtCtx.globalCompositeOperation = 'source-over';
-  // 记录掩码格
-  const gx0 = Math.max(0, Math.floor((x - scrubRadius()) / MASK_CELL));
-  const gx1 = Math.min(MASK_GRID - 1, Math.floor((x + scrubRadius()) / MASK_CELL));
-  const gy0 = Math.max(0, Math.floor((y - scrubRadius()) / MASK_CELL));
-  const gy1 = Math.min(MASK_GRID - 1, Math.floor((y + scrubRadius()) / MASK_CELL));
+  const gx0 = Math.max(0, Math.floor((x - r) / MASK_CELL));
+  const gx1 = Math.min(MASK_GRID - 1, Math.floor((x + r) / MASK_CELL));
+  const gy0 = Math.max(0, Math.floor((y - r) / MASK_CELL));
+  const gy1 = Math.min(MASK_GRID - 1, Math.floor((y + r) / MASK_CELL));
   for (let gy = gy0; gy <= gy1; gy += 1) {
     for (let gx = gx0; gx <= gx1; gx += 1) {
-      const cx = gx * MASK_CELL + MASK_CELL / 2;
-      const cy = gy * MASK_CELL + MASK_CELL / 2;
-      if (Math.hypot(cx - x, cy - y) <= scrubRadius()) mask[gy * MASK_GRID + gx] = 1;
+      const left = gx * MASK_CELL;
+      const top = gy * MASK_CELL;
+      const nx = Math.max(left, Math.min(x, left + MASK_CELL));
+      const ny = Math.max(top, Math.min(y, top + MASK_CELL));
+      if (Math.hypot(nx - x, ny - y) <= r) mask[gy * MASK_GRID + gx] = 1;
     }
   }
 }
 
+/** 从上一采样点到当前点按小步补擦：快速拖动不会在采样点之间留下断点。 */
+function wipeSegment(from: { x: number; y: number }, to: { x: number; y: number }): void {
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const step = Math.max(2, scrubRadius() / 3);
+  const n = Math.max(1, Math.ceil(dist / step));
+  for (let i = 1; i <= n; i += 1) {
+    const t = i / n;
+    wipeAt(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+  }
+}
+
+let lastPoint: { x: number; y: number } | null = null;
+let progressFrame = 0;
+/** 进度与画面每帧即时刷新，与存档节流解耦（R6 手感要求）。 */
+function scheduleProgressUi(): void {
+  if (progressFrame) return;
+  progressFrame = requestAnimationFrame(() => { progressFrame = 0; updateProgressUi(); });
+}
+
 const wrap = $('canvas-wrap');
 wrap.addEventListener('pointerdown', (event) => {
-  if (!currentWipeable()) return;
+  if (!currentWipeable() || currentId === null) return;
   wiping = true;
   wrap.setPointerCapture(event.pointerId);
   const p = canvasPoint(event);
+  lastPoint = p;
   wipeAt(p.x, p.y);
+  scheduleProgressUi();
 });
 wrap.addEventListener('pointermove', (event) => {
   if (!wiping) return;
   const p = canvasPoint(event);
-  wipeAt(p.x, p.y);
+  wipeSegment(lastPoint ?? p, p);
+  lastPoint = p;
+  scheduleProgressUi();
   const now = Date.now();
-  if (now - lastSaved > 1200) {
+  if (now - lastSaved > 1200 && currentId !== null) {
     lastSaved = now;
     const progress = Math.max(0, Math.min(0.98, 1 - measureDirt() / dirtInitial));
-    void window.damp!.native.careProgress(currentId!, progress, maskToBase64());
-    updateProgressUi();
+    void saveProgress(currentId, progress);
   }
 });
 const endWipe = () => {
   if (!wiping) return;
   wiping = false;
+  lastPoint = null;
+  // 没有可擦损伤层（图标未就绪或已干净）时不计算进度，避免误判为完成
+  if (currentId === null || dirtLayer === null) return;
   const fraction = 1 - measureDirt() / dirtInitial;
-  void window.damp!.native.careProgress(currentId!, Math.max(0, Math.min(0.98, fraction)), maskToBase64());
+  void saveProgress(currentId, Math.max(0, Math.min(0.98, fraction)));
   updateProgressUi(); // 松手立即落到最终值，不等下一次节流刷新
   if (fraction >= 0.9) void finishCare(false); // 最后少量残渍自动收尾
 };
 wrap.addEventListener('pointerup', endWipe);
 wrap.addEventListener('pointercancel', endWipe);
 wrap.addEventListener('pointerleave', () => { if (wiping) endWipe(); });
+// 失焦、隐藏立即停工具（R6：松手、失焦、切换对象、关窗时停止；进度按已擦部分保存）
+window.addEventListener('blur', () => endWipe());
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') endWipe(); });
+
+/** 完成护理后自然引向下一个仍需处理的对象（待护理/部分完成/有菇），没有则停在原地。 */
+function advanceToNextObject(fromId: string | null): void {
+  const next = (status?.objects ?? [])
+    .filter((o) => o.present && o.id !== fromId && listStateOf(o).rank <= 2)
+    .sort((a, b) => listStateOf(a).rank - listStateOf(b).rank || b.lastAdvanceAt - a.lastAdvanceAt)[0];
+  if (next) selectObject(next.id);
+}
 
 async function finishCare(quick: boolean): Promise<void> {
   if (!currentId) { toast('先在左侧选择一个对象'); return; }
+  const finishedId = currentId;
   const result = quick
-    ? await window.damp!.native.quickCare(currentId)
-    : await window.damp!.native.careComplete(currentId);
-  if (result.ok) toast(result.message ?? '清理完成');
-  else if (result.message) toast(result.message);
+    ? await window.damp!.native.quickCare(finishedId)
+    : await window.damp!.native.careComplete(finishedId);
+  toast(result.message ?? (result.ok ? '清理完成' : '清理失败'));
   await reload();
+  // 成功后保留完成状态（toast）并引向下一个对象；失败保持当前对象不变
+  if (result.ok && !wiping) advanceToNextObject(finishedId);
 }
 
 $('btn-quick').addEventListener('click', () => void finishCare(true));
+
+let harvesting = false;
 $('btn-harvest').addEventListener('click', async () => {
   if (!currentId) { toast('先在左侧选择一个对象'); return; }
-  const result = await window.damp!.native.harvest(currentId);
-  toast(result.ok ? (result.message ?? '已采摘') : (result.message ?? '暂无可采的菇'));
-  await reload();
+  // 重复点击只结算一次：请求未返回前拒绝再次提交
+  if (harvesting) return;
+  harvesting = true;
+  const harvestedId = currentId;
+  const knownSpecies = new Set(Object.keys(status?.collection ?? {}));
+  try {
+    const result = await window.damp!.native.harvest(harvestedId);
+    if (!result.ok) { toast(result.message ?? '暂无可采的菇'); await reload(); return; }
+    // 菇离开对象的短动画，动画结束后再刷新，避免重建画布打断动效
+    mushroomEl.classList.add('leaving');
+    $('coins').classList.remove('bump');
+    void $('coins').offsetWidth;
+    $('coins').classList.add('bump');
+    await new Promise((resolve) => setTimeout(resolve, 360));
+    await reload();
+    const fresh = Object.keys(status?.collection ?? {}).filter((s) => !knownSpecies.has(s));
+    const label = fresh.length > 0 ? `新收藏：${SPECIES_LABEL[fresh[0]] ?? fresh[0]}。` : '';
+    toast(`${label}${result.message ?? '已采摘'}`);
+  } finally {
+    mushroomEl.classList.remove('leaving');
+    harvesting = false;
+  }
 });
 
 function selectObject(id: string): void {
+  // 切换对象前先结算当前笔触（进度落盘到原对象，不串到新对象）
+  if (wiping) endWipe();
   currentId = id;
   const obj = status?.objects.find((o) => o.id === id);
   if (!obj) return;
@@ -328,22 +447,32 @@ function selectObject(id: string): void {
 const SPECIES_ASSET: Record<string, string> = { oyster: 'round-mature', enoki: 'cluster-mature', shy: 'fan-bud', bolete: 'round-mature', lava: 'fan-mature' };
 const SPECIES_LABEL: Record<string, string> = { oyster: '平菇', enoki: '金针菇', shy: '胆小菇', bolete: '牛肝菌', lava: '熔岩菇' };
 
+/** 收藏展示全部现有品种：已发现显示来源与首次时间，未发现明确标注（不给获取倒计时或掉落承诺）。 */
 function renderCollection(): void {
   const grid = $('collection-grid');
   grid.innerHTML = '';
-  const entries = Object.values(status?.collection ?? {});
-  $('collection-empty').classList.toggle('hidden', entries.length > 0);
-  for (const entry of entries) {
+  const found = status?.collection ?? {};
+  const discovered = Object.keys(found).length;
+  $('collection-empty').classList.toggle('hidden', discovered > 0);
+  const summary = document.createElement('div');
+  summary.className = 'sub';
+  summary.style.gridColumn = '1 / -1';
+  summary.textContent = `已发现 ${discovered} / ${Object.keys(SPECIES_LABEL).length} 个品种`;
+  grid.appendChild(summary);
+  for (const species of Object.keys(SPECIES_LABEL)) {
+    const entry = found[species];
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = entry ? 'card' : 'card undiscovered';
     const img = document.createElement('img');
-    img.src = `./assets/care/${SPECIES_ASSET[entry.species] ?? 'round-mature'}.png`;
+    img.src = `./assets/care/${SPECIES_ASSET[species] ?? 'round-mature'}.png`;
     const title = document.createElement('div');
     title.className = 'title';
-    title.textContent = SPECIES_LABEL[entry.species] ?? entry.species;
+    title.textContent = entry ? SPECIES_LABEL[species] : '未发现';
     const sub = document.createElement('div');
     sub.className = 'sub';
-    sub.textContent = `首次获得 ${new Date(entry.firstSeenAt).toLocaleDateString()} · 来自 ${entry.sourceName}`;
+    sub.textContent = entry
+      ? `首次获得 ${new Date(entry.firstSeenAt).toLocaleDateString()} · 来自 ${entry.sourceName}`
+      : `采到成熟菇后记录（${SPECIES_LABEL[species]}）`;
     card.append(img, title, sub);
     grid.appendChild(card);
   }
@@ -359,6 +488,8 @@ const SHOP_ITEMS = [
 function renderShop(): void {
   const list = $('shop-list');
   list.innerHTML = '';
+  const note = document.querySelector('#page-shop .shop-note');
+  if (note) note.textContent = `当前余额 ${status?.coins ?? 0} 菇币。护理工具开局可用；购买立即生效。`;
   for (const item of SHOP_ITEMS) {
     const row = document.createElement('div');
     row.className = 'shop-item';
@@ -373,15 +504,27 @@ function renderShop(): void {
     desc.className = 'sub';
     desc.textContent = item.desc;
     info.append(title, desc);
-    const owned = status?.owned.includes(item.id);
+    const owned = status?.owned.includes(item.id) === true;
+    const balance = status?.coins ?? 0;
     const btn = document.createElement('button');
-    btn.textContent = owned ? '已拥有' : '购买';
-    if (owned) btn.disabled = true;
+    if (owned) {
+      btn.textContent = '已拥有';
+      btn.disabled = true;
+    } else {
+      // 余额不足时仍可点击：由主进程校验并返回原因，界面如实显示，不在前端伪造判定
+      btn.textContent = balance < item.price ? `购买（差 ${item.price - balance} 币）` : '购买';
+    }
     btn.addEventListener('click', async () => {
-      const ok = await confirmDialog('购买确认', `花 ${item.price} 菇币购买「${item.name}」？`, '购买');
-      if (!ok) return;
+      if (balance >= item.price) {
+        const ok = await confirmDialog(
+          '购买确认',
+          `「${item.name}」${item.price} 菇币。购买后余额 ${balance - item.price} 币。`,
+          '购买',
+        );
+        if (!ok) return;
+      }
       const result = await window.damp!.native.buy(item.id);
-      toast(result.ok ? `已购买 ${item.name}` : (result.message ?? '购买失败'));
+      toast(result.ok ? `已购买 ${item.name}，立即生效` : (result.message ?? '购买失败'));
       await reload();
     });
     const price = document.createElement('div');
@@ -532,6 +675,111 @@ function renderSettings(): void {
   void window.damp!.native.getAutostart().then((r) => { ($('autostart') as HTMLInputElement).checked = r.on; });
 }
 
+// ---------- 练习样片（R6：可操作练习，不写存档、不碰真实对象/额度/奖励） ----------
+
+const pWrap = $('practice-wrap');
+const pBase = $('practice-base') as HTMLImageElement;
+const pDirt = $('practice-dirt') as HTMLCanvasElement;
+const pMush = $('practice-mushroom') as HTMLImageElement;
+const pCtx = pDirt.getContext('2d', { willReadFrequently: true })!;
+let pInitial = 1;
+let pWiping = false;
+let pDone = false;
+
+let pLayer: Uint8Array | null = null;
+
+function updatePracticeUi(): void {
+  let pct = 0;
+  if (pInitial > 0 && !pDone) pct = Math.max(0, Math.min(99, Math.round((1 - remainingDamage(pCtx, pLayer) / pInitial) * 100)));
+  if (pDone) pct = 100;
+  $('practice-fill').style.width = `${pct}%`;
+  $('practice-text').textContent = pDone ? '已擦净' : `${pct}%`;
+}
+
+function openPractice(): void {
+  $('practice').classList.remove('hidden');
+  pDone = false;
+  updatePracticeUi();
+  pBase.src = './brand/rain-mushroom.png';
+  pMush.classList.remove('hidden');
+  pMush.src = './assets/care/round-mature.png';
+  ($('btn-practice-harvest') as HTMLButtonElement).disabled = false;
+  const img = new Image();
+  img.onload = () => {
+    pCtx.globalCompositeOperation = 'source-over';
+    pCtx.clearRect(0, 0, 256, 256);
+    pCtx.drawImage(img, 0, 0, 256, 256);
+    const pristine = new Uint8ClampedArray(pCtx.getImageData(0, 0, 256, 256).data);
+    const imageData = pCtx.getImageData(0, 0, 256, 256);
+    applyDamageMaterial({ data: imageData.data, width: 256, height: 256, stage: 2, type: damageVariant('practice-sample', 'mold') });
+    pCtx.putImageData(imageData, 0, 0);
+    pLayer = buildDamageLayer(pristine, imageData.data);
+    pInitial = Math.max(pLayer.reduce((sum, v) => sum + v, 0), 1);
+    updatePracticeUi();
+  };
+  img.src = './brand/rain-mushroom.png';
+}
+
+function practiceCanvasPoint(event: PointerEvent): { x: number; y: number } {
+  const rect = pDirt.getBoundingClientRect();
+  return { x: (event.clientX - rect.left) * (256 / rect.width), y: (event.clientY - rect.top) * (256 / rect.height) };
+}
+
+function wipePracticeAt(x: number, y: number): void {
+  pCtx.globalCompositeOperation = 'destination-out';
+  pCtx.beginPath();
+  pCtx.arc(x, y, 20, 0, Math.PI * 2);
+  pCtx.fill();
+  pCtx.globalCompositeOperation = 'source-over';
+}
+
+const endPracticeWipe = (): void => {
+  if (!pWiping) return;
+  pWiping = false;
+  if (!pDone && pInitial > 0 && 1 - remainingDamage(pCtx, pLayer) / pInitial >= 0.9) {
+    // 与真实护理一致：最后少量残渍自动收尾
+    pDone = true;
+    pCtx.clearRect(0, 0, 256, 256);
+  }
+  updatePracticeUi();
+};
+
+let pLast: { x: number; y: number } | null = null;
+
+pWrap.addEventListener('pointerdown', (event) => {
+  if (pDone) return;
+  pWiping = true;
+  pWrap.setPointerCapture(event.pointerId);
+  const p = practiceCanvasPoint(event);
+  pLast = p;
+  wipePracticeAt(p.x, p.y);
+});
+pWrap.addEventListener('pointermove', (event) => {
+  if (!pWiping || pDone) return;
+  const p = practiceCanvasPoint(event);
+  // 与正式护理相同：沿路径补擦，快速拖动不留断点
+  const from = pLast ?? p;
+  const n = Math.max(1, Math.ceil(Math.hypot(p.x - from.x, p.y - from.y) / 6));
+  for (let i = 1; i <= n; i += 1) {
+    wipePracticeAt(from.x + ((p.x - from.x) * i) / n, from.y + ((p.y - from.y) * i) / n);
+  }
+  pLast = p;
+  updatePracticeUi();
+});
+const endPracticeStroke = (): void => { pLast = null; endPracticeWipe(); };
+pWrap.addEventListener('pointerup', endPracticeStroke);
+pWrap.addEventListener('pointercancel', endPracticeStroke);
+pWrap.addEventListener('pointerleave', () => { if (pWiping) endPracticeStroke(); });
+window.addEventListener('blur', () => endPracticeStroke());
+
+$('btn-practice-harvest').addEventListener('click', () => {
+  if (pMush.classList.contains('hidden')) return;
+  pMush.classList.add('hidden');
+  ($('btn-practice-harvest') as HTMLButtonElement).disabled = true;
+  toast('练习采摘完成（练习不产菇币）');
+});
+$('practice-close').addEventListener('click', () => { $('practice').classList.add('hidden'); });
+
 // ---------- 引导（R6：城市 → 首批摘要 → 练习/奖励，只发一次） ----------
 
 function renderOnboarding(): void {
@@ -548,6 +796,12 @@ function renderOnboarding(): void {
   } else if (onboardStep === 1) {
     body.innerHTML = `<h2>首批变化状态</h2><div class="summary">${initSummaryText()}</div>
       <p class="muted">天气就绪后，最久未动的几个对象会开始变化。断网也不会丢进度。</p>`;
+    $('ob-next').textContent = '去练习';
+  } else if (onboardStep === 2) {
+    body.innerHTML = `<h2>试一试护理动作</h2>
+      <p>在练习样片上按住拖动擦掉霉渍、采摘成熟菇。练习只是样片，随时可以直接完成。</p>
+      <button id="ob-practice-open" class="primary">打开练习样片</button>`;
+    document.getElementById('ob-practice-open')?.addEventListener('click', openPractice);
     $('ob-next').textContent = '完成练习';
   } else {
     body.innerHTML = `<h2>准备好了</h2><p>奖励已到账，去挑一件工具吧（可选）。</p>`;
@@ -566,16 +820,16 @@ function initSummaryText(): string {
 }
 
 $('ob-next').addEventListener('click', async () => {
-  if (onboardStep >= 2) {
+  if (onboardStep >= 3) {
     await window.damp!.native.onboardingDone();
     $('onboarding').classList.add('hidden');
     await reload();
     return;
   }
-  if (onboardStep === 1) await window.damp!.native.onboardingDone();
+  if (onboardStep === 2) await window.damp!.native.onboardingDone();
   onboardStep += 1;
   renderOnboarding();
-  if (onboardStep === 2) { const s = await fetchStatus(); status = s; ensureCoins(); }
+  if (onboardStep === 3) { const s = await fetchStatus(); status = s; ensureCoins(); }
 });
 $('ob-skip').addEventListener('click', async () => {
   await window.damp!.native.onboardingDone();
@@ -608,7 +862,7 @@ async function reload(): Promise<void> {
 // 关闭=隐藏到托盘，DOM 会滞留旧状态；从托盘唤回时立即同步（INIT/DAILY
 // 在主进程发生，页面不重开也要跟上）。
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') void reload();
+  if (document.visibilityState === 'visible' && !wiping) void reload();
 });
 // 打开期间轻量轮询兜底；正在擦拭时不刷新，避免重建画布打断手势
 setInterval(() => {

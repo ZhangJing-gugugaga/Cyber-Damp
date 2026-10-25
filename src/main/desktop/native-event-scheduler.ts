@@ -9,23 +9,26 @@
  * - 退出恢复由 main/index before-quit 调 restoreAllIconReferences() 承接。
  * 所有写入先落恢复登记（R1），所有结算经存档持久化（R4 写前落盘）。
  */
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadSave, writeSave } from '../save/save-store';
-import { applyIconMutation, restoreAllIconReferences, restoreIconReferences, type IconMutationKind } from './icon-mutate';
-import { findEntry } from './icon-restore-store';
+import { applyIconMutation, iconCacheDir, restoreAllIconReferences, restoreIconReferences, type IconMutationKind } from './icon-mutate';
+import { findEntry, type IconRestoreEntry } from './icon-restore-store';
+import { decodeIni, parseIconResource } from './desktop-ini';
+import { queryShellIcons } from './shell-icons';
 import { writeIcoCache } from '../icon/ico-builder';
 import { composeStateIconPng } from '../icon/state-icon';
 import { getWeather } from '../weather/weather-service';
 import { DEFAULT_LOCATION } from '../../shared/native-defaults';
 import {
-  advanceDamage, decideNativeBranch, familyWeights, localDateKey, planDailyOrder, planInit,
+  advanceDamage, decideNativeBranch, localDateKey, pickDailyFamily, planDailyOrder, planInit,
 } from '../../world/native-events';
 import { runNativeCycle, type SchedulerState } from './native-scheduler';
 import type {
-  DailyEventRecord, DamageFamily, DamageState, InitPlan,
+  DailyEventRecord, DamageState, InitPlan,
 } from '../../shared/types/native';
-import type { NativeObjectSave, NativeSaveSection, SaveData } from '../../shared/types/save';
+import type { NativeSaveSection, SaveData } from '../../shared/types/save';
 
 export interface CycleCandidate {
   /** 稳定对象 ID（d-<usageId>） */
@@ -102,13 +105,94 @@ function mergeCandidates(native: NativeSaveSection, candidates: CycleCandidate[]
 }
 
 /** 由候选取合成源 PNG（data URL → Buffer）。 */
-function sourcePng(candidate: CycleCandidate): Buffer {
-  const base64 = candidate.iconDataUrl.replace(/^data:image\/png;base64,/, '');
+function pngFromDataUrl(dataUrl: string): Buffer {
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
   return Buffer.from(base64, 'base64');
 }
 
+// ---------- 原始基准像素（所有状态合成从同一份"干净原图"出发） ----------
+
+/** 基准文件名由对象身份决定，跨会话稳定；首次合成前落盘（写前落盘原则）。 */
+function basePngPath(id: string, realPath: string): string {
+  const hash = crypto.createHash('sha1').update(`${id}|${realPath}`).digest('hex');
+  return path.join(iconCacheDir(), `base-${hash}.png`);
+}
+
+const pristineBaseCache = new Map<string, Buffer>();
+
+/**
+ * 升级/崩溃遗留场景：恢复登记仍在（说明当前桌面引用是我们生成的损伤图标），
+ * 从登记里保存的原始引用重新提取原图像素；提取不到返回 null（调用方退回
+ * 当前像素源并如实继续）。
+ */
+async function originalDataUrlFromRestoreEntry(entry: IconRestoreEntry): Promise<string | null> {
+  try {
+    let request: { path: string; resourceIndex?: number } | null = null;
+    if (entry.kind === 'lnk') {
+      if (entry.shortcut.icon) request = { path: entry.shortcut.icon, resourceIndex: entry.shortcut.iconIndex ?? 0 };
+      else if (entry.shortcut.target) request = { path: entry.shortcut.target };
+    } else {
+      const raw = entry.desktopIniRawBase64 ? Buffer.from(entry.desktopIniRawBase64, 'base64') : null;
+      const decoded = raw ? decodeIni(raw) : null;
+      const source = decoded ? parseIconResource(decoded.text).source : null;
+      if (source) request = { path: source, resourceIndex: 0 };
+    }
+    if (!request) return null;
+    const [pixels] = await queryShellIcons([request]);
+    if (!pixels) return null;
+    return `data:image/png;base64,${Buffer.from(pixels.pixels).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 取该对象的干净原图（256px PNG）：优先基准缓存文件；无缓存时若桌面当前
+ * 显示的是我们的损伤图标（有恢复登记），先按登记里的原始引用提取，避免
+ * 把损伤叠进基准。此后即使重复扫描/崩溃重启，合成源也不再叠加损伤。
+ */
+async function pristineBasePng(candidate: CycleCandidate): Promise<Buffer> {
+  const cached = pristineBaseCache.get(candidate.id);
+  if (cached) return cached;
+  const file = basePngPath(candidate.id, candidate.realPath);
+  if (fs.existsSync(file)) {
+    const png = fs.readFileSync(file);
+    pristineBaseCache.set(candidate.id, png);
+    return png;
+  }
+  let sourceDataUrl = candidate.iconDataUrl;
+  const entry = findEntry(candidate.realPath);
+  if (entry) {
+    const original = await originalDataUrlFromRestoreEntry(entry);
+    if (original) sourceDataUrl = original;
+    else console.warn('[native-events] 原始引用提取失败，基准可能含损伤像素:', candidate.realPath);
+  }
+  const png = await composeStateIconPng(pngFromDataUrl(sourceDataUrl), null, candidate.id);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, png);
+  fs.renameSync(tmp, file);
+  pristineBaseCache.set(candidate.id, png);
+  return png;
+}
+
+/** 护理台展示用的原图 data URL：有基准缓存给基准，否则退回扫描像素（未改过的对象即原图）。 */
+export function pristineDataUrlFor(id: string, realPath: string, fallback: string): string {
+  const cached = pristineBaseCache.get(id);
+  if (cached) return `data:image/png;base64,${cached.toString('base64')}`;
+  const file = basePngPath(id, realPath);
+  try {
+    if (fs.existsSync(file)) {
+      const png = fs.readFileSync(file);
+      pristineBaseCache.set(id, png);
+      return `data:image/png;base64,${png.toString('base64')}`;
+    }
+  } catch { /* 读取失败退回扫描像素 */ }
+  return fallback;
+}
+
 async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | null, eventId: string, species?: string): Promise<void> {
-  const png = await composeStateIconPng(sourcePng(candidate), damage, candidate.id, species);
+  const png = await composeStateIconPng(await pristineBasePng(candidate), damage, candidate.id, species);
   const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id,
     damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean']);
   const result = applyIconMutation({
@@ -183,7 +267,7 @@ async function executeCycle(
   const iconPaths = new Map<string, string>();
   const warm = async (candidate: CycleCandidate | undefined, damage: DamageState | null, species?: string): Promise<void> => {
     if (!candidate) return;
-    const png = await composeStateIconPng(sourcePng(candidate), damage, candidate.id, species);
+    const png = await composeStateIconPng(await pristineBasePng(candidate), damage, candidate.id, species);
     const stateKey = damage ? `${damage.family}-${damage.stage}-${damage.mushroom}-${species ?? ''}` : 'clean';
     const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id, stateKey]);
     iconPaths.set(`${candidate.id}|${damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean'}`, iconPath);
@@ -208,7 +292,7 @@ async function executeCycle(
         const obj = native.objects[id];
         const candidate = candidates.find((c) => c.id === id);
         if (!obj || !candidate) continue;
-        const family = obj.damage ? obj.damage.family : planCleanFamily(obj, snapshot, now, recordSeed);
+        const family = pickDailyFamily(obj, snapshot, now, recordSeed);
         const advanced = advanceDamage(obj.damage, family);
         await warm(candidate, advanced.damage, obj.mushroomSpecies ?? (advanced.damage.mushroom !== 'none' ? speciesForWeather(snapshot) : undefined));
       }
@@ -259,22 +343,6 @@ async function executeCycle(
     dailyAdvanced: core.action === 'daily-create' || core.action === 'daily-resume',
     detail: core.summary,
   };
-}
-
-/** 与核心 pickDailyFamily 相同的干净对象族选择（预热预测用）。 */
-function planCleanFamily(obj: NativeObjectSave, snapshot: NonNullable<NativeSaveSection['lastSnapshot']>, now: number, seed: number): DamageFamily {
-  const weights = familyWeights(snapshot, (obj.moldImmuneUntil ?? 0) > now);
-  if (!weights) return 'damp';
-  const entries = (Object.entries(weights) as Array<[DamageFamily, number]>).filter(([, w]) => w > 0);
-  const total = entries.reduce((sum, [, w]) => sum + w, 0);
-  let h = seed ^ 0x9e3779b9;
-  for (let i = 0; i < obj.id.length; i += 1) h = Math.imul(h ^ obj.id.charCodeAt(i), 0x85ebca6b) >>> 0;
-  let roll = h % total;
-  for (const [family, w] of entries) {
-    roll -= w;
-    if (roll < 0) return family;
-  }
-  return entries[entries.length - 1][0];
 }
 
 /**

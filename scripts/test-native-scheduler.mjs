@@ -246,3 +246,25 @@ test('R5: 免疫期对象不被霉变推进，但可受潮/发焦', () => {
   const advanced = Object.values(base.state.objects).find((o) => o.lastAdvanceAt === now2);
   assert.ok(advanced.damage.family !== 'mold', '免疫期不得引入霉变');
 });
+
+test('R5: 完整清理（stage 0）的对象可换族推进，且保留未采摘的成熟菇', () => {
+  const { base } = deps();
+  runNativeCycle(base); // INIT 完成，D0 占用
+  const now2 = T0 + DAY;
+  for (const obj of Object.values(base.state.objects)) {
+    // 全部设为"护理完成但成熟菇未采"：stage 0 + 保留旧 mold 族记录 + 免疫中
+    obj.damage = { family: 'mold', stage: 0, mushroom: 'mature' };
+    obj.moldImmuneUntil = T0 + 240 * HOUR;
+    obj.lastCareCompletedAt = T0;
+    obj.originalMtime = T0 - 40 * DAY;
+  }
+  base.now = () => now2;
+  const r = runNativeCycle(base);
+  assert.equal(r.action, 'daily-create');
+  assert.equal(base.state.dailyEvents[D1].status, 'success');
+  const advanced = Object.values(base.state.objects).find((o) => o.lastAdvanceAt === now2);
+  assert.ok(advanced, '已清理对象必须重新入选（不被旧 mold 族锁死）');
+  assert.ok(['damp', 'char'].includes(advanced.damage.family), `免疫期换族结果 ${advanced.damage.family}`);
+  assert.equal(advanced.damage.mushroom, 'mature', '换族不得清除未采摘的菇');
+  assert.equal(advanced.damage.stage, 1, '已清理对象重新进入轻度');
+});

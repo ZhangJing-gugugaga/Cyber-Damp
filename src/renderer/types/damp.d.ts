@@ -20,7 +20,7 @@ declare global {
         status(): Promise<import('../../shared/types/native-status').NativeStatusSnapshot>;
         setLocation(location: { cityId: string; label: string; latitude: number; longitude: number }): Promise<{ ok: boolean; message?: string }>;
         setPaused(paused: boolean): Promise<{ ok: boolean }>;
-        careProgress(objectId: string, progress: number, mask?: string): Promise<{ ok: boolean }>;
+        careProgress(objectId: string, progress: number, mask?: string): Promise<{ ok: boolean; message?: string }>;
         careComplete(objectId: string): Promise<{ ok: boolean; message?: string }>;
         quickCare(objectId: string): Promise<{ ok: boolean; message?: string }>;
         harvest(objectId: string): Promise<{ ok: boolean; message?: string; coins?: number }>;

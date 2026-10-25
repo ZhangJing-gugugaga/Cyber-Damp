@@ -3,6 +3,8 @@
  * 语义：受潮/霉变/焦化都是图标画面的风格化表达，不代表真实文件损坏。
  */
 
+import { KNOWN_WEATHER_CODES } from './weather';
+
 export type DamageFamily = 'damp' | 'mold' | 'char';
 /** 0=干净，1=轻度，2=中度，3=重度（其他损伤的满级；霉变重度后进入菇阶段） */
 export type DamageStage = 0 | 1 | 2 | 3;
@@ -80,12 +82,8 @@ export interface NativeWeatherSnapshot {
   fetchedAt: number;
 }
 
-/** R5 认可的 WMO 码集合（Open-Meteo 官方文档显式列出者） */
-export const KNOWN_WMO_CODES: ReadonlySet<number> = new Set([
-  0, 1, 2, 3, 45, 48,
-  51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86,
-  95, 96, 97, 99,
-]);
+/** R5 认可的 WMO 码集合：与天气服务共用 weather.ts 的单一来源，避免两处漂移。 */
+export const KNOWN_WMO_CODES: ReadonlySet<number> = KNOWN_WEATHER_CODES;
 
 /** 降水/雷暴类 WMO 分组（R5 权重表第一行） */
 export const PRECIPITATION_CODES: ReadonlySet<number> = new Set([

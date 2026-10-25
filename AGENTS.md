@@ -48,6 +48,7 @@
 - 文档树与加载路径：`npm run qa:dox`；定位规则链：`npm run qa:dox -- --paths src/main/index.ts`。
 - 类型和跨进程接口：`npm run typecheck`；跨模块逻辑：`npm test`，后者已包含当前事件、护理、调度、迁移、天气与材质检查，不机械重复整套测试。
 - 运行效果前：`npm run build`；交付便携包：`npm run dist:win`，相关行为在实际打包产物上验证。
+- 护理与 IPC 端到端：`npm run uat:ipc`（真实 preload→IPC→临时存档的领域失败传播）、`npm run uat:care-ui`（护理台界面，Chromium 输入注入，临时存档，不触碰桌面）。二者需先 `npm run build`，证据范围是渲染层与 IPC 接线，不代替原生输入验收。
 - 原生交互按[项目 UAT 技能](.agents/skills/cyber-damp-uat/SKILL.md)执行。CDP 只能辅助诊断，不能替代原生输入与截图。未运行或不可观察的项目记为 NOT TESTED。
 
 ## Child DOX Index

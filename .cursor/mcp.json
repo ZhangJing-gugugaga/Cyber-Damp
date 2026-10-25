@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "goal-guardian": {
+      "command": "c:\\Users\\laotie_nb666\\.kiro\\extensions\\khalidsaidi.cursor-goal-guardian-extension-1.0.0-win32-x64\\bin\\goal-guardian-mcp.exe",
+      "env": {
+        "GOAL_GUARDIAN_WORKSPACE_ROOT": "e:\\Desktop\\work\\Cyber Damp"
+      }
+    }
+  }
+}

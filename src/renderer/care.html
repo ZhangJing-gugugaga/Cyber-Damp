@@ -65,11 +65,8 @@
     <main id="page-settings" class="page">
       <section class="setting-block">
         <h3>城市与天气</h3>
-        <div class="row city-picker">
-          <select id="province-select" aria-label="选择省份"></select>
-          <select id="city-select" aria-label="选择城市"></select>
-          <button id="city-apply" class="primary">确定</button>
-        </div>
+        <!-- mountCityPicker 的唯一挂载点（care.ts 按 id 查找；不要在这里手写下拉框） -->
+        <div id="city-picker" class="row city-picker"></div>
         <div id="city-status" class="muted"></div>
         <div id="weather-attribution" class="muted">天气数据来源 <a href="https://open-meteo.com/" data-external>Open-Meteo</a>（非商业使用）</div>
       </section>
@@ -108,6 +105,27 @@
         <div class="dialog-actions">
           <button id="confirm-cancel">取消</button>
           <button id="confirm-ok" class="primary">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 练习样片（R6：明确标注练习，不影响真实对象/事件额度/奖励） -->
+    <div id="practice" class="overlay hidden">
+      <div class="panel practice-panel">
+        <h2>练习样片 · 擦拭与采菇</h2>
+        <p class="muted">这只是练习：按住拖动擦掉霉渍，点按钮采摘成熟菇。不会改动真实桌面对象、事件额度或护理免疫，也不产菇币。</p>
+        <div id="practice-wrap">
+          <img id="practice-base" class="layer" alt="" />
+          <canvas id="practice-dirt" class="layer" width="256" height="256"></canvas>
+          <img id="practice-mushroom" class="layer hidden" alt="" />
+        </div>
+        <div id="practice-progress-row">
+          <div id="practice-bar"><div id="practice-fill"></div></div>
+          <span id="practice-text">0%</span>
+        </div>
+        <div class="row ob-actions">
+          <button id="btn-practice-harvest" class="tool harvest"><img src="./assets/care/round-mature.png" alt="" />采摘练习菇</button>
+          <button id="practice-close" class="primary">关闭练习</button>
         </div>
       </div>
     </div>

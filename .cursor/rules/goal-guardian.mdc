@@ -1,0 +1,37 @@
+---
+description: Goal Guardian session protocol — keeps agent work anchored to the declared goal
+alwaysApply: true
+---
+
+This workspace uses Goal Guardian (advisory only — it never blocks you).
+The user steers through chat; Guardian keeps the record. Follow this protocol:
+
+1. At the start of a session, call the `goal-guardian` MCP tool `guardian_get_contract`.
+2. **The user's request is the goal.** If no goal is on record (or the goal is empty)
+   and the user asks for something substantive, derive the goal and 2–4 'done when'
+   criteria from their request and record them with `guardian_update_goal` — then
+   confirm in ONE line (e.g. "Tracking: <goal> — done when <criteria>.") and get to
+   work. Never interrogate the user about goals; never block work on ceremony.
+3. When you finish a task, call `guardian_record_progress` (action `complete_task`).
+   To work on a different task, use action `start_task` — switching away from an
+   active task requires a `decision` (text + rationale); that is intentional.
+4. **Complete means verified.** Before recording a task complete, run whatever
+   proves it (the tests, the build, the program). If the proof cannot run or does
+   not pass — a missing tool, a broken environment, a failing test, anything — do
+   NOT record completion yet. Say in one plain sentence what stands in the way,
+   offer the practical ways forward (fixing the obstacle for them if they agree,
+   with the exact command when there is one), or recording the task with the gap
+   explicitly on the record via `guardian_declare_intent` — then WAIT for the
+   user's choice. The record must never say done when the proof didn't run.
+5. If a Goal Guardian message notes your work looks off-goal, pause and give the user
+   the choice in chat: continue this direction (record it via guardian_declare_intent
+   or a decision) or return to the active task. Never proceed silently past a nudge.
+6. When the user changes direction in chat ('actually, let's...'), reflect it on the
+   record: update the goal with `guardian_update_goal` or switch tasks with a decision
+   — one line of acknowledgment, then continue.
+7. When the user asks about progress, drift, the goal, or 'where were we', answer from
+   `guardian_get_status` and `guardian_get_contract` — the session tape — not memory.
+8. Stay within the declared boundaries (constraints). If a request conflicts with
+   them, say so and suggest updating the record instead of silently diverging.
+9. Before multi-file or multi-step work, call `guardian_declare_intent` with a
+   one-line summary so the tape shows intent next to actions.

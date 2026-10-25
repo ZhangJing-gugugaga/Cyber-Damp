@@ -85,8 +85,9 @@ export function availableFamilies(snapshot: NativeWeatherSnapshot, moldImmune = 
 /** 霉变重度后进入幼菇→成熟菇；其他损伤重度为满级，不再空推进。 */
 export function advanceDamage(damage: DamageState | null, family: DamageFamily): { damage: DamageState; advanced: boolean } {
   if (!damage || damage.family !== family) {
-    // 换族只在已清理或空闲状态发生（R5）；此处由候选过滤保证，干净对象直接进入轻度
-    return { damage: { family, stage: 1, mushroom: 'none' }, advanced: true };
+    // 换族只在已清理或空闲状态发生（R5）；此处由候选过滤保证，干净对象直接进入轻度。
+    // 菇实例独立于损伤（R5）：换族不丢已长出的菇。
+    return { damage: { family, stage: 1, mushroom: damage?.mushroom ?? 'none' }, advanced: true };
   }
   if (damage.family === 'mold') {
     if (damage.stage < 3) return { damage: { ...damage, stage: (damage.stage + 1) as DamageStage }, advanced: true };
@@ -162,9 +163,36 @@ export function isEligibleForDaily(obj: NativeObjectState, snapshot: NativeWeath
   const moldImmune = (obj.moldImmuneUntil ?? 0) > eventTime;
   const families = availableFamilies(snapshot, moldImmune);
   if (families.length === 0) return false;
-  if (!obj.damage) return true; // 干净对象可按天气引入效果
+  // 完整清理后 stage=0：等同空闲（R5 换族只在已清理或空闲状态发生），
+  // 按当日天气重新选族，不被旧损伤族锁死；霉变免疫由 familyWeights 硬排除。
+  if (!obj.damage || obj.damage.stage === 0) return true;
   if (!families.includes(obj.damage.family)) return false; // 该族不适配当天候选 → 跳过该对象
   return advanceDamage(obj.damage, obj.damage.family).advanced;
+}
+
+/**
+ * 当日损伤族选择：未清理对象沿其主族推进；空闲/已清理（stage 0）对象按
+ * 当日权重重新选族。种子与对象 ID 派生稳定伪随机，同日多次调用结果一致。
+ */
+export function pickDailyFamily(
+  obj: NativeObjectState,
+  snapshot: NativeWeatherSnapshot,
+  now: number,
+  seed: number,
+): DamageFamily {
+  if (obj.damage && obj.damage.stage > 0) return obj.damage.family;
+  const weights = familyWeights(snapshot, (obj.moldImmuneUntil ?? 0) > now);
+  if (!weights) return 'damp'; // planDailyOrder 已按当日天气过滤，防御性兜底
+  const entries = (Object.entries(weights) as Array<[DamageFamily, number]>).filter(([, w]) => w > 0);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let h = seed ^ 0x9e3779b9;
+  for (let i = 0; i < obj.id.length; i += 1) h = Math.imul(h ^ obj.id.charCodeAt(i), 0x85ebca6b) >>> 0;
+  let roll = h % total;
+  for (const [family, w] of entries) {
+    roll -= w;
+    if (roll < 0) return family;
+  }
+  return entries[entries.length - 1][0];
 }
 
 /**

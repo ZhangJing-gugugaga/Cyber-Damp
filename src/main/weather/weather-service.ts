@@ -16,12 +16,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { app } from 'electron';
 import {
-  FIRST_LOAD_RETRY_DELAYS_MS,
+  FIRST_LOAD_RETRY_DELAYS_MS, KNOWN_WEATHER_CODES,
   WEATHER_CACHE_TTL_MS, WEATHER_STALE_MAX_MS, WEATHER_TIMEOUT_MS,
 } from '../../shared/types/weather';
-import { validateCurrentWeather } from '../../shared/weather-validate';
+import { observationAgeMs, validateCurrentWeather } from '../../shared/weather-validate';
 import { mergeCityResults, suggestSuffixedQuery, type RankableCity } from '../../shared/weather-rank';
-import { DEFAULT_WEATHER_SNAPSHOT } from '../../shared/native-defaults';
+import { DEFAULT_LOCATION, DEFAULT_WEATHER_SNAPSHOT } from '../../shared/native-defaults';
 import type { CityOption, WeatherLocation, WeatherLookup, WeatherSnapshot } from '../../shared/types/weather';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -64,8 +64,9 @@ async function fetchCurrent(location: WeatherLocation): Promise<{ snapshot: Weat
     + `&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto`;
   const response = await fetch(url, { signal: AbortSignal.timeout(WEATHER_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`天气服务返回 ${response.status}`);
-  const body = (await response.json()) as { current?: unknown };
-  const validated = validateCurrentWeather(body.current);
+  const body = (await response.json()) as { current?: unknown; utc_offset_seconds?: unknown };
+  const offset = typeof body.utc_offset_seconds === 'number' ? body.utc_offset_seconds : undefined;
+  const validated = validateCurrentWeather(body.current, Date.now(), offset);
   if (!validated) throw new Error('天气响应字段缺失或无效');
   return validated;
 }
@@ -92,8 +93,10 @@ export async function getWeather(location: WeatherLocation, forceRefresh = false
   const entry = cache.entries[key];
   const age = entry ? Date.now() - entry.snapshot.fetchedAt : Number.POSITIVE_INFINITY;
 
+  // 缓存 TTL 按获取时间；事件资格与离线过期按气象快照时间（R3），刷新不能让旧观测永久有效
   if (!forceRefresh && age <= WEATHER_CACHE_TTL_MS) {
-    return toLookup('ok', entry!.snapshot, age);
+    const snap = entry!.snapshot;
+    return toLookup('ok', snap, observationAgeMs(snap.observedAt, Date.now()), KNOWN_WEATHER_CODES.has(snap.weatherCode));
   }
 
   // 需要刷新：有缓存时单次尝试（不阻塞 28s）；无缓存按首次策略带重试
@@ -103,10 +106,17 @@ export async function getWeather(location: WeatherLocation, forceRefresh = false
       : await fetchWithFirstLoadRetries(location);
     cache.entries[key] = { snapshot: result.snapshot };
     persistCache(cache);
-    return toLookup('ok', result.snapshot, 0, result.codeKnown);
+    return toLookup('ok', result.snapshot, observationAgeMs(result.snapshot.observedAt, Date.now()), result.codeKnown);
   } catch (error) {
-    if (entry && age <= WEATHER_STALE_MAX_MS) {
-      return toLookup('stale', entry.snapshot, age);
+    const observedAge = entry ? observationAgeMs(entry.snapshot.observedAt, Date.now()) : Number.POSITIVE_INFINITY;
+    if (entry && observedAge <= WEATHER_STALE_MAX_MS) {
+      return toLookup('stale', entry.snapshot, observedAge, KNOWN_WEATHER_CODES.has(entry.snapshot.weatherCode));
+    }
+    const errorText = error instanceof Error ? error.message : String(error);
+    // 内置默认快照只属于默认城市（长沙）。其他城市断网时不能拿长沙的数据冒充，
+    // 否则界面会显示当前城市名却是别处的天气。
+    if (location.cityId !== DEFAULT_LOCATION.cityId) {
+      return { status: 'unavailable', ageMs: 0, usableForEvents: false, error: errorText };
     }
     // 实况彻底不可用：回退内置默认快照（用户裁决：硬编码长沙，
     // 开箱即用、断网可用）。必须带 defaulted 标记，UI 标注"内置默认"。
@@ -120,7 +130,7 @@ export async function getWeather(location: WeatherLocation, forceRefresh = false
       ageMs: 0,
       usableForEvents: true,
       defaulted: true,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorText,
     };
   }
 }

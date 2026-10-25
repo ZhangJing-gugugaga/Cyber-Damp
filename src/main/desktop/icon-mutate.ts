@@ -108,6 +108,10 @@ export function applyIconMutation(request: IconMutationRequest): IconMutationRes
         desktopIniAttributes: attributes, appliedIconPath: iconPath, eventId, mutatedAt: now,
       };
       upsertEntry(entry); // 已有更早快照时由 store 保留原始快照，仅更新我们的引用
+      // 我们自己写入的 hidden+system desktop.ini 直接覆写会 EPERM（实测坑）：
+      // 回显/日推进/护理更新都会第二次写同一文件夹，先归一化属性再写，
+      // 写完恢复 hidden+system——与下方 restore 路径同一纪律。
+      if (existed) setFileAttributes(desktopIniPath, 0x80 /* FILE_ATTRIBUTE_NORMAL */);
       fs.writeFileSync(desktopIniPath, encodeIni(decoded ?? { encoding: 'utf16le', hadBom: true, text: '' }, next.text));
       setFileAttributes(desktopIniPath, FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
       settleEntry(realPath, 'applied');

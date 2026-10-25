@@ -11,7 +11,7 @@
  * 无论如何当天最多一条新记录，缺席多天总计只推进一次。
  */
 import {
-  advanceDamage, decideNativeBranch, familyWeights, localDateKey, planDailyOrder, planInit,
+  advanceDamage, decideNativeBranch, localDateKey, pickDailyFamily, planDailyOrder, planInit,
   type BranchAction,
 } from '../../world/native-events';
 import type {
@@ -246,24 +246,6 @@ function executeDaily(deps: CycleDeps, record: DailyEventRecord, result: CycleRe
   }
   record.status = 'retryable';
   result.summary = `今日 ${record.attempts.length} 个候选写入全部失败，保留同一事件身份待重试`;
-}
-
-/** 干净对象按当日权重引入族；已有对象沿其主损伤族继续（R5：每对象同时只保留一个主要族）。 */
-function pickDailyFamily(obj: NativeObjectState, snapshot: NativeWeatherSnapshot, now: number, seed: number): DamageFamily {
-  if (obj.damage) return obj.damage.family;
-  const weights = familyWeights(snapshot, (obj.moldImmuneUntil ?? 0) > now);
-  if (!weights) return 'damp'; // planDailyOrder 已按当日天气过滤，防御性兜底
-  const entries = (Object.entries(weights) as Array<[DamageFamily, number]>).filter(([, w]) => w > 0);
-  const total = entries.reduce((sum, [, w]) => sum + w, 0);
-  // 用对象 ID 派生稳定伪随机，避免同日多次调用产生不同族
-  let h = seed ^ 0x9e3779b9;
-  for (let i = 0; i < obj.id.length; i += 1) h = Math.imul(h ^ obj.id.charCodeAt(i), 0x85ebca6b) >>> 0;
-  let roll = (h % total);
-  for (const [family, w] of entries) {
-    roll -= w;
-    if (roll < 0) return family;
-  }
-  return entries[entries.length - 1][0];
 }
 
 // ---------- 记账与核对 ----------

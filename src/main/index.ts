@@ -6,7 +6,9 @@ import { trackEvent } from './telemetry/event-log';
 import { installManagement, openManagement, setNativeTrayActions, managementWebContents } from './window/management-window';
 import { createCapsuleWindow } from './window/capsule-window';
 import { reconcilePendingEntries, restoreAllIconReferences } from './desktop/icon-mutate';
-import { registerNativeHandlers, bootstrapNativeMode } from './ipc/native-handlers';
+import { registerNativeHandlers, bootstrapNativeMode, scanForNative, latestCycleCandidates } from './ipc/native-handlers';
+import { runNativeEventCycle } from './desktop/native-event-scheduler';
+import { installResidentWatch } from './desktop/resident-watch';
 
 const startedAt = Date.now();
 
@@ -41,9 +43,22 @@ if (!app.requestSingleInstanceLock()) {
     // 产品仅保留原生图标、天气胶囊和护理窗口。
     registerHandlers();
     registerNativeHandlers(() => managementWebContents());
-    const capsule = createCapsuleWindow(preload, path.join(__dirname, '..', 'renderer', 'capsule.html'));
+    const capsule = createCapsuleWindow(
+      preload,
+      path.join(__dirname, '..', 'renderer', 'capsule.html'),
+      { onCapsuleClick: () => openManagement() },
+    );
     setNativeTrayActions({ toggleCapsule: (visible) => capsule.setVisible(visible) });
     void bootstrapNativeMode().catch((error) => console.error('[native] 启动引导失败:', error));
+    // 常驻（R4.2）：在线跨日与系统唤醒触发同一协调器；当日去重由事件
+    // 记录状态机保证，与启动/改城/继续游戏共用 runNativeEventCycle。
+    installResidentWatch({
+      runCheck: async (reason) => {
+        await scanForNative();
+        const cycle = await runNativeEventCycle(latestCycleCandidates());
+        console.info(`[native] ${reason}事件循环:`, JSON.stringify(cycle));
+      },
+    });
   });
 
   app.on('window-all-closed', () => app.quit());

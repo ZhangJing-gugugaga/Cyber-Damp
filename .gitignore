@@ -42,3 +42,4 @@ logs/
 /.tools/pnpm-store/
 /.tools/prompt-optimizer-runtime/
 /.local/prompt-optimizer/
+.cursor/goal-guardian/telemetry/
