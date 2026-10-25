@@ -15,19 +15,11 @@ import type {
   DamageFamily, DamageStage, DamageState, InitPlan, InitTargetPlan, MushroomStage,
   NativeObjectState, NativeWeatherSnapshot,
 } from '../shared/types/native';
+import { createRand } from '../shared/rand';
+import type { Rand } from '../shared/rand';
 
-export type Rand = () => number;
-
-/** mulberry32：小而稳定的种子随机（同种子跨重启一致） */
-export function createRand(seed: number): Rand {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { createRand };
+export type { Rand };
 
 function pickWeighted<T extends string>(weights: Partial<Record<T, number>>, rand: Rand): T {
   const entries = (Object.entries(weights) as Array<[T, number]>).filter(([, w]) => w > 0);

@@ -1,5 +1,5 @@
 /**
- * 存档 v3 迁移与原生事件段校验（Goal v9 阶段2；R4.1 旧用户不重发首批）
+ * 存档迁移与原生事件段校验（Goal v9 阶段2 + v0.2 v4 迁移；R4.1 旧用户不重发首批）
  * 运行：并入 npm test
  */
 import { test } from 'node:test';
@@ -16,15 +16,18 @@ const v1Save = {
   stats: { harvested: 0, earned: 0, playedMs: 0 },
 };
 
-test('v1 迁移到 v3：标记 legacy-initialized，不重发首批（R4.1）', () => {
+test('v1 迁移到 v4：标记 legacy-initialized，孢子置空、警报未激活（R4.1 + gameplay-v2）', () => {
   const migrated = migrateSave(v1Save);
   assert.ok(migrated);
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.ok(migrated.native);
   assert.deepEqual(migrated.native.init, { status: 'legacy-initialized' });
   assert.deepEqual(migrated.native.dailyEvents, {});
   assert.deepEqual(migrated.native.objects, {});
   assert.equal(migrated.native.lastSnapshot, null);
+  assert.deepEqual(migrated.native.spores, {});
+  assert.deepEqual(migrated.native.planted, {});
+  assert.deepEqual(migrated.native.alert, { active: false, precipitationStreak: 0 });
   // 迁移幂等：再迁移一次结果不变
   assert.deepEqual(migrateSave(migrated), migrated);
 });
@@ -35,38 +38,94 @@ test('v3 无 native 字段 = 新安装（未初始化）', () => {
   assert.equal(fresh.native, undefined);
 });
 
-test('v3 native 段：合法 INIT/日记录/对象通过；脏数据整体拒绝', () => {
-  const base = {
+test('v3→v4：旧日记录补 limit/alert/slots；careMask/careProgress 迁为上层会话', () => {
+  const v3 = {
     ...v1Save,
     schemaVersion: 3,
     native: {
-      init: {
-        status: 'active', k: 8, n: 8, seed: 42, generatedAt: 1,
-        targets: [{ id: 'd-1', family: 'mold', stage: 3, mushroom: 'young', status: 'pending' }],
-        snapshot: { weatherCode: 61, humidityPct: 85, temperatureC: 18, observedAt: 't', fetchedAt: 1 },
+      init: { status: 'legacy-initialized' },
+      dailyEvents: {
+        '2026-10-25': { date: '2026-10-25', id: 'e1', status: 'success', seed: 1, candidateOrder: ['d-1'], attempts: ['d-1'] },
       },
-      dailyEvents: { '2026-10-25': { date: '2026-10-25', id: 'e1', status: 'init_occupied', seed: 1, candidateOrder: [], attempts: [] } },
+      objects: {
+        'd-1': {
+          id: 'd-1', realPath: 'E:\\Desktop\\x', kind: 'lnk', displayName: 'x', originalMtime: 1,
+          damage: { family: 'char', stage: 2, mushroom: 'none' },
+          careProgress: 0.42,
+          careMask: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==',
+        },
+      },
+      lastSnapshot: null,
+    },
+  };
+  const v4 = migrateSave(v3);
+  assert.ok(v4);
+  assert.equal(v4.schemaVersion, 4);
+  const record = v4.native.dailyEvents['2026-10-25'];
+  assert.equal(record.limit, 1);
+  assert.equal(record.alert, false);
+  assert.deepEqual(record.slots, []);
+  const obj = v4.native.objects['d-1'];
+  assert.equal(obj.careProgress, undefined);
+  assert.equal(obj.careMask, undefined);
+  assert.ok(obj.careSession);
+  assert.equal(obj.careSession.version, 2);
+  assert.equal(obj.careSession.family, 'char');
+  // 焦化迁移到烟灰层（上层）；进度原样保留，掩码不缩水
+  assert.equal(obj.careSession.layers[0].layer, 'soot');
+  assert.equal(obj.careSession.layers[0].progress, 0.42);
+  assert.ok(obj.careSession.layers[0].mask.length > 0);
+  // 收藏原样保留
+  const withCollection = { ...v3, native: { ...v3.native, collection: { oyster: { species: 'oyster', firstSeenAt: 1, sourceName: '旧菇' } } } };
+  const kept = migrateSave(withCollection);
+  assert.equal(kept.native.collection.oyster.sourceName, '旧菇');
+});
+
+test('v4 native 段：合法孢子/播种/警报/槽位通过；脏数据整体拒绝', () => {
+  const base = {
+    ...v1Save,
+    schemaVersion: 4,
+    native: {
+      init: { status: 'legacy-initialized' },
+      dailyEvents: {
+        '2026-10-26': {
+          date: '2026-10-26', id: 'e2', status: 'pending', seed: 7, limit: 3, alert: false,
+          candidateOrder: [], attempts: [],
+          slots: [{ objectId: 'd-1', source: 'planted', family: 'mold', fromStage: 3, toStage: 3, mushroom: 'young', species: 'bell', status: 'pending' }],
+        },
+      },
       objects: { 'd-1': { id: 'd-1', realPath: 'E:\\Desktop\\x', kind: 'lnk', displayName: 'x', originalMtime: 1, damage: null } },
       lastSnapshot: null,
+      spores: { bell: 2 },
+      planted: { 'd-1': { objectId: 'd-1', species: 'bell', plantedAt: 1, status: 'pending' } },
+      alert: { active: true, startedAt: 1, endsAt: 2, reason: 'humidity', precipitationStreak: 1 },
     },
   };
   assert.ok(validateSave(base));
 
-  const badStatus = JSON.parse(JSON.stringify(base));
-  badStatus.native.dailyEvents['2026-10-25'].status = 'done';
-  assert.equal(validateSave(badStatus), null);
+  const badSpore = JSON.parse(JSON.stringify(base));
+  badSpore.native.spores.bell = -1;
+  assert.equal(validateSave(badSpore), null);
 
-  const badKind = JSON.parse(JSON.stringify(base));
-  badKind.native.objects['d-1'].kind = 'file';
-  assert.equal(validateSave(badKind), null);
+  const badSporeKey = JSON.parse(JSON.stringify(base));
+  badSporeKey.native.spores.shy = 1; // 旧品种不掉孢子（孢子库存只收新品种）
+  assert.equal(validateSave(badSporeKey), null);
 
-  const badTarget = JSON.parse(JSON.stringify(base));
-  badTarget.native.init.targets[0].stage = 4;
-  assert.equal(validateSave(badTarget), null);
+  const badSlotSpecies = JSON.parse(JSON.stringify(base));
+  badSlotSpecies.native.dailyEvents['2026-10-26'].slots[0].species = 'shy-old';
+  assert.equal(validateSave(badSlotSpecies), null);
 
-  const badPaused = JSON.parse(JSON.stringify(base));
-  badPaused.native.paused = 'yes';
-  assert.equal(validateSave(badPaused), null);
+  const badAlert = JSON.parse(JSON.stringify(base));
+  badAlert.native.alert.precipitationStreak = 1.5;
+  assert.equal(validateSave(badAlert), null);
+
+  const badPlant = JSON.parse(JSON.stringify(base));
+  badPlant.native.planted['d-1'].status = 'growing';
+  assert.equal(validateSave(badPlant), null);
+
+  const badObjectCategory = JSON.parse(JSON.stringify(base));
+  badObjectCategory.native.objects['d-1'].objectCategory = 'memestream';
+  assert.equal(validateSave(badObjectCategory), null);
 });
 
 test('v1 的坏数据迁移仍返回 null（迁移不得放大接受面）', () => {

@@ -4,6 +4,7 @@
  */
 
 import { KNOWN_WEATHER_CODES } from './weather';
+import type { SpeciesId } from './gameplay';
 
 export type DamageFamily = 'damp' | 'mold' | 'char';
 /** 0=干净，1=轻度，2=中度，3=重度（其他损伤的满级；霉变重度后进入菇阶段） */
@@ -26,6 +27,8 @@ export interface NativeObjectState {
   /** 原始 mtime（变更图标前捕获；近似"最久未动"，不声称"最久未打开"） */
   originalMtime: number;
   damage: DamageState | null;
+  /** 菇品种（mushroom ≠ none 时存在；v4 幼菇出现时判定，采摘后清空） */
+  mushroomSpecies?: SpeciesId;
   /** 最近一次成功自然推进（epoch ms） */
   lastAdvanceAt?: number;
   /** 最近一次完整护理完成（epoch ms，任何主要损伤） */

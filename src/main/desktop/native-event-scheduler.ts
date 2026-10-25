@@ -28,6 +28,7 @@ import { runNativeCycle, type SchedulerState } from './native-scheduler';
 import type {
   DailyEventRecord, DamageState, InitPlan,
 } from '../../shared/types/native';
+import type { SpeciesId } from '../../shared/types/gameplay';
 import type { NativeSaveSection, SaveData } from '../../shared/types/save';
 
 export interface CycleCandidate {
@@ -52,8 +53,8 @@ export interface CycleResult {
 
 /** 事件/事务种子：创建时随机一次并持久化（重放确定性由纯领域层保证） */
 /** 由天气快照稳定选择菇品种（确定性映射；不外扩玩法）。 */
-function speciesForWeather(snapshot: NativeSaveSection['lastSnapshot']): string {
-  const species = ['oyster', 'enoki', 'shy', 'bolete', 'lava'];
+function speciesForWeather(snapshot: NativeSaveSection['lastSnapshot']): SpeciesId {
+  const species: SpeciesId[] = ['oyster', 'enoki', 'shy', 'bolete', 'lava'];
   if (!snapshot) return 'oyster';
   return species[Math.abs(snapshot.weatherCode * 7 + Math.round(snapshot.temperatureC)) % species.length];
 }

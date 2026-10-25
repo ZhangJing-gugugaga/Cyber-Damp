@@ -12,4 +12,7 @@ run(['--test', '--test-concurrency=2',
   'scripts/test-weather-validate.mjs', 'scripts/test-weather-rank.mjs', 'scripts/test-native-events.mjs',
   'scripts/test-save-migration.mjs', 'scripts/test-native-care.mjs', 'scripts/test-material-effects.mjs',
   'scripts/test-native-scheduler.mjs', 'scripts/test-native-product.mjs', 'scripts/test-care-mask.mjs',
-  'scripts/test-object-category.mjs']);
+  'scripts/test-object-category.mjs',
+  'scripts/test-species-roll.mjs', 'scripts/test-care-layers.mjs', 'scripts/test-care-tools.mjs',
+  'scripts/test-spores.mjs', 'scripts/test-mold-spread.mjs', 'scripts/test-damp-alert.mjs',
+  'scripts/test-wallpaper-effects.mjs', 'scripts/test-daily-v4.mjs']);

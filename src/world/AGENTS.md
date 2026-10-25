@@ -8,6 +8,7 @@
 
 - [native-events.ts](native-events.ts) 定义首批、日额度、天气倾向与免疫。
 - [native-care.ts](native-care.ts) 定义清理、采摘、奖励和购买。旧连续演进、物理绳索、颜料与旧商店已退役。
+- v0.2 新增（R4.2/R5/R6/R9，员工 1）：[daily-v4.ts](daily-v4.ts)（每日 3/5 槽位结算引擎，种子确定性）、[spores.ts](spores.ts)（剪刀采摘、孢子、播种、护理完成 v2 结算）、[mold-spread.ts](mold-spread.ts)（桌面邻接与蔓延规划）、[damp-alert.ts](damp-alert.ts)（回南天警报状态机）、[daily-forecast.ts](daily-forecast.ts)（今日菌讯）。共享层配套：`src/shared/species/`（品种目录/判定/留言）、`src/shared/care-tools.ts`、`src/shared/care-layers.ts`、`src/shared/care-session.ts`（分层护理会话）、`src/shared/wallpaper/`（壁纸像素合成）、`src/shared/rand.ts`（mulberry32/FNV）。
 - 只依赖 shared 类型/常量，不依赖 Electron、DOM、Pixi、Win32 或文件 I/O。
 
 ## Local Contracts
@@ -25,7 +26,7 @@
 
 ## Verification
 
-- `npm run test:world` 检查事件与护理；`npm test` 另含调度、迁移、天气、材质与原生引用基础检查。
+- `npm run test:world` 检查事件与护理；`npm test` 另含调度、迁移、天气、材质、原生引用、v4 日账本（daily-v4）、品种判定（species-roll）、分层护理（care-layers/care-tools）、孢子（spores）、蔓延（mold-spread）、警报（damp-alert）与壁纸合成（wallpaper-effects）检查。
 - [事件测试](../../scripts/test-native-events.mjs)、[护理测试](../../scripts/test-native-care.mjs)、[调度测试](../../scripts/test-native-scheduler.mjs)均不宣称完成真实桌面验收。
 
 ## Child DOX Index

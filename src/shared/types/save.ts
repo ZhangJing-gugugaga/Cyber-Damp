@@ -5,6 +5,11 @@
  */
 import type { FileActionState, MushroomState } from './file-runtime';
 import type { DailyEventRecord, DamageFamily, DamageStage, InitPlan, MushroomStage, NativeWeatherSnapshot } from './native';
+import type { SpeciesId } from './gameplay';
+import type {
+  AlertState, CareSessionState, DailyEventRecordV4, NewSpeciesId, ObjectCategory,
+  PlantedSpore, SporeInventory,
+} from './gameplay';
 
 export interface PlayerState {
   coins: number;
@@ -40,7 +45,7 @@ export interface RopeSave {
 }
 
 export interface SaveData {
-  schemaVersion: 1 | 2 | 3;
+  schemaVersion: 1 | 2 | 3 | 4;
   savedAt: number;
   player: PlayerState;
   weather: { city: string; migratedOn: string };
@@ -65,8 +70,14 @@ export interface NativeObjectSave {
   careProgress?: number;
   /** 擦拭掩码 64×64 位图（base64，行优先 1bit/格）：重开还原同一批擦除洞，不按百分比随机 */
   careMask?: string;
-  /** 菇品种（mushroom ≠ none 时存在；采摘进收藏，R6） */
-  mushroomSpecies?: string;
+  /** 菇品种（mushroom ≠ none 时存在；采摘进收藏，R6；v4 起必须是 SpeciesId） */
+  mushroomSpecies?: SpeciesId;
+  /** v4：对象类别（扫描时 classifyObject 判定，不读文件正文） */
+  objectCategory?: ObjectCategory;
+  /** v4：分层护理会话（存在时优先于 careProgress/careMask） */
+  careSession?: CareSessionState;
+  /** v4：精细护理光泽外观到期 */
+  glossUntil?: number;
 }
 
 export interface NativeCollectionEntry {
@@ -79,8 +90,8 @@ export interface NativeCollectionEntry {
 export interface NativeSaveSection {
   /** 'legacy-initialized'：旧版升级用户，不重发首批/奖励（R4.1） */
   init: (InitPlan & { status: 'active' | 'completed' }) | { status: 'legacy-initialized' } | null;
-  /** 每个本地自然日至多一条记录（R4.2 额度） */
-  dailyEvents: Record<string, DailyEventRecord>;
+  /** 每个本地自然日至多一条记录（R4.2 额度）；v3 记录无槽位，v4 记录含 limit/alert/slots */
+  dailyEvents: Record<string, DailyEventRecord | DailyEventRecordV4>;
   objects: Record<string, NativeObjectSave>;
   /** 最近一次有效天气快照（按城市坐标缓存另存 weather-cache.json） */
   lastSnapshot: NativeWeatherSnapshot | null;
@@ -94,4 +105,17 @@ export interface NativeSaveSection {
   onboarded?: boolean;
   /** "恢复桌面并暂停"（R8）：原生外观已还原、事件停发；显式"继续游戏"才恢复回显与节奏 */
   restored?: boolean;
+  /** v4：孢子库存（按新品种记录；旧品种不掉孢子） */
+  spores?: SporeInventory;
+  /** v4：播种登记（objectId → 最近一次播种） */
+  planted?: Record<string, PlantedSpore>;
+  /** v4：回南天警报状态（R5.3） */
+  alert?: AlertState;
+  /** v4：精细护理累计次数（统计用） */
+  fineCareCount?: number;
+  /** v4：菇合成版本（A：原图缩放菇在外；B：原图原尺寸菇压边缘） */
+  overlayVariant?: 'A' | 'B';
 }
+
+/** v4 孢子品种键集合的类型收窄辅助 */
+export type SporeSpecies = NewSpeciesId;
