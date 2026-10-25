@@ -1,6 +1,6 @@
-# v0.2 玩法契约（草案 v1.15-draft）
+# v0.2 玩法契约（草案 v1.15-draft，员工 1 已审阅）
 
-状态：**草案，待员工 1 审阅**。2026-10-25 由员工 2 起草。类型源为 [`src/shared/types/gameplay.ts`](../../src/shared/types/gameplay.ts)，规格依据 [PRODUCT.md](../PRODUCT.md) 的 R4/R5/R6/R9。表中新通道**尚未注册**，preload 也还没有暴露；接线由员工 2 在领域函数交付后完成（计划 Task 11/13）。现行接口仍以 [preload 契约 v1.14](preload-api.md) 为准。
+状态：**员工 1 审阅完成（2026-10-26，意见见文末），待员工 2 确认接线后去"草案"并定为 v1.15**。2026-10-25 由员工 2 起草。类型源为 [`src/shared/types/gameplay.ts`](../../src/shared/types/gameplay.ts)，规格依据 [PRODUCT.md](../PRODUCT.md) 的 R4/R5/R6/R9。表中新通道**尚未注册**，preload 也还没有暴露；接线由员工 2 在领域函数交付后完成（计划 Task 11/13）。现行接口仍以 [preload 契约 v1.14](preload-api.md) 为准。
 
 ## 分工边界
 
@@ -48,11 +48,20 @@
 - 新字段见 `NativeObjectSaveV4Fields`、`NativeSaveSectionV4Fields`。校验规则：拒绝非有限数，掩码长度 ≤4096，品种必须属于 `SpeciesId`，孢子数为非负整数。
 - 壁纸的原值恢复登记**不放在游戏存档里**，由主进程单独存为 `wallpaper-restore.json`，与图标恢复登记同一模式。
 
-## 待员工 1 审阅的问题
+## 员工 1 审阅意见（2026-10-26）
 
-1. `CareSessionState.toolsUsed` 是否足够判定精细护理，还是需要按层记录工具贡献？
-2. `DailyEventRecordV4.status` 的 success 语义（≥1 个槽位成功）是否满足 7 天回放测试的需要？
-3. 播种占槽：选择"当日剩余槽位优先，否则顺延到次日"，还是"一律次日生效"？草案倾向前者。
-4. `WallpaperEffectInput` 是否缺少必要的输入（例如雨强、时段）？
+对"待员工 1 审阅的问题"逐条回复：
 
-审阅意见写回本文件；确认后去掉"草案"字样，契约版本号改为 v1.15，并同步 preload-api.md、`src/preload/index.ts`、`src/renderer/types/damp.d.ts` 与 IPC 注册。
+1. **`CareSessionState.toolsUsed` 足够**，不需要按层记录工具贡献。精细护理判定（员工 1 在 `src/shared/care-session.ts` 实现为 `judgeFineCare`）：`!quickCare && toolsUsed 中含至少一个当前损伤族的对口工具 && 所有层 progress ≥ 1 && 会话 family/stage 与对象一致`。按层记录会把存档体积翻倍且不改变判定结果。
+2. **`DailyEventRecordV4.status` 语义满足回放需要**。7 天回放读 `slots[]`（每槽含 from/to、species、source、fromObjectId），status 只是当日终态标志。补充要求：`empty` 日也持久化 `slots: []`；`limit`/`alert` 在记录建立时固定后不改。`dailyUsed` 定义为 `slots.filter(s => s.status !== 'skipped').length`（含 pending 播种槽，UI 显示才准确）。
+3. **播种占槽确认"当日剩余槽位优先，否则顺延到次日"**。纯逻辑（`src/world/spores.ts` 的 `plantSpore`）：当日记录存在、非终态且已占用槽位数 < limit 时，插入 `source:'planted'` 的 `pending` 槽并消费孢子；否则 `PlantedSpore` 保持 pending、不扣孢子，次日记录建立时优先消费 pending 播种再抽自然候选。
+4. **`WallpaperEffectInput` 不缺输入**。v0.2 视觉规则只有三档：湿度单调雾层、降水码出现水痕（不分级）、警报期墙角霉斑 0–3；雨强和时段不影响合成，不预埋字段。`cornerMoldStage` 的增长节奏由警报纯逻辑（`src/world/damp-alert.ts`）按事件种子定义，合成层只吃结果。
+
+类型层面另外确认：
+
+- `PlantedSpore.status` 不需要计划书草稿里的 `'growing'`：生长中由日账本槽位表达，`completed` 即长出。以契约为准。
+- 分层掩码迁移接受有损：v3 单层 `careMask` + `careProgress` 迁到对应族**上层**（受潮→`droplets`、霉变→`mold`、焦化→`soot`），层进度直接沿用旧总进度。v0.1 掩码混合了多层擦拭，无法反拆；保掩码不缩水优先，重擦下层由新会话处理。
+- 类型足够表达浏览器模拟存档（Task 1 验收 ✓），模拟环境按 `NativeV2Api`/`WallpaperApi` 同名实现。
+- 品种 manifest 由员工 1 生成（含旧品种的展示条目，`legacy: true` 标记），员工 2 接入 `SPECIES_LABEL`/`SPECIES_ASSET`/`SPECIES_SHAPE` 时读取同一份。
+
+员工 2 确认可以接入 preload/IPC 后：去掉"草案"字样、版本号定 v1.15，并同步 preload-api.md、`src/preload/index.ts`、`src/renderer/types/damp.d.ts` 与 IPC 注册。
