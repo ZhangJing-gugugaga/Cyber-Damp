@@ -34,4 +34,6 @@
 
 已移除：desktop.scan/open/wallpaper、save.load/write、icon.applyState/restoreAll、system.onCpu/onDisplayChanged、场景快照发布/命令转发、window.onCursor/getWorkArea/getInputSettings、app.desktopReady/viewportReady/onBeforeQuit。没有兼容空实现，也没有由 CD_LEGACY/CD_QA/CD_NO_ATTACH 启动旧场景的后门。
 
+v0.2 增量：`native.status` 的对象视图已带可选 `objectCategory`（扫描时由 `.lnk` 目标元数据判定）。其余 v0.2 通道见[玩法契约草案 v1.15-draft](gameplay-v2.md)，尚未注册，不属于本表。
+
 默认长沙与离线默认天气为本轮之前的工作区增量，`defaulted` 必须由 UI 标注。本文记录接口，不证明完整护理手感或原生 UAT 已通过。

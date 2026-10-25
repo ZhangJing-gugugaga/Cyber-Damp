@@ -135,6 +135,7 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
           // 护理台基图为原图：对象当前桌面图标可能是我们生成的损伤态，
           // 直接回传会把"损伤叠损伤"带进窗口预览（R7 原图作为合成输入）。
           iconDataUrl: entry ? pristineDataUrlFor(obj.id, obj.realPath, entry.iconDataUrl) : '',
+          objectCategory: entry?.objectCategory,
         };
       })
       .sort((a, b) => {

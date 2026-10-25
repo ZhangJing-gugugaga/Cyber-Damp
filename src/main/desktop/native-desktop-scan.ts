@@ -5,6 +5,7 @@ import { queryShellLayout } from './shell-layout';
 import { queryShellIcons } from './shell-icons';
 import { desktopUsageId } from './desktop-usage';
 import { extToCategory } from '../../shared/constants';
+import { classifyObject } from '../../shared/object-category';
 import type { DesktopEntry } from '../../shared/types/desktop';
 import { projectShellGeometry, unionScreenRects } from '../../shared/desktop-viewport';
 
@@ -15,7 +16,9 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
   const layoutMs = performance.now() - started;
   const work = unionScreenRects(screen.getAllDisplays().map(display => screen.dipToScreenRect(null, display.workArea)));
   if (!work) throw new Error('无法读取桌面画布的物理坐标');
-  const requests = view.items.map(item => {
+  // .lnk 目标路径（元数据）：同时供图标提取与 v0.2 对象类别判定
+  const shortcutTargets: Array<string | undefined> = [];
+  const requests = view.items.map((item, itemIndex) => {
     const realPath = item.parsingName;
     const virtual = realPath.startsWith('::');
     let artworkPath = realPath;
@@ -24,6 +27,7 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
       try {
         // Shortcut metadata only. Never execute or read the target document.
         const shortcut = shell.readShortcutLink(realPath);
+        shortcutTargets[itemIndex] = shortcut.target || undefined;
         if (shortcut.icon) { artworkPath = shortcut.icon; artworkIndex = shortcut.iconIndex ?? 0; }
         else if (!shortcut.icon && shortcut.target) artworkPath = shortcut.target;
       } catch { /* Keep Shell's shortcut artwork if metadata is unavailable. */ }
@@ -71,7 +75,11 @@ export async function scanNativeDesktop(canvasScale = screen.getPrimaryDisplay()
     }
     const name = virtual ? item.displayName : path.basename(realPath);
     const ext = info?.isDirectory() || virtual ? '' : path.extname(name).slice(1).toLowerCase();
+    const objectCategory = info?.isDirectory()
+      ? classifyObject({ kind: 'dir' })
+      : ext === 'lnk' ? classifyObject({ kind: 'lnk', targetPath: shortcutTargets[index] }) : undefined;
     return {
+      objectCategory,
       id: recycle ? 'recycle-bin' : `d-${desktopUsageId(realPath)}`, name, displayName: item.displayName,
       fileIdentity: info && info.ino !== 0 ? `${info.dev}:${info.ino}` : undefined,
       ext, category: extToCategory(ext), sizeBytes: info?.size ?? 0, mtime: info?.mtimeMs ?? Date.now(),

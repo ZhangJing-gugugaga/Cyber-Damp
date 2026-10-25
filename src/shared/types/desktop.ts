@@ -37,4 +37,6 @@ export interface DesktopEntry {
   iconDataUrl: string;
   geometry?: DesktopGeometry;
   displayName?: string;
+  /** v0.2 品种输入：由 kind 与 .lnk 目标元数据判定（shared/object-category） */
+  objectCategory?: import('./gameplay').ObjectCategory;
 }

@@ -11,4 +11,5 @@ run(['--test', '--test-concurrency=2',
   'scripts/test-desktop-ini.mjs', 'scripts/test-shell-icons.mjs', 'scripts/test-desktop-viewport.mjs',
   'scripts/test-weather-validate.mjs', 'scripts/test-weather-rank.mjs', 'scripts/test-native-events.mjs',
   'scripts/test-save-migration.mjs', 'scripts/test-native-care.mjs', 'scripts/test-material-effects.mjs',
-  'scripts/test-native-scheduler.mjs', 'scripts/test-native-product.mjs', 'scripts/test-care-mask.mjs']);
+  'scripts/test-native-scheduler.mjs', 'scripts/test-native-product.mjs', 'scripts/test-care-mask.mjs',
+  'scripts/test-object-category.mjs']);

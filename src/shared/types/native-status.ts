@@ -19,6 +19,8 @@ export interface NativeObjectView {
   present: boolean;
   /** 当前桌面扫描的原生图标（合成状态图的底图） */
   iconDataUrl: string;
+  /** v0.2：对象类别（仅在当前扫描中存在时提供；不读取文件正文） */
+  objectCategory?: import('./gameplay').ObjectCategory;
 }
 
 export interface NativeStatusSnapshot {
