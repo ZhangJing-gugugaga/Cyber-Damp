@@ -30,12 +30,25 @@ declare global {
         resume(): Promise<{ ok: boolean }>;
         setAutostart(on: boolean): Promise<{ ok: boolean; on?: boolean; message?: string }>;
         getAutostart(): Promise<{ on: boolean }>;
+        // ---------- v0.2 玩法通道（gameplay-v2 契约 v1.15-draft；preload 接线由员工 2 完成，浏览器模拟环境按同名实现） ----------
+        careProgressV2?(payload: import('../../shared/types/gameplay').CareProgressV2Payload): Promise<{ ok: boolean; message?: string }>;
+        careCompleteV2?(objectId: string): Promise<import('../../shared/types/gameplay').CareCompleteV2Result>;
+        harvestV2?(payload: import('../../shared/types/gameplay').HarvestV2Payload): Promise<import('../../shared/types/gameplay').HarvestV2Result>;
+        plantSpore?(payload: import('../../shared/types/gameplay').PlantSporePayload): Promise<{ ok: boolean; message?: string }>;
+        cancelPlant?(objectId: string): Promise<{ ok: boolean; message?: string }>;
+        setOverlayVariant?(variant: 'A' | 'B'): Promise<{ ok: boolean; message?: string }>;
       };
       app: {
         version(): Promise<string>;
         quit(): Promise<void>;
         /** PRD §11：本地 JSONL 埋点 */
         track(name: string, props: Record<string, string | number | boolean>): Promise<void>;
+      };
+      /** v0.2 壁纸效果组（R9；preload 尚未暴露，模拟环境已实现同名接口） */
+      wallpaper?: {
+        status(): Promise<import('../../shared/types/gameplay').WallpaperView>;
+        setEnabled(on: boolean): Promise<{ ok: boolean; message?: string; view?: import('../../shared/types/gameplay').WallpaperView }>;
+        wipe(payload: { fogMask: string; progress: number }): Promise<{ ok: boolean; message?: string; view?: import('../../shared/types/gameplay').WallpaperView }>;
       };
     };
   }

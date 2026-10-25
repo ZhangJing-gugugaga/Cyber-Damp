@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+  <title>回南天 · 护理台（模拟环境）</title>
+  <link rel="stylesheet" href="./care.css" />
+</head>
+<body style="background:#1b3035">
+  <div id="boot-splash">
+    <img src="./assets/care/round-mature.png" alt="" />
+    <div>回南天 · 护理台加载中…</div>
+  </div>
+
+  <div id="app">
+    <header id="titlebar">
+      <div class="brand"><img src="./brand/rain-mushroom.png" alt="" />回南天 · 护理台</div>
+      <div class="drag-zone"></div>
+      <div class="coins"><img src="./assets/care/basket.png" alt="" /><span id="coins">0</span></div>
+      <button id="win-min" class="title-btn" title="最小化">—</button>
+      <button id="win-close" class="title-btn close" title="关闭（回到托盘）">✕</button>
+    </header>
+    <nav id="tabs">
+      <button data-tab="care" class="tab active"><img src="./assets/care/sponge-idle.png" alt="" />护理台</button>
+      <button data-tab="collection" class="tab"><img src="./assets/care/round-bud.png" alt="" />收藏</button>
+      <button data-tab="shop" class="tab"><img src="./assets/care/basket.png" alt="" />小铺</button>
+      <button data-tab="settings" class="tab"><img src="./assets/care/cloth-idle.png" alt="" />设置</button>
+    </nav>
+
+    <main id="page-care" class="page active">
+      <aside id="object-list" aria-label="受影响对象"></aside>
+      <section id="care-stage">
+        <div id="stage-head">
+          <span id="stage-name">选择一个对象开始护理</span>
+          <span id="stage-badge" class="badge hidden"></span>
+        </div>
+        <div id="canvas-wrap">
+          <img id="base-icon" class="layer" alt="" />
+          <canvas id="dirt-layer" class="layer" width="256" height="256"></canvas>
+          <img id="mushroom-layer" class="layer" alt="" />
+        </div>
+        <div id="progress-row">
+          <div id="progress-bar"><div id="progress-fill"></div></div>
+          <span id="progress-text">0%</span>
+        </div>
+        <div id="tool-row">
+          <button id="tool-sponge" class="tool active" title="海绵：擦拭清洁"><img src="./assets/care/sponge-idle.png" alt="" />海绵</button>
+          <button id="btn-quick" class="tool" title="快速处理：直接完成清理与免疫（不自动采菇）"><img src="./assets/care/cloth-active.png" alt="" />快速处理</button>
+          <button id="btn-harvest" class="tool harvest hidden" title="采摘成熟菇"><img src="./assets/care/round-mature.png" alt="" />采摘</button>
+        </div>
+        <div id="stage-tip">按住并拖动擦拭污渍；松手自动保存进度，最后一点残渍自动收尾。</div>
+      </section>
+    </main>
+
+    <main id="page-collection" class="page">
+      <div id="collection-grid" class="grid"></div>
+      <div id="collection-empty" class="empty hidden">还没有收藏。采到成熟菇后会记录品种与来源。</div>
+    </main>
+
+    <main id="page-shop" class="page">
+      <div class="shop-note">护理工具开局可用；购买立即生效。</div>
+      <div id="shop-list"></div>
+    </main>
+
+    <main id="page-settings" class="page">
+      <section class="setting-block">
+        <h3>城市与天气</h3>
+        <!-- mountCityPicker 的唯一挂载点（care.ts 按 id 查找；不要在这里手写下拉框） -->
+        <div id="city-picker" class="row city-picker"></div>
+        <div id="city-status" class="muted"></div>
+        <div id="weather-attribution" class="muted">天气数据来源 <a href="https://open-meteo.com/" data-external>Open-Meteo</a>（非商业使用）</div>
+      </section>
+      <section class="setting-block">
+        <h3>运行</h3>
+        <label class="switch-row"><input type="checkbox" id="autostart" /> 开机自动启动（启动后只在托盘/胶囊出现，不弹窗口）</label>
+        <label class="switch-row"><input type="checkbox" id="pause-toggle" /> 暂停自然变化（保留当前外观，不积欠）</label>
+        <div class="row">
+          <button id="btn-restore-pause" class="danger">恢复桌面图标并暂停</button>
+          <button id="btn-resume" class="hidden">继续游戏</button>
+        </div>
+        <div class="muted">"恢复桌面图标并暂停"会把原生图标全部还原并停止变化；点"继续游戏"才恢复存档外观。</div>
+      </section>
+      <section class="setting-block">
+        <h3>应用</h3>
+        <div class="row">
+          <button id="btn-quit">完全退出（恢复原图标）</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="onboarding" class="overlay hidden">
+      <div class="panel">
+        <div id="ob-body"></div>
+        <div class="row ob-actions">
+          <button id="ob-next" class="primary">下一步</button>
+          <button id="ob-skip">跳过引导</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-dialog" class="overlay hidden">
+      <div class="dialog">
+        <h3 id="confirm-title">确认</h3>
+        <p id="confirm-text"></p>
+        <div class="dialog-actions">
+          <button id="confirm-cancel">取消</button>
+          <button id="confirm-ok" class="primary">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 练习样片（R6：明确标注练习，不影响真实对象/事件额度/奖励） -->
+    <div id="practice" class="overlay hidden">
+      <div class="panel practice-panel">
+        <h2>练习样片 · 擦拭与采菇</h2>
+        <p class="muted">这只是练习：按住拖动擦掉霉渍，点按钮采摘成熟菇。不会改动真实桌面对象、事件额度或护理免疫，也不产菇币。</p>
+        <div id="practice-wrap">
+          <img id="practice-base" class="layer" alt="" />
+          <canvas id="practice-dirt" class="layer" width="256" height="256"></canvas>
+          <img id="practice-mushroom" class="layer hidden" alt="" />
+        </div>
+        <div id="practice-progress-row">
+          <div id="practice-bar"><div id="practice-fill"></div></div>
+          <span id="practice-text">0%</span>
+        </div>
+        <div class="row ob-actions">
+          <button id="btn-practice-harvest" class="tool harvest"><img src="./assets/care/round-mature.png" alt="" />采摘练习菇</button>
+          <button id="practice-close" class="primary">关闭练习</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="hidden"></div>
+  </div>
+  <script type="module" src="./dev-entry.ts"></script>
+</body>
+</html>

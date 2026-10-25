@@ -9,7 +9,8 @@ export default defineConfig({
     // 相对 src/renderer 回溯两级 = 项目根 dist/renderer（与 package.json main 入口约定一致）
     outDir: '../../dist/renderer',
     emptyOutDir: true,
-    rolldownOptions: { input: { care: 'src/renderer/care.html', capsule: 'src/renderer/capsule.html' } },
+    // dev 仅为开发用模拟入口；生产 care.html 不加载 mock 代码
+  rolldownOptions: { input: { care: 'src/renderer/care.html', capsule: 'src/renderer/capsule.html', dev: 'src/renderer/dev.html' } },
   },
   server: {
     port: 5173,

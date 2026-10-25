@@ -8,7 +8,8 @@
 
 - [care.ts](care.ts)、[care.html](care.html)、[care.css](care.css) 为护理、收藏、小铺和设置。
 - [capsule.ts](capsule.ts)、[capsule.html](capsule.html) 为天气小窗。
-- [types/damp.d.ts](types/damp.d.ts) 对齐 preload 契约；素材位于 [public/assets/care/](public/assets/care/) 与 [public/brand/](public/brand/)。旧 app/view/input/ui、图集和专属预览入口已退役。
+- [types/damp.d.ts](types/damp.d.ts) 对齐 preload 契约；素材位于 [public/assets/care/](public/assets/care/)（13 款品种子目录见其 [PROVENANCE](public/assets/care/species/PROVENANCE.md)）与 [public/brand/](public/brand/)。旧 app/view/input/ui、图集和专属预览入口已退役。
+- 浏览器模拟环境（v0.2 员工 1）：[dev.html](dev.html) + [dev-entry.ts](dev-entry.ts) + [dev/](dev/)（mock-damp/mock-save/mock-weather）。mock 复用 `src/world`/`src/shared` 同一领域实现并持久化到 localStorage；生产 care.html 不加载 mock 代码。构建命令 `npm run build`（dev 入口并行产出）与探针 `scripts/probe-dev-flow.cjs`（API 级玩法闭环）。
 
 ## Local Contracts
 
