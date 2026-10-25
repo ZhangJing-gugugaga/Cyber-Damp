@@ -1,0 +1,306 @@
+{
+  "generatedAt": "2026-10-25T17:51:28.237Z",
+  "temporaryBud": true,
+  "note": "幼菇为临时资产（成熟图缩小+去饱和）；最终幼菇需独立轮廓与状态。",
+  "species": [
+    {
+      "id": "bubble",
+      "artIndex": 1,
+      "nameZh": "返潮泡泡菇",
+      "sourceSvg": "_sources/01-返潮泡泡菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "moss",
+      "artIndex": 2,
+      "nameZh": "青苔披肩菇",
+      "sourceSvg": "_sources/02-青苔披肩菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "bell",
+      "artIndex": 3,
+      "nameZh": "水滴风铃菇",
+      "sourceSvg": "_sources/03-水滴风铃菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "lantern",
+      "artIndex": 4,
+      "nameZh": "雾灯菇",
+      "sourceSvg": "_sources/04-雾灯菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "archive",
+      "artIndex": 5,
+      "nameZh": "压缩包菇",
+      "sourceSvg": "_sources/05-压缩包菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "waterfall",
+      "artIndex": 6,
+      "nameZh": "截图瀑布菇",
+      "sourceSvg": "_sources/06-截图瀑布菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "ghosted",
+      "artIndex": 7,
+      "nameZh": "已读不回菇",
+      "sourceSvg": "_sources/07-已读不回菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "sleepless",
+      "artIndex": 8,
+      "nameZh": "晚安失眠菇",
+      "sourceSvg": "_sources/08-晚安失眠菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "timid",
+      "artIndex": 9,
+      "nameZh": "社恐缩头菇",
+      "sourceSvg": "_sources/09-社恐缩头菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "broken",
+      "artIndex": 10,
+      "nameZh": "断线菇",
+      "sourceSvg": "_sources/10-断线菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "pixel",
+      "artIndex": 11,
+      "nameZh": "像素噪点菇",
+      "sourceSvg": "_sources/11-像素噪点菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "undo",
+      "artIndex": 12,
+      "nameZh": "撤销菇",
+      "sourceSvg": "_sources/12-撤销菇-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    },
+    {
+      "id": "rain-crown",
+      "artIndex": 13,
+      "nameZh": "雨神之冠",
+      "sourceSvg": "_sources/13-雨神之冠-透明.svg",
+      "sizes": [
+        256,
+        48,
+        32
+      ],
+      "files": {
+        "mature-256": "mature-256.png",
+        "mature-48": "mature-48.png",
+        "mature-32": "mature-32.png",
+        "bud-256": "bud-256.png",
+        "bud-48": "bud-48.png",
+        "bud-32": "bud-32.png",
+        "silhouette": "silhouette.png"
+      },
+      "temporary": {
+        "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+      }
+    }
+  ]
+}

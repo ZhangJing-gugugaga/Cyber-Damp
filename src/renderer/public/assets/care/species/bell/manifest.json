@@ -1,0 +1,23 @@
+{
+  "id": "bell",
+  "artIndex": 3,
+  "nameZh": "水滴风铃菇",
+  "sourceSvg": "_sources/03-水滴风铃菇-透明.svg",
+  "sizes": [
+    256,
+    48,
+    32
+  ],
+  "files": {
+    "mature-256": "mature-256.png",
+    "mature-48": "mature-48.png",
+    "mature-32": "mature-32.png",
+    "bud-256": "bud-256.png",
+    "bud-48": "bud-48.png",
+    "bud-32": "bud-32.png",
+    "silhouette": "silhouette.png"
+  },
+  "temporary": {
+    "bud": "临时幼菇：成熟图 56% 缩小 + 去饱和，待独立美术稿"
+  }
+}
