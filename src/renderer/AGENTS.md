@@ -6,11 +6,12 @@
 
 ## Ownership
 
-- [care.ts](care.ts)、[care.html](care.html)、[care.css](care.css) 为护理、收藏、小铺和设置。
+- **护理台主场景（0.1.29）**：[clothesline/](clothesline/)（scene.ts 场景与交互、engine.ts 擦拭/音效/粒子/弹簧、art.ts 程序化 SVG 插画、clothesline.css），用户选定的晾衣绳方向（方向稿 `design-system/care-v3/dir-1-v2.html`）。写操作只走 careProgress / careComplete / harvestV2；收藏、小铺、墙面、设置经"菇菇手账"打开 care.ts 现有页面。旧 v1 护理页与左列表在 cl-mode 下隐藏（DOM 保留给 care.ts 与练习/引导）。
+- [care.ts](care.ts)、[care.html](care.html)、[care.css](care.css) 为收藏、小铺、设置、引导与练习（以及隐藏的 v1 护理页）。
 - [capsule.ts](capsule.ts)、[capsule.html](capsule.html) 为天气小窗。
 - [types/damp.d.ts](types/damp.d.ts) 对齐 preload 契约；素材位于 [public/assets/care/](public/assets/care/)（13 款品种子目录见其 [PROVENANCE](public/assets/care/species/PROVENANCE.md)）与 [public/brand/](public/brand/)。旧 app/view/input/ui、图集和专属预览入口已退役。
 - 浏览器模拟环境（v0.2 员工 1）：[dev.html](dev.html) + [dev-entry.ts](dev-entry.ts) + [dev/](dev/)（mock-damp/mock-save/mock-weather）。mock 复用 `src/world`/`src/shared` 同一领域实现并持久化到 localStorage；生产 care.html 不加载 mock 代码；**改 care.html 后必须同步重新生成 dev.html**（由 care.html 派生：换标题 + 换 dev-entry 脚本）。
-- v2 界面层：[care-v2.ts](care-v2.ts)（分层工具/剪刀/播种/菌讯卡/图鉴/墙面页），按特性探测挂载（preload v1.15 起已暴露 v2 通道与 wallpaper 组，生产护理台会挂载；无通道时零行为）；与 care.ts 通过 `__careBridge` 与 `canvas-wrap[data-v2-claimed]` 桥接。探针：`scripts/probe-dev-flow.cjs`（API 级）、`scripts/probe-dev-ui.cjs`（手势级）、`scripts/shot-care-v2.cjs`（截图）。
+- v2 界面层：[care-v2.ts](care-v2.ts)（分层工具/剪刀/播种/菌讯卡/图鉴/墙面页），按特性探测挂载（preload v1.15 起已暴露 v2 通道与 wallpaper 组，生产护理台会挂载；无通道时零行为）；与 care.ts 通过 `__careBridge` 与 `canvas-wrap[data-v2-claimed]` 桥接。生产晾衣绳场景的端到端探针：`npm run uat:clothesline`。模拟环境探针：`scripts/probe-dev-flow.cjs`（API 级）、`scripts/probe-dev-ui.cjs`（手势级）、`scripts/shot-care-v2.cjs`（截图）。
 
 ## Local Contracts
 

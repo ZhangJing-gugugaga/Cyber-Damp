@@ -7,6 +7,8 @@ import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
 import { CARE_MASK_CELLS, decodeCareMask, encodeCareMask } from '../shared/care-mask';
 import { isNewSpeciesId } from '../shared/types/gameplay';
 import './care-v2';
+// 0.1.29：护理台主场景改为晾衣绳（用户选定方向）；收藏/小铺/墙面/设置仍由本文件渲染，经"菇菇手账"打开
+import './clothesline/scene';
 import { DEFAULT_LOCATION } from '../shared/native-defaults';
 import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
 import type { CityOption } from '../shared/types/weather';
