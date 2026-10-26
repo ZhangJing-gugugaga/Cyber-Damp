@@ -334,7 +334,7 @@ wrap.addEventListener('pointerdown', (event) => {
   if (wrap.dataset.v2Claimed === '1') return;
   if (!currentWipeable() || currentId === null) return;
   wiping = true;
-  wrap.setPointerCapture(event.pointerId);
+  try { wrap.setPointerCapture(event.pointerId); } catch { /* 合成指针/指针已释放时不阻断擦拭 */ }
   const p = canvasPoint(event);
   lastPoint = p;
   wipeAt(p.x, p.y);
@@ -424,6 +424,8 @@ function selectObject(id: string): void {
   // 切换对象前先结算当前笔触（进度落盘到原对象，不串到新对象）
   if (wiping) endWipe();
   currentId = id;
+  // care-v2 订阅该事件即时刷新工具行（不靠轮询，避免剪刀等工具晚一拍出现）
+  document.dispatchEvent(new CustomEvent('care-selection-changed'));
   const obj = status?.objects.find((o) => o.id === id);
   if (!obj) return;
   $('stage-name').textContent = obj.displayName;
@@ -752,7 +754,7 @@ let pLast: { x: number; y: number } | null = null;
 pWrap.addEventListener('pointerdown', (event) => {
   if (pDone) return;
   pWiping = true;
-  pWrap.setPointerCapture(event.pointerId);
+  try { pWrap.setPointerCapture(event.pointerId); } catch { /* 同上 */ }
   const p = practiceCanvasPoint(event);
   pLast = p;
   wipePracticeAt(p.x, p.y);

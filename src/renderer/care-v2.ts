@@ -493,6 +493,17 @@ async function start(): Promise<void> {
 
   // ---------- 选中对象变化 ----------
 
+  document.addEventListener('care-selection-changed', () => {
+    // care.ts 已切换 currentId；等它的画布绘制一帧后同步
+    setTimeout(() => {
+      const selected = bridge()?.getSelectedId() ?? null;
+      if (selected !== selectedId) {
+        selectedId = selected;
+        onSelectionChanged();
+      }
+    }, 60);
+  });
+
   function onSelectionChanged(): void {
     softenCtx.clearRect(0, 0, 256, 256);
     highlightCtx.clearRect(0, 0, 256, 256);
@@ -785,7 +796,7 @@ async function start(): Promise<void> {
       // 收藏页若正打开则刷新图鉴
       if ($('page-collection').classList.contains('active')) renderCollectionV2();
     })();
-  }, 2500);
+  }, 1200);
   void (async () => {
     status = (await damp.native.status()) as StatusSnap;
     renderForecast();
