@@ -2,11 +2,12 @@
 const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStaticServer } = require('./static-server.cjs');
+const { startStaticServer, verifyMockBuild } = require('./static-server.cjs');
 
 const OUT = path.resolve(__dirname, '..', 'previews/care-v2-mock-2026-10-26');
 
 app.whenReady().then(async () => {
+  verifyMockBuild();
   const base = await startStaticServer(4519);
   const win = new BrowserWindow({ show: false, width: 1180, height: 860 });
   fs.mkdirSync(OUT, { recursive: true });

@@ -17,10 +17,8 @@ import type { WeatherLookup, WeatherLocation } from '../../shared/types/weather'
 import { buildAdjacency } from '../../world/mold-spread';
 import { evaluateAlert, nextCornerMoldStage } from '../../world/damp-alert';
 import { buildDailyForecast } from '../../world/daily-forecast';
-import {
-  createDailyRecordV4, planDailyCandidateOrder, settleDailyRecordV4,
-  absorbPlantedSlots, dailyUsedOf, closeStaleRecordsV4, isDailyTerminal,
-} from '../../world/daily-v4';
+import { dailyUsedOf } from '../../world/daily-v4';
+import { runDailyCycleV4 } from '../../world/daily-cycle';
 import { completeCare as completeCareV1, harvestMushroom, grantOnboarding, buyNativeItem } from '../../world/native-care';
 import { completeCareV2, harvestV2 as harvestV2Domain, plantSpore, cancelPlant } from '../../world/spores';
 import { validateCareSession, judgeFineCare } from '../../shared/care-session';
@@ -58,6 +56,7 @@ export function installMockDamp(): MockDamp {
   const weather = new MockWeather();
   let now = Date.now();
   let save = loadSave(now);
+  let lastSpreadInserted = 0;
   const wallpaper: MockWallpaperState = {
     enabled: false,
     status: 'off',
@@ -88,45 +87,23 @@ export function installMockDamp(): MockDamp {
   // ---------- 每日循环（真实领域路径） ----------
 
   function ensureDailyRecord(): void {
-    const v4Events: Record<string, DailyEventRecordV4> = {};
-    for (const [date, record] of Object.entries(save.dailyEvents ?? {})) {
-      if ('slots' in record) v4Events[date] = record;
-    }
-    closeStaleRecordsV4(v4Events, save.objects, MockWeather.dateKey(now));
-    save.dailyEvents = save.dailyEvents ?? {};
-    const date = MockWeather.dateKey(now);
-    save.lastSnapshot = weather.snapshot(now);
-    if (save.paused) return;
-    // 警报评估（真实状态机）
-    save.alert = evaluateAlert(
-      save.alert ?? { active: false, precipitationStreak: 0 },
-      weather.isDefaulted() ? null : weather.snapshot(now),
-      { defaulted: weather.isDefaulted(), now, seed: MockWeather.seedForDate(date) },
-    );
-    const existing = todayRecord();
-    if (existing && isDailyTerminal(existing)) return;
-    const record = existing ?? createDailyRecordV4({
-      date,
-      seed: MockWeather.seedForDate(date),
-      alert: save.alert.active,
+    ensureDailyRecordViaCycle();
+  }
+
+  function ensureDailyRecordViaCycle(): void {
+    const result = runDailyCycleV4({
+      native: save,
       weather: weather.snapshot(now),
-    });
-    save.dailyEvents[date] = record;
-    absorbPlantedSlots(record, save.planted ?? {}, save.objects);
-    record.candidateOrder = planDailyCandidateOrder(record, save.objects, weather.snapshot(now), now);
-    settleDailyRecordV4(record, {
-      objects: save.objects,
-      categories: objectCategories(),
-      exists: () => true,
-      applyIcon: () => true, // 模拟环境：图标写入恒成功
+      weatherDefaulted: weather.isDefaulted(),
       now,
+      seed: MockWeather.seedForDate(MockWeather.dateKey(now)),
+      categories: objectCategories(),
+      exists: () => true, // 模拟桌面对象恒存在
+      applyIcon: () => true, // 模拟环境图标写入恒成功
+      adjacency: adjacency(),
     });
-    // 播种槽结算完成后把对应播种标记 completed
-    for (const slot of record.slots) {
-      if (slot.source === 'planted' && slot.status === 'success' && save.planted?.[slot.objectId]) {
-        save.planted[slot.objectId].status = 'completed';
-      }
-    }
+    if (result.action === 'paused' || result.action === 'terminal') return;
+    lastSpreadInserted = result.spreadInserted;
   }
 
   function objectCategories(): Record<string, NonNullable<NativeObjectSave['objectCategory']>> {

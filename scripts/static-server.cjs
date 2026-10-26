@@ -30,4 +30,12 @@ function startStaticServer(port) {
   });
 }
 
-module.exports = { startStaticServer };
+/** 模拟环境探针前置检查：dev.html 只在 `npm run build:mock` 产物里。 */
+function verifyMockBuild() {
+  if (!fs.existsSync(path.join(ROOT, 'dev.html'))) {
+    console.error('缺少 dist/renderer/dev.html：先运行 npm run build:mock（生产构建有意不含模拟环境）');
+    process.exit(2);
+  }
+}
+
+module.exports = { startStaticServer, verifyMockBuild };

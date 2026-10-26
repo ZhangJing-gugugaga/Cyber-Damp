@@ -17,11 +17,12 @@ export interface WeatherPreset {
 const HOUR = 3600 * 1000;
 
 export const WEATHER_PRESETS: WeatherPreset[] = [
+  // 默认用有效快照（能驱动自然事件）；"内置默认"作为可选降级演示（不驱动事件、不触发警报）
+  { key: 'humid', label: '阴 · 回南潮气', snapshot: { weatherCode: 3, humidityPct: 86, temperatureC: 22 } },
   { key: 'default', label: '内置默认（离线）', snapshot: { weatherCode: 3, humidityPct: 78, temperatureC: 19 }, defaulted: true },
   { key: 'sunny', label: '晴 · 低湿', snapshot: { weatherCode: 0, humidityPct: 42, temperatureC: 31 } },
   { key: 'rain', label: '降雨 · 高湿', snapshot: { weatherCode: 63, humidityPct: 92, temperatureC: 17 } },
   { key: 'fog', label: '雾 · 高湿', snapshot: { weatherCode: 45, humidityPct: 88, temperatureC: 15 } },
-  { key: 'humid', label: '阴 · 回南潮气', snapshot: { weatherCode: 3, humidityPct: 86, temperatureC: 22 } },
   { key: 'dry-heat', label: '晴 · 干热（焦化）', snapshot: { weatherCode: 1, humidityPct: 35, temperatureC: 34 } },
 ];
 

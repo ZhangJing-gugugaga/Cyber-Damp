@@ -253,9 +253,11 @@ function isPlainRecord(v: unknown): v is Record<string, unknown> {
  * 版本迁移入口：
  * - v1/v2 → v3：补原生事件段；已有旧版进度的用户标记为 legacy-initialized
  *   （R4.1：不重新发首批、不重发新手奖励），native 字段缺失视为未初始化新安装。
- * - v3 → v4（gameplay-v2 契约）：旧日记录补 limit/alert/slots 表示已结算；
- *   旧单层 careMask/careProgress 迁为对应族上层的 careSession；孢子置空、
- *   警报记为未激活；收藏原样保留。
+ * - v3 → v4 字段迁移（gameplay-v2 契约），**纯增量、可回退**（员工 2 审查 #1）：
+ *   旧日记录补 limit/alert/slots 表示已结算；旧单层 careMask/careProgress 迁为
+ *   对应族上层的 careSession，但**旧字段保留并同步镜像** —— 主进程 native-handlers
+ *   仍读 careProgress/careMask，旧版程序 validateSave 也只认 1/2/3，因此文件版本号
+ *   保持 3；等员工 2 的 v4 读写路径就绪后再显式提升版本（见交接文档）。
  */
 export function migrateSave(raw: unknown): SaveData | null {
   const validated = validateSave(raw);
@@ -272,28 +274,35 @@ export function migrateSave(raw: unknown): SaveData | null {
   } else {
     upgraded = validated;
   }
-  upgraded = upgradeV3ToV4(upgraded);
+  upgraded = upgradeFieldsToV4(upgraded);
   return validateSave(upgraded) ?? null;
 }
 
-function upgradeV3ToV4(save: SaveData): SaveData {
+/**
+ * 字段级 v4 迁移（不提升 schemaVersion）。
+ * 幂等：已有 careSession 的对象不重建（避免覆盖 v2 写入的会话进度）。
+ */
+function upgradeFieldsToV4(save: SaveData): SaveData {
   const native = save.native;
-  if (!native) return { ...save, schemaVersion: 4 };
+  if (!native) return save;
   const objects: NonNullable<SaveData['native']>['objects'] = {};
   for (const [id, obj] of Object.entries(native.objects)) {
     const hasLegacyCare = (obj.careMask !== undefined || obj.careProgress !== undefined) && obj.damage;
-    if (!hasLegacyCare) {
+    if (obj.careSession !== undefined || !hasLegacyCare) {
       objects[id] = obj;
       continue;
     }
+    const session = migrateLegacyCare(obj.damage!.family, obj.damage!.stage, {
+      careProgress: obj.careProgress,
+      careMask: obj.careMask,
+    });
     objects[id] = {
       ...obj,
-      careSession: migrateLegacyCare(obj.damage!.family, obj.damage!.stage, {
-        careProgress: obj.careProgress,
-        careMask: obj.careMask,
-      }),
-      careProgress: undefined,
-      careMask: undefined,
+      careSession: session,
+      // 旧字段保留：整体进度沿用旧值（多层均值会把 0.42 变成 0.21 = 进度缩水）；
+      // 掩码取迁移后的上层（v0.1 单层掩码即上层擦拭记录）。
+      careProgress: obj.careProgress ?? session.progress,
+      careMask: obj.careMask ?? session.layers[0]?.mask,
     };
   }
   const dailyEvents: NonNullable<SaveData['native']>['dailyEvents'] = {};
@@ -308,7 +317,6 @@ function upgradeV3ToV4(save: SaveData): SaveData {
   }
   return {
     ...save,
-    schemaVersion: 4,
     native: {
       ...native,
       objects,

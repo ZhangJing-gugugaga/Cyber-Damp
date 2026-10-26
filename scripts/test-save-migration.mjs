@@ -16,10 +16,10 @@ const v1Save = {
   stats: { harvested: 0, earned: 0, playedMs: 0 },
 };
 
-test('v1 迁移到 v4：标记 legacy-initialized，孢子置空、警报未激活（R4.1 + gameplay-v2）', () => {
+test('v1 迁移：标记 legacy-initialized，v4 字段增量写入但版本号保持 3（可回退）', () => {
   const migrated = migrateSave(v1Save);
   assert.ok(migrated);
-  assert.equal(migrated.schemaVersion, 4);
+  assert.equal(migrated.schemaVersion, 3, '旧版程序 validateSave 只认 1/2/3，版本号不提升（员工2审查 #1）');
   assert.ok(migrated.native);
   assert.deepEqual(migrated.native.init, { status: 'legacy-initialized' });
   assert.deepEqual(migrated.native.dailyEvents, {});
@@ -38,7 +38,7 @@ test('v3 无 native 字段 = 新安装（未初始化）', () => {
   assert.equal(fresh.native, undefined);
 });
 
-test('v3→v4：旧日记录补 limit/alert/slots；careMask/careProgress 迁为上层会话', () => {
+test('v3 字段迁移：旧日记录补 limit/alert/slots；careMask/careProgress 迁为上层会话且旧字段保留镜像', () => {
   const v3 = {
     ...v1Save,
     schemaVersion: 3,
@@ -60,14 +60,15 @@ test('v3→v4：旧日记录补 limit/alert/slots；careMask/careProgress 迁为
   };
   const v4 = migrateSave(v3);
   assert.ok(v4);
-  assert.equal(v4.schemaVersion, 4);
+  assert.equal(v4.schemaVersion, 3, '版本号保持 3（员工2审查 #1）');
   const record = v4.native.dailyEvents['2026-10-25'];
   assert.equal(record.limit, 1);
   assert.equal(record.alert, false);
   assert.deepEqual(record.slots, []);
   const obj = v4.native.objects['d-1'];
-  assert.equal(obj.careProgress, undefined);
-  assert.equal(obj.careMask, undefined);
+  // 旧字段保留并镜像：主进程 native-handlers 仍读 careProgress/careMask
+  assert.equal(obj.careProgress, 0.42);
+  assert.ok(obj.careMask && obj.careMask.length > 0);
   assert.ok(obj.careSession);
   assert.equal(obj.careSession.version, 2);
   assert.equal(obj.careSession.family, 'char');
@@ -79,6 +80,11 @@ test('v3→v4：旧日记录补 limit/alert/slots；careMask/careProgress 迁为
   const withCollection = { ...v3, native: { ...v3.native, collection: { oyster: { species: 'oyster', firstSeenAt: 1, sourceName: '旧菇' } } } };
   const kept = migrateSave(withCollection);
   assert.equal(kept.native.collection.oyster.sourceName, '旧菇');
+  // 幂等且不覆盖已有 v2 会话（v2 写入的进度不会被旧掩码重建覆盖）
+  const advanced = JSON.parse(JSON.stringify(v4));
+  advanced.native.objects['d-1'].careSession.progress = 0.9;
+  const again = migrateSave(advanced);
+  assert.equal(again.native.objects['d-1'].careSession.progress, 0.9);
 });
 
 test('v4 native 段：合法孢子/播种/警报/槽位通过；脏数据整体拒绝', () => {

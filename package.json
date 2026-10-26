@@ -21,7 +21,8 @@
     "qa:dox": "node scripts/check-dox.mjs",
     "uat:ipc": "electron scripts/uat-ipc-failure.cjs",
     "uat:care-ui": "electron scripts/uat-care-ui.cjs",
-    "assets:species": "electron scripts/build-species-assets.cjs"
+    "assets:species": "electron scripts/build-species-assets.cjs",
+    "build:mock": "vite build --mode mock"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

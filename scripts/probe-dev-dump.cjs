@@ -1,8 +1,9 @@
 /** 调试：care-v2 启动状态与桥接。 */
 const { app, BrowserWindow } = require('electron');
-const { startStaticServer } = require('./static-server.cjs');
+const { startStaticServer, verifyMockBuild } = require('./static-server.cjs');
 let URL = process.argv[2] || '';
 app.whenReady().then(async () => {
+  verifyMockBuild();
   if (!URL) URL = await startStaticServer(4517) + '/dev.html';
   const win = new BrowserWindow({ show: false, width: 1280, height: 900 });
   const errors = [];

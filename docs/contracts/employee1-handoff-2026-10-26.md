@@ -52,9 +52,28 @@
 ### 6. 模拟环境（Mac 演示用）
 - `npm run build` 后任意静态伺服 `dist/renderer`，开 `dev.html`；或 `npm run dev` 开 `http://localhost:5173/dev.html`。
 - 控制面板：天气预设（晴/降雨/雾/高湿/警报/干热）、推进一天、重置模拟存档。
-- 演示脚本 27 步（计划书第九节）已可执行 1–27 全部（截图证据 `previews/care-v2-mock-2026-10-26/`）。
-- 探针（自包含，起静态服务）：`scripts/probe-dev-flow.cjs`（API 级 14 步）、`scripts/probe-dev-ui.cjs`（手势级 12 步）、`scripts/probe-dev-stress.cjs`（交互压力 12 步：引导/练习/快速处理/v1 采摘/剪刀/播种/小铺/暂停/天气中途切换/页签，断言无未捕获异常）。
+- 演示脚本 27 步（计划书第九节）已可执行 1–27 全部（截图证据 `previews/care-v2-mock-2026-10-26/`）；蔓延已接入每日编排（需要重度霉变邻接干净对象，默认模拟存档里 m-2/m-4/m-5 相邻，推进几天可见）。
+- 探针（自包含，起静态服务）：先 `npm run build:mock`（生产构建不含 dev.html）；`scripts/probe-dev-flow.cjs`（API 级）、`scripts/probe-dev-ui.cjs`（手势级）、`scripts/probe-dev-stress.cjs`（交互压力：引导/练习/快速处理/v1 采摘/剪刀/播种/小铺/暂停/天气中途切换/页签，断言无未捕获异常）。
 - 修复记录（2026-10-26 第二轮，cbc80b4+）：①care.ts/care-v2 所有 setPointerCapture 加 try/catch（合成或已释放指针会抛 NotFoundError 未捕获——用户报的"报错"来源）；②选中对象改为 care-selection-changed 事件驱动 + 1.2s 轮询兜底（原 2.5s 轮询导致剪刀等工具晚一拍出现）；③护理台菇层显示 13 款新品种素材（原误用旧版 round/cluster/fan 映射），主进程 state-icon.ts 的 SPECIES_SHAPE 同样需要员工 2 换成 species manifest 读取。
+
+## 员工 2 审查修复（第三轮，2026-10-27）
+
+| 审查项 | 处理 |
+|---|---|
+| #1 存档 v4 迁移清掉半清进度 | `upgradeFieldsToV4` 改为**纯增量**：保留并镜像 `careProgress/careMask`（进度只增不减，掩码取迁移后的上层）；已有 `careSession` 的对象不重建；文件 `schemaVersion` 保持 3（旧版 validateSave 可回退读取）。新增 `mirrorCareSessionToLegacy()`，员工 2 的 v2 写路径落盘前调用即可保持 v1 读取路径同步。回归测试覆盖“0.42 不变 0.21”“二次迁移不覆盖 v2 进度”。 |
+| #2 蔓延+自然超额度 | `planDailyCandidateOrder` 与 `settleDailyRecordV4` 的自然容量统一按 `limit − 非自然槽` 计算；新增 3 个回归测试（3 蔓延+候选=3、1蔓延+1播种+1自然=3、警报期 2蔓延+3自然=5）。 |
+| #3 模拟环境进安装包 | `vite.config.ts` 按模式分离：生产构建只含 care+capsule；`npm run build:mock`（`--mode mock`）或 dev server 才含 dev 入口。已验证生产产物无 `mock-panel/__mockDamp` 字样。探针启动前检查 dev.html 并提示先 `build:mock`。 |
+| 次要：编排逻辑在 mock 里 | 抽出 `src/world/daily-cycle.ts` 的 `runDailyCycleV4(deps)`（暂停→警报→建记录→吸播种→规划蔓延→规划自然→结算→标记完成），mock 与主进程共用；新增 `scripts/test-daily-cycle.mjs`（7 例：暂停/同日幂等/默认天气不生成/警报 5 额/蔓延邻接/播种吸收/失败同身份）。 |
+| 次要：模拟环境不跑蔓延 | `runDailyCycleV4` 接受真实/模拟邻接表，mock 传入自己的网格邻接；探针可观察到蔓延槽。 |
+| 次要：播种探针断言太宽 | flow 探针明示“当日生效或满额顺延次日”两种合法结果，断言改为“登记 pending + 扣孢子”。 |
+| 次要：AGENTS.md 与 v4 矛盾 | 根/世界指南与 PRODUCT.md 缺席合并条款改为 v0.2 日额度（3/5 共用额度）。 |
+| 次要：probe-species-mushroom 假失败 | 改用 `imgs/loadState` 判定，退出码正确。 |
+
+## 验证环境声明（员工 2 审查补充）
+
+- 计划书设定员工 1 在 macOS 开发，但本批提交实际在 **Windows 本机**完成（Git 作者身份与员工 2 相同，无 Mac 端提交）。模拟环境是纯浏览器页面（Vite + Chromium），不自带平台相关代码；**未在 Apple 硬件上跑过**，不算 Mac 验收。
+- `uat:care-ui` 首次拖动掩码检查在系统高负载时可能偶发失败（本轮并行跑多个 Electron 探针时出现 2 次“缺口格数/进度 0%”，单独重跑 22/22 通过；后续收尾/采菇/收藏均正常）——属探针时序敏感，不是产品回归；重跑前避免并行 Electron 负载。
+- 13 款素材在 32/48px 的实际观感未由负责人确认，继续标 **NOT TESTED**（对照图在 `previews/species-assets-2026-10-26/`）。
 
 ## 已知限制 / NOT TESTED
 - Windows 原生接线（IPC 注册、preload、图标合成、壁纸读写、调度器 v4 升级）：**NOT TESTED**。

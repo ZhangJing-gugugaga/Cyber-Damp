@@ -2,10 +2,11 @@
 const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startStaticServer } = require('./static-server.cjs');
+const { startStaticServer, verifyMockBuild } = require('./static-server.cjs');
 
 let URL = process.argv[2] || '';
 app.whenReady().then(async () => {
+  verifyMockBuild();
   if (!URL) URL = await startStaticServer(4525) + '/dev.html';
   const win = new BrowserWindow({ show: false, width: 1180, height: 860 });
   const ui = win.webContents;
@@ -48,6 +49,15 @@ app.whenReady().then(async () => {
   const out = path.resolve(__dirname, '..', 'previews/care-v2-mock-2026-10-26/4-care-desk-species-mushroom.png');
   fs.writeFileSync(out, img.toPNG());
   console.log('shot saved:', out);
-  process.exitCode = check && check.src && check.src.includes('/species/ghosted/') ? 0 : 1;
+  const mushroomImg = check && check.imgs ? check.imgs.find((i) => i.id === 'mushroom-layer') : null;
+  const ok = Boolean(
+    mushroomImg
+    && mushroomImg.complete
+    && mushroomImg.nw > 0
+    && mushroomImg.src.includes('/species/ghosted/')
+    && check.loadState === 'loaded',
+  );
+  process.exitCode = ok ? 0 : 1;
+  console.log('verify:', JSON.stringify({ ok, mushroomImg, loadState: check && check.loadState }));
   app.exit(process.exitCode ?? 0);
 });

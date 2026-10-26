@@ -131,6 +131,62 @@ test('对象不存在：跳过不复活；全部跳过记 empty 但保留槽位�
   assert.equal(record.slots.length, 1, 'empty 日保留槽位作回放证据');
 });
 
+test('蔓延槽与自然槽共用额度：3 蔓延槽 + 候选 → 只推进 3 个（员工2审查 #2 回归）', () => {
+  const objects = makeObjects(10);
+  for (const obj of Object.values(objects)) obj.damage = { family: 'damp', stage: 1, mushroom: 'none' };
+  const record = createDailyRecordV4({ date: '2026-10-26', seed: 31, alert: false, weather: RAIN });
+  // 先插满 3 个蔓延槽（目标对象干净，便于结算成功）
+  for (let i = 0; i < 3; i += 1) {
+    const target = `d-${i}`;
+    objects[target].damage = null;
+    record.slots.push({
+      objectId: target, source: 'spread', family: 'mold', fromStage: 0, toStage: 1,
+      mushroom: 'none', fromObjectId: 'd-9', status: 'pending',
+    });
+  }
+  record.candidateOrder = planDailyCandidateOrder(record, objects, RAIN, 1000);
+  assert.equal(record.candidateOrder.length, 0, '额度已被蔓延占满，不再规划自然候选');
+  const result = settleDailyRecordV4(record, {
+    objects, categories: {}, exists: () => true, applyIcon: () => true, now: 1000,
+  });
+  assert.equal(result.advanced, 3, '总计只能推进 3 个（蔓延 3 + 自然 0）');
+  assert.equal(dailyUsedOf(record), 3);
+  assert.equal(record.slots.filter((s) => s.source === 'natural').length, 0);
+});
+
+test('蔓延槽 1 + 播种槽 1 + 自然槽 1：普通日恰好 3 个', () => {
+  const objects = makeObjects(8);
+  for (const obj of Object.values(objects)) obj.damage = { family: 'damp', stage: 1, mushroom: 'none' };
+  objects['d-7'].damage = null;      // 蔓延目标（干净）
+  objects['d-6'].damage = { family: 'damp', stage: 2, mushroom: 'none' };
+  const record = createDailyRecordV4({ date: '2026-10-26', seed: 32, alert: false, weather: RAIN });
+  record.slots.push({ objectId: 'd-7', source: 'spread', family: 'mold', fromStage: 0, toStage: 1, mushroom: 'none', fromObjectId: 'd-1', status: 'pending' });
+  record.slots.push({ objectId: 'd-6', source: 'planted', family: 'damp', fromStage: 2, toStage: 2, mushroom: 'young', species: 'bell', status: 'pending' });
+  record.candidateOrder = planDailyCandidateOrder(record, objects, RAIN, 1000);
+  assert.equal(record.candidateOrder.length, 3, '剩余 1 个自然槽 × 3 候选');
+  const result = settleDailyRecordV4(record, {
+    objects, categories: {}, exists: () => true, applyIcon: () => true, now: 1000,
+  });
+  assert.equal(result.advanced, 3);
+  assert.equal(dailyUsedOf(record), 3);
+});
+
+test('警报日 5 额度：2 蔓延 + 3 自然', () => {
+  const objects = makeObjects(9);
+  for (const obj of Object.values(objects)) obj.damage = { family: 'damp', stage: 1, mushroom: 'none' };
+  objects['d-0'].damage = null;
+  objects['d-1'].damage = null;
+  const record = createDailyRecordV4({ date: '2026-10-26', seed: 33, alert: true, weather: RAIN });
+  record.slots.push({ objectId: 'd-0', source: 'spread', family: 'mold', fromStage: 0, toStage: 1, mushroom: 'none', fromObjectId: 'd-2', status: 'pending' });
+  record.slots.push({ objectId: 'd-1', source: 'spread', family: 'mold', fromStage: 0, toStage: 1, mushroom: 'none', fromObjectId: 'd-2', status: 'pending' });
+  record.candidateOrder = planDailyCandidateOrder(record, objects, RAIN, 1000);
+  const result = settleDailyRecordV4(record, {
+    objects, categories: {}, exists: () => true, applyIcon: () => true, now: 1000,
+  });
+  assert.equal(result.advanced, 5);
+  assert.equal(dailyUsedOf(record), 5);
+});
+
 test('跨午夜核对：有写入证据关 success；未写入删除不补债', () => {
   const dayMs = parseLocalDate('2026-10-24');
   const objects = {

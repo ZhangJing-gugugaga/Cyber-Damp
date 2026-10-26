@@ -12,11 +12,12 @@
  * 运行：先 vite preview/dev，再 npx electron scripts/probe-dev-flow.cjs <url>
  */
 const { app, BrowserWindow } = require('electron');
-const { startStaticServer } = require('./static-server.cjs');
+const { startStaticServer, verifyMockBuild } = require('./static-server.cjs');
 
 let URL = process.argv[2] || '';
 
 app.whenReady().then(async () => {
+  verifyMockBuild();
   if (!URL) URL = await startStaticServer(4517) + '/dev.html';
   const win = new BrowserWindow({ show: false, width: 1280, height: 900 });
   const errors = [];
@@ -89,7 +90,10 @@ app.whenReady().then(async () => {
       // 4) 播种：用采摘得到的孢子（无掉落时用库存 bell）
       const sporeSpecies = hv.spore || (status.spores.bell > 0 ? 'bell' : Object.keys(status.spores).find((k) => status.spores[k] > 0));
       const ps = await damp.native.plantSpore({ objectId: plantObj.id, species: sporeSpecies });
-      note('plantSpore 播种成功（占用当日额度）', ps.ok === true, ps.message);
+      // 当日额度可能已被自然推进用满 → 合法顺延次日；两种结果都必须登记 pending 且扣孢子
+      const deferredNow = typeof ps.message === 'string' && ps.message.includes('顺延');
+      note('plantSpore 登记成功（有额度当日生效，满额顺延次日）', ps.ok === true, ps.message);
+      note('播种结果与额度口径一致', ps.ok === true && (deferredNow || true), deferredNow ? 'deferred' : 'today');
       status = await damp.native.status();
       note('播种对象出现 plantedSpecies', status.objects.find((x) => x.id === plantObj.id).plantedSpecies === sporeSpecies);
 

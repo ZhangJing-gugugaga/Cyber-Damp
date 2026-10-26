@@ -369,3 +369,21 @@ export function validateCareSession(value: unknown): CareSessionState | null {
 export function isCareSessionStale(session: CareSessionState, family: DamageFamily, stage: DamageStage): boolean {
   return session.family !== family || session.stage !== stage;
 }
+
+/**
+ * 把 v2 会话镜像回 v0.1 单层字段（careProgress/careMask），供仍读旧字段的
+ * 主进程 native-handlers 与旧版程序回退使用（员工 2 审查 #1）。
+ * 主进程在 careProgressV2/careCompleteV2 写路径落盘前调用；字段只增不减。
+ */
+export function mirrorCareSessionToLegacy(obj: {
+  careSession?: CareSessionState;
+  careProgress?: number;
+  careMask?: string;
+}): void {
+  const session = obj.careSession;
+  if (!session) return;
+  // 只增不减：v0.1 的整体进度与新会话总面积加权口径不同，取较大值避免旧读取路径看到缩水
+  obj.careProgress = Math.max(obj.careProgress ?? 0, session.progress);
+  const top = session.layers[0];
+  if (top) obj.careMask = top.mask;
+}

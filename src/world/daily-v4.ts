@@ -79,7 +79,8 @@ export function planDailyCandidateOrder(
 ): string[] {
   if (record.candidateOrder.length > 0) return record.candidateOrder;
   const plantedCount = record.slots.filter((s) => s.source === 'planted').length;
-  const naturalSlots = Math.max(0, record.limit - plantedCount);
+  const spreadCount = record.slots.filter((s) => s.source === 'spread').length;
+  const naturalSlots = Math.max(0, record.limit - plantedCount - spreadCount);
   const eligible = Object.values(objects)
     .filter((obj) => isEligibleForDaily(obj, weather, eventTime))
     .sort((a, b) => (a.id < b.id ? -1 : 1))
@@ -195,8 +196,8 @@ export function settleDailyRecordV4(
   // 2) 自然槽位按"候选队列 + 游标"结算：
   //    attempts.length 即已消费的候选数（每次尝试恰好记录一次，按序前缀），
   //    每槽最多消费 SLOT_MAX_ATTEMPTS 个候选；续写从游标处继续，天然幂等。
-  const plantedCount = record.slots.filter((s) => s.source === 'planted').length;
-  const naturalCapacity = Math.max(0, record.limit - plantedCount);
+  const nonNaturalCount = record.slots.filter((s) => s.source !== 'natural').length;
+  const naturalCapacity = Math.max(0, record.limit - nonNaturalCount);
   const naturalCreated = record.slots.filter((s) => s.source === 'natural').length;
   let cursor = Math.min(record.attempts.length, record.candidateOrder.length);
   for (let slotIndex = naturalCreated; slotIndex < naturalCapacity; slotIndex += 1) {
@@ -249,7 +250,7 @@ export function settleDailyRecordV4(
     }
   }
   // 3) 状态收束
-  const naturalCapacityNow = Math.max(0, record.limit - record.slots.filter((s) => s.source === 'planted').length);
+  const naturalCapacityNow = Math.max(0, record.limit - record.slots.filter((s) => s.source !== 'natural').length);
   const naturalCreatedNow = record.slots.filter((s) => s.source === 'natural').length;
   const queueLeft = cursor < record.candidateOrder.length;
   const untriedNaturalLeft = naturalCreatedNow < naturalCapacityNow && queueLeft;
