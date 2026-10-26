@@ -164,6 +164,8 @@
     return {
       set(t) { target = t; if (!raf) raf = requestAnimationFrame(step); },
       kick(dv) { v += dv; if (!raf) raf = requestAnimationFrame(step); },
+      // 瞬时定位（初次布局用，不播动画）
+      jump(t) { target = t; cur = t; v = 0; subs.forEach((fn) => fn(cur)); },
       get value() { return cur; },
       on(fn) { subs.push(fn); fn(cur); return this; },
     };

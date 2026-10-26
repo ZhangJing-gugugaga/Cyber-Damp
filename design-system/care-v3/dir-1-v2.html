@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>方向 1 · 晾衣绳 v2（精修）</title>
+<!--
+  方向 1 · 晾衣绳 v2（用户 2026-10-26 选定后的精修版；v1 保留为 dir-1.html）
+  色彩论证：南方老房子的回南天——返潮的石灰墙（暖白，低彩）、半墙浅绿瓷砖、水磨石地面、
+  搪瓷盆（米白内壁 + 钴蓝口沿 + 盆底红鲤鱼）、木衣夹与麻绳（暖木），窗外斜进来的一道太阳（蜜黄）。
+  有彩色只有钴蓝、鲤鱼红、蜜黄三个，色相角互相拉开 >60°；其余是墙面明度序列。
+  form 来自内容：回南天衣服晾不干——桌面图标也被衣夹夹起来晾；洗完挂到太阳那根绳上晒。
+-->
+<style>
+  :root {
+    --plaster: oklch(0.955 0.012 95); --plaster-2: oklch(0.925 0.016 100);
+    --stain: oklch(0.78 0.035 135); --stain-edge: oklch(0.66 0.045 125);
+    --tile: oklch(0.90 0.035 165); --grout: oklch(0.80 0.03 165);
+    --ink: oklch(0.29 0.03 250); --ink-2: oklch(0.47 0.03 250); --ink-3: oklch(0.60 0.02 250);
+    --enamel: oklch(0.975 0.008 95); --cobalt: oklch(0.45 0.13 260); --carp: oklch(0.62 0.17 32);
+    --wood: oklch(0.70 0.08 68); --wood-d: oklch(0.55 0.08 60); --wood-l: oklch(0.80 0.07 75);
+    --rope: oklch(0.70 0.05 75); --rope-d: oklch(0.55 0.05 70);
+    --sun: oklch(0.91 0.11 92);
+    --cn: "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+    --num: "Arial Rounded MT Bold", "Noto Sans SC", sans-serif;
+    --hand: "华文行楷", "STXingkai", "楷体", "KaiTi", serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 960px; height: 640px; overflow: hidden; background: var(--plaster); font-family: var(--cn); color: var(--ink); user-select: none; -webkit-font-smoothing: antialiased; }
+  #room { position: relative; width: 960px; height: 640px; overflow: hidden; }
+  svg.layer { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+  /* 挂件：衣夹直接夹住原图标 */
+  .hang { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
+  .hang .body { position: absolute; left: -36px; top: -6px; width: 72px; height: 120px; transform-origin: 36px 0; cursor: grab; touch-action: none; }
+  .hang .pin { position: absolute; left: 28px; top: -14px; width: 16px; height: 40px; z-index: 3; pointer-events: none; }
+  .hang .icon { position: absolute; left: 4px; top: 10px; width: 64px; height: 64px; pointer-events: none;
+    filter: drop-shadow(0 1px 0 oklch(1 0 0 / .6)) drop-shadow(3px 7px 5px oklch(0.35 0.03 120 / .28)); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+  .hang .tag { position: absolute; left: 36px; top: 78px; transform-origin: 0 0; pointer-events: none; }
+  .hang .tag .str { position: absolute; left: 0; top: 0; width: 1px; height: 12px; background: var(--rope-d); }
+  /* 一行小纸签：名字 + 状态色点，挂在图标下方 */
+  .hang .tag .str { height: 6px !important; }
+  .hang .tag .paper { position: absolute; left: 0; top: 5px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 3px 8px 3px 6px; border-radius: 4px; background: oklch(0.975 0.015 90);
+    box-shadow: 0 1px 0 oklch(0.85 0.02 90), 2px 4px 5px oklch(0.4 0.03 100 / .18); white-space: nowrap; }
+  .hang .tag .nm { font-size: 12px; line-height: 1.3; color: var(--ink); }
+  .hang .tag .st { display: inline-flex; align-items: center; font-size: 0; }
+  .hang .tag .st i { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px oklch(0.975 0.015 90); }
+  .hang .tag .st b { display: none; }
+  .hang:hover .tag .st { font-size: 12px; color: var(--ink-2); gap: 3px; }
+  .hang:hover .tag .st b { display: inline; font-weight: 400; }
+  .hang .tag .st i { width: 7px; height: 7px; border-radius: 50%; }
+  .st .damp { background: oklch(0.62 0.11 235); } .st .mold { background: oklch(0.58 0.1 305); } .st .char { background: oklch(0.45 0.04 55); } .st .ripe { background: var(--carp); } .st .ok { background: oklch(0.64 0.12 155); }
+  .hang:hover .icon { transform: translateY(-3px) scale(1.06); }
+  .hang.dragging .body { cursor: grabbing; }
+  .hang.hidden { display: none; }
+  .hang.dry .icon { filter: drop-shadow(0 0 10px oklch(0.95 0.12 92 / .7)) drop-shadow(3px 7px 5px oklch(0.35 0.03 120 / .22)); }
+
+  /* 盆里的对象：浮在水面，下方实时倒影（box-reflect 反射的是擦拭画布本身） */
+  #float { position: absolute; left: 380px; top: 300px; width: 200px; height: 200px; pointer-events: none; }
+  #float .bob { position: absolute; inset: 0; animation: bob 3.8s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-1.2deg) } 50% { transform: translateY(5px) rotate(1deg) } }
+  #wipe { position: absolute; left: 0; top: 0; pointer-events: auto; -webkit-box-reflect: below -6px linear-gradient(transparent 62%, oklch(0 0 0 / .22)); }
+  #mushroom { position: absolute; left: 0; top: -54px; width: 200px; height: 200px; pointer-events: none; display: none; filter: drop-shadow(2px 6px 4px oklch(0.3 0.04 120 / .3)); }
+  #cutline { position: absolute; left: 34px; right: 34px; top: 74px; height: 0; border-top: 3px dashed oklch(1 0 0 / .95); filter: drop-shadow(0 1px 1px oklch(0 0 0 / .45)); opacity: 0; transition: opacity .2s; }
+  #hint { position: absolute; left: 320px; width: 320px; top: 600px; white-space: nowrap; text-align: center; font-size: 14px; color: var(--ink-2); transition: opacity .25s; }
+  #hint kbd { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 4px; background: oklch(1 0 0 / .7); box-shadow: 0 1px 0 oklch(0.75 0.02 100); font: 12px var(--num); color: var(--ink); }
+
+  /* 层进度：搭在盆沿上的两枚搪瓷小牌 */
+  #layers { position: absolute; left: 480px; top: 556px; transform: translateX(-50%); display: flex; gap: 10px; }
+  .lchip { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px 0 5px; border-radius: 15px; background: var(--enamel); font-size: 13px; font-weight: 500;
+    box-shadow: inset 0 0 0 2px var(--cobalt), 0 3px 0 oklch(0.8 0.02 100), 0 6px 10px oklch(0.4 0.03 100 / .15); }
+  .lchip .ring { width: 20px; height: 20px; border-radius: 50%; background: conic-gradient(var(--cobalt) calc(var(--p) * 1turn), oklch(0.9 0.01 250) 0); display: grid; place-items: center; }
+  .lchip .ring::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--enamel); }
+  .lchip.done { background: oklch(0.94 0.06 155); animation: pop .55s cubic-bezier(.3,1.9,.5,1); }
+  .lchip.done .ring { background: oklch(0.6 0.12 155); }
+  @keyframes pop { 35% { transform: scale(1.22) } 70% { transform: scale(.96) } }
+
+  /* 工具：木板上的铜钩 */
+  #rack { position: absolute; left: 34px; top: 284px; width: 224px; height: 150px; }
+  .tool { position: absolute; top: 22px; width: 52px; height: 112px; transform-origin: 26px 4px; cursor: pointer; }
+  .tool .loop { position: absolute; left: 25px; top: 4px; width: 1.5px; height: 18px; background: var(--rope-d); }
+  .tool img { position: absolute; left: -6px; top: 18px; width: 64px; height: 64px; filter: drop-shadow(3px 6px 4px oklch(0.3 0.03 90 / .32)); transition: transform .25s cubic-bezier(.3,1.6,.5,1), opacity .2s; pointer-events: none; }
+  .tool .name { position: absolute; left: -10px; right: -10px; top: 86px; text-align: center; font-size: 12px; color: var(--ink-2); }
+  .tool .key { display: inline-block; margin-left: 3px; padding: 0 4px; border-radius: 3px; background: oklch(1 0 0 / .65); font: 11px var(--num); color: var(--ink-3); }
+  .tool:hover img { transform: rotate(-6deg) translateY(-2px); }
+  .tool.taken img { opacity: 0; }
+  .tool.off .name { color: var(--ink-3); }
+  .tool.off img { filter: saturate(.55) drop-shadow(3px 6px 4px oklch(0.3 0.03 90 / .2)); }
+
+  /* 跟手工具 */
+  #cursor { position: fixed; left: 0; top: 0; width: 76px; height: 76px; pointer-events: none; z-index: 50; display: none; }
+  #cursor img { width: 76px; height: 76px; transform-origin: 28% 28%; filter: drop-shadow(4px 10px 6px oklch(0.25 0.03 90 / .35)); }
+
+  /* 天气便签：图钉钉在墙上 */
+  #note { position: absolute; left: 30px; top: 438px; width: 246px; height: 172px; transform: rotate(-2.2deg); transform-origin: 50% 6px; animation: noteSway 6s ease-in-out infinite; }
+  @keyframes noteSway { 0%, 100% { transform: rotate(-2.2deg) } 50% { transform: rotate(-.6deg) } }
+  #note .city { position: absolute; left: 22px; top: 26px; font-size: 17px; font-weight: 700; }
+  #note .cond { position: absolute; left: 22px; top: 50px; font-size: 13px; color: var(--ink-2); }
+  #note .hum { position: absolute; right: 20px; top: 20px; font: 40px/1 var(--num); color: var(--cobalt); letter-spacing: -1px; }
+  #note .hum small { font-size: 18px; }
+  #note .hum-l { position: absolute; right: 22px; top: 62px; font-size: 12px; color: var(--ink-3); }
+  #note .line { position: absolute; left: 22px; right: 18px; top: 86px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+  #note .stamp { position: absolute; right: 14px; bottom: 16px; transform: rotate(-8deg); }
+
+  /* 菇币罐 */
+  #jar { position: absolute; left: 820px; top: 456px; width: 110px; height: 130px; }
+  #jar .num { position: absolute; left: 0; right: 0; top: 72px; text-align: center; font: 22px/1 var(--num); color: var(--ink); }
+  #jar .lbl { position: absolute; left: 0; right: 0; top: 96px; text-align: center; font-size: 11px; color: var(--ink-2); }
+  #jar.bump { animation: pop .4s; }
+
+  #basket { position: absolute; left: 672px; top: 520px; width: 112px; height: 84px; cursor: pointer; }
+  #basket img { width: 112px; height: 84px; object-fit: contain; filter: drop-shadow(3px 8px 5px oklch(0.3 0.03 80 / .3)); }
+  #basket .count { position: absolute; right: 2px; top: -4px; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--carp); color: white; font: 13px/24px var(--num); text-align: center; box-shadow: 0 2px 0 oklch(0.48 0.15 30); }
+  #journal { position: absolute; left: 214px; top: 572px; width: 96px; height: 66px; cursor: pointer; transform: rotate(-7deg); transition: transform .3s cubic-bezier(.3,1.6,.5,1); }
+  #journal:hover { transform: rotate(-2deg) translateY(-5px); }
+
+  #toast { position: absolute; left: 50%; top: 14px; transform: translate(-50%, -70px); padding: 9px 18px; border-radius: 99px; background: var(--ink); color: var(--enamel); font-size: 14px; transition: transform .35s cubic-bezier(.3,1.5,.5,1); z-index: 60; white-space: nowrap; box-shadow: 0 6px 16px oklch(0.2 0.03 250 / .25); }
+  #toast.show { transform: translate(-50%, 0); }
+  #sound { position: absolute; right: 14px; bottom: 10px; font-size: 12px; color: var(--ink-2); cursor: pointer; padding: 3px 10px; border-radius: 99px; background: oklch(1 0 0 / .55); }
+  .footnote { position: absolute; left: 14px; top: 8px; font-size: 11px; color: var(--ink-3); }
+  .ripple { position: absolute; border: 2px solid oklch(1 0 0 / .8); border-radius: 50%; pointer-events: none; }
+  .drip { position: absolute; width: 5px; height: 7px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: oklch(0.78 0.08 230); box-shadow: inset -1px -1px 0 oklch(0.65 0.09 235); pointer-events: none; }
+  .mote { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: oklch(0.99 0.05 95); pointer-events: none; }
+  .steam { position: absolute; width: 14px; height: 30px; border-radius: 50%; border-left: 2px solid oklch(1 0 0 / .7); pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="room">
+  <svg class="layer" id="backdrop" width="960" height="640" viewBox="0 0 960 640"></svg>
+  <svg class="layer" id="ropes" width="960" height="640" viewBox="0 0 960 640"></svg>
+  <div id="hangs"></div>
+
+  <div id="rack"></div>
+  <svg class="layer" id="basinBack" width="960" height="640" viewBox="0 0 960 640"></svg>
+  <div id="float"><div class="bob"><div id="wipe"></div><img id="mushroom" alt=""><div id="cutline"></div></div></div>
+  <svg class="layer" id="basinFront" width="960" height="640" viewBox="0 0 960 640"></svg>
+  <div id="layers"></div>
+  <div id="hint">把绳上的东西<b>往下拽</b>，或者点一下</div>
+
+  <div id="note">
+    <svg class="layer" width="246" height="172" viewBox="0 0 246 172" id="noteArt"></svg>
+    <div class="city">重庆 · 渝中</div>
+    <div class="cond">小雨 · 18°C</div>
+    <div class="hum">92<small>%</small></div>
+    <div class="hum-l">湿度 · 09:40 更新</div>
+    <div class="line">墙在出汗，衣服晾不干。<br>水滴风铃菇正在冒头。</div>
+    <svg class="stamp" width="104" height="40" viewBox="0 0 104 40" id="stamp"></svg>
+  </div>
+
+  <div id="journal"><svg width="96" height="66" viewBox="0 0 96 66" id="journalArt"></svg></div>
+  <div id="basket"><img src="../../src/renderer/public/assets/care/basket.png" alt="采菇篮"><div class="count">0</div></div>
+  <div id="jar"><svg width="110" height="130" viewBox="0 0 110 130" id="jarArt"></svg><div class="num">24</div><div class="lbl">菇币</div></div>
+
+  <div id="toast"></div>
+  <div id="sound">音效 开</div>
+  <div class="footnote">方向稿 v2 · 场景为程序化插画占位，图标与菇为真实素材</div>
+  <div id="cursor"><img alt=""></div>
+</div>
+<script src="assets/objects.js"></script>
+<script src="assets/engine.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { CDWipe, CDSound, CDFx, CDSpring } = window.CDEngine;
+  const $ = (id) => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+  const SPECIES = '../../src/renderer/public/assets/care/species/';
+  const TOOLS_DIR = '../../previews/visual-assets-2026-10-24/repair-tools-v1/png/';
+  const CARE = '../../src/renderer/public/assets/care/';
+  const FAMILY = { damp: '受潮', mold: '霉变', char: '焦化' };
+  const LEVEL = ['', '轻', '中', '重'];
+  const LAYERS = { damp: ['水珠', '水膜'], mold: ['霉斑'], char: ['烟灰', '焦痕'] };
+  const SPECIES_ZH = { archive: '压缩包菇', waterfall: '截图瀑布菇', broken: '断线菇' };
+  // 稳定伪随机：同一场景每次打开一样（mulberry32）
+  let seed = 20261026;
+  const rnd = () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+
+  // ================= 场景几何 =================
+  const MAIN = { x1: 26, y1: 66, x2: 696, y2: 60, sag: 52 };
+  const SUN = { x1: 722, y1: 306, x2: 944, y2: 298, sag: 18 };
+  const WIN = { x: 728, y: 24, w: 186, h: 178 };
+  const BASIN = { cx: 480, cy: 470, rx: 196, ry: 50, wrx: 170, wry: 37, wcy: 485 };
+
+  // ================= 背景插画（静态 SVG） =================
+  function buildBackdrop() {
+    const chips = [];
+    for (let i = 0; i < 260; i += 1) {
+      const x = rnd() * 960, y = 470 + rnd() * 170, r = 1 + rnd() * 3.2;
+      const c = ['oklch(0.62 0.03 60)', 'oklch(0.72 0.04 30)', 'oklch(0.5 0.02 250)', 'oklch(0.9 0.01 90)', 'oklch(0.66 0.05 140)'][Math.floor(rnd() * 5)];
+      chips.push(`<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="${r.toFixed(1)}" ry="${(r * (0.5 + rnd() * 0.4)).toFixed(1)}" transform="rotate(${Math.round(rnd() * 180)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${c}" opacity=".7"/>`);
+    }
+    const drops = [];
+    for (let i = 0; i < 70; i += 1) {
+      const x = WIN.x + 14 + rnd() * (WIN.w - 28), y = WIN.y + 14 + rnd() * (WIN.h - 28), r = 0.8 + rnd() * 2.6;
+      drops.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" fill="oklch(1 0 0 / .35)"/><circle cx="${(x - r * 0.3).toFixed(1)}" cy="${(y - r * 0.35).toFixed(1)}" r="${(r * 0.35).toFixed(1)}" fill="oklch(1 0 0 / .8)"/>`);
+    }
+    const rain = [];
+    for (let i = 0; i < 26; i += 1) {
+      const x = WIN.x + rnd() * WIN.w, y = WIN.y - 40 + rnd() * (WIN.h + 40);
+      rain.push(`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x - 2).toFixed(1)}" y2="${(y + 12).toFixed(1)}" stroke="oklch(0.97 0.02 230 / .7)" stroke-width="1.2" stroke-linecap="round"/>`);
+    }
+    // 山城楼群剪影（窗外）
+    let city = '';
+    let bx = WIN.x - 4;
+    while (bx < WIN.x + WIN.w) {
+      const w = 14 + rnd() * 22, h = 40 + rnd() * 70;
+      city += `<rect x="${bx.toFixed(1)}" y="${(WIN.y + WIN.h - h).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="oklch(0.62 0.03 230 / ${(0.35 + rnd() * 0.3).toFixed(2)})"/>`;
+      bx += w + 3;
+    }
+    const tiles = 'url(#tiles)';
+    $('backdrop').innerHTML = `
+    <defs>
+      <filter id="plaster" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 .55  0 0 0 0 .52  0 0 0 0 .45  0 0 0 .08 0"/>
+        <feComposite in2="SourceGraphic" operator="in"/>
+      </filter>
+      <filter id="stainShape" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency=".022" numOctaves="3" seed="9" result="t"/>
+        <feDisplacementMap in="SourceGraphic" in2="t" scale="46" xChannelSelector="R" yChannelSelector="G" result="d"/>
+        <feGaussianBlur in="d" stdDeviation="5"/>
+      </filter>
+      <filter id="stainEdge" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency=".022" numOctaves="3" seed="9" result="t"/>
+        <feDisplacementMap in="SourceGraphic" in2="t" scale="46" xChannelSelector="R" yChannelSelector="G" result="d"/>
+        <feGaussianBlur in="d" stdDeviation="1.2"/>
+      </filter>
+      <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+      <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+      <pattern id="tiles" width="38" height="38" patternUnits="userSpaceOnUse" x="0" y="392">
+        <rect width="38" height="38" fill="oklch(0.80 0.03 165)"/>
+        <rect x="1.2" y="1.2" width="35.6" height="35.6" rx="3" fill="oklch(0.90 0.035 165)"/>
+        <rect x="3" y="3" width="20" height="6" rx="3" fill="oklch(1 0 0 / .45)"/>
+      </pattern>
+      <linearGradient id="wallG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.965 0.011 95)"/><stop offset="1" stop-color="oklch(0.925 0.017 100)"/></linearGradient>
+      <linearGradient id="floorG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.84 0.025 80)"/><stop offset="1" stop-color="oklch(0.78 0.03 75)"/></linearGradient>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.86 0.03 235)"/><stop offset="1" stop-color="oklch(0.93 0.02 210)"/></linearGradient>
+      <linearGradient id="beamG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="oklch(0.95 0.1 92 / .55)"/><stop offset=".6" stop-color="oklch(0.95 0.1 92 / .18)"/><stop offset="1" stop-color="oklch(0.95 0.1 92 / 0)"/></linearGradient>
+      <linearGradient id="woodG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.76 0.08 70)"/><stop offset="1" stop-color="oklch(0.62 0.08 62)"/></linearGradient>
+      <clipPath id="glass"><rect x="${WIN.x + 10}" y="${WIN.y + 10}" width="${WIN.w - 20}" height="${WIN.h - 20}" rx="6"/></clipPath>
+    </defs>
+    <!-- 墙 -->
+    <rect width="960" height="470" fill="url(#wallG)"/>
+    <rect width="960" height="470" fill="white" filter="url(#plaster)"/>
+    <!-- 返潮水渍：内部低彩灰绿，边缘一圈更深的"潮线" -->
+    <g opacity=".55">
+      <ellipse cx="150" cy="190" rx="120" ry="92" fill="oklch(0.86 0.03 130)" filter="url(#stainShape)"/>
+      <ellipse cx="150" cy="190" rx="120" ry="92" fill="none" stroke="oklch(0.7 0.04 120)" stroke-width="3" filter="url(#stainEdge)" opacity=".55"/>
+      <ellipse cx="620" cy="330" rx="150" ry="70" fill="oklch(0.87 0.03 130)" filter="url(#stainShape)"/>
+      <ellipse cx="620" cy="330" rx="150" ry="70" fill="none" stroke="oklch(0.72 0.04 120)" stroke-width="2.5" filter="url(#stainEdge)" opacity=".5"/>
+      <ellipse cx="900" cy="250" rx="70" ry="110" fill="oklch(0.87 0.03 130)" filter="url(#stainShape)"/>
+    </g>
+    <!-- 窗下返潮的水痕 -->
+    <g stroke="oklch(0.80 0.03 140 / .5)" stroke-width="2" stroke-linecap="round" fill="none">
+      <path d="M760 214 q2 60 -1 120"/><path d="M792 214 q-2 44 1 86"/><path d="M842 214 q3 70 0 150"/><path d="M880 214 q-1 34 1 60"/>
+    </g>
+    <!-- 半墙瓷砖 + 压条 -->
+    <rect x="0" y="392" width="960" height="78" fill="${tiles}"/>
+    <rect x="0" y="386" width="960" height="8" fill="oklch(0.86 0.04 165)"/>
+    <rect x="0" y="386" width="960" height="2" fill="oklch(1 0 0 / .6)"/>
+    <!-- 地面：水磨石 -->
+    <rect x="0" y="470" width="960" height="170" fill="url(#floorG)"/>
+    ${chips.join('')}
+    <rect x="0" y="466" width="960" height="7" fill="oklch(0.62 0.04 70)"/>
+    <!-- 窗 -->
+    <rect x="${WIN.x - 4}" y="${WIN.y - 4}" width="${WIN.w + 8}" height="${WIN.h + 8}" rx="14" fill="oklch(0.6 0.04 70 / .25)" filter="url(#soft)"/>
+    <rect x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" rx="12" fill="url(#woodG)"/>
+    <g clip-path="url(#glass)">
+      <rect x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" fill="url(#skyG)"/>
+      <g filter="url(#blur2)">${city}<ellipse cx="${WIN.x + 40}" cy="${WIN.y + WIN.h}" rx="60" ry="40" fill="oklch(0.6 0.07 150 / .55)"/><ellipse cx="${WIN.x + 150}" cy="${WIN.y + WIN.h + 6}" rx="50" ry="36" fill="oklch(0.56 0.07 150 / .5)"/></g>
+      <g>${rain.join('')}<animateTransform attributeName="transform" type="translate" from="0 -60" to="0 60" dur=".9s" repeatCount="indefinite"/></g>
+      <rect x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" fill="oklch(1 0 0 / .18)"/>
+      ${drops.join('')}
+      <path d="M${WIN.x + 20} ${WIN.y + 18} L${WIN.x + 62} ${WIN.y + 18} L${WIN.x + 26} ${WIN.y + 70} Z" fill="oklch(1 0 0 / .22)"/>
+    </g>
+    <rect x="${WIN.x + WIN.w / 2 - 4}" y="${WIN.y + 8}" width="8" height="${WIN.h - 16}" fill="url(#woodG)"/>
+    <rect x="${WIN.x + 8}" y="${WIN.y + WIN.h / 2 - 4}" width="${WIN.w - 16}" height="8" fill="url(#woodG)"/>
+    <rect x="${WIN.x}" y="${WIN.y}" width="${WIN.w}" height="${WIN.h}" rx="12" fill="none" stroke="oklch(0.55 0.08 60)" stroke-width="2"/>
+    <rect x="${WIN.x + 10}" y="${WIN.y + 10}" width="${WIN.w - 20}" height="${WIN.h - 20}" rx="6" fill="none" stroke="oklch(0.5 0.07 58)" stroke-width="2"/>
+    <!-- 窗台 + 绿萝 -->
+    <rect x="${WIN.x - 14}" y="${WIN.y + WIN.h - 2}" width="${WIN.w + 28}" height="14" rx="4" fill="oklch(0.92 0.01 95)"/>
+    <rect x="${WIN.x - 14}" y="${WIN.y + WIN.h + 10}" width="${WIN.w + 28}" height="6" rx="3" fill="oklch(0.78 0.02 95)"/>
+    <g transform="translate(${WIN.x + 18} ${WIN.y + WIN.h - 34})">
+      <path d="M4 34 L30 34 L26 6 L8 6 Z" fill="var(--carp)"/><rect x="5" y="3" width="24" height="6" rx="2" fill="oklch(0.55 0.15 30)"/>
+      <path d="M17 4 C 4 -14 -8 -6 -6 6 C 2 2 10 -2 17 4" fill="oklch(0.62 0.12 145)"/>
+      <path d="M17 4 C 26 -18 40 -10 38 0 C 30 -2 22 0 17 4" fill="oklch(0.55 0.12 150)"/>
+      <path d="M17 4 C 14 -20 24 -26 28 -16 C 22 -12 19 -6 17 4" fill="oklch(0.68 0.12 140)"/>
+      <path d="M8 8 C -6 18 -10 34 -14 52" fill="none" stroke="oklch(0.55 0.1 145)" stroke-width="2"/>
+      <ellipse cx="-6" cy="26" rx="6" ry="4" fill="oklch(0.6 0.12 145)" transform="rotate(-30 -6 26)"/>
+      <ellipse cx="-12" cy="44" rx="6" ry="4" fill="oklch(0.56 0.12 148)" transform="rotate(-50 -12 44)"/>
+    </g>
+    <!-- 斜进来的太阳 -->
+    <polygon points="${WIN.x + 10},${WIN.y + 20} ${WIN.x + WIN.w - 10},${WIN.y + 20} 980,560 640,640 560,640" fill="url(#beamG)" opacity=".9"/>
+    <!-- 钉子（绳） -->
+    ${[[MAIN.x1, MAIN.y1], [MAIN.x2, MAIN.y2], [SUN.x1, SUN.y1], [SUN.x2, SUN.y2]].map(([x, y]) => `<circle cx="${x + 2}" cy="${y + 3}" r="6" fill="oklch(0.4 0.03 90 / .25)" filter="url(#blur2)"/><circle cx="${x}" cy="${y}" r="5.5" fill="oklch(0.55 0.02 250)"/><circle cx="${x - 1.5}" cy="${y - 1.5}" r="2" fill="oklch(0.85 0.01 250)"/>`).join('')}
+    <!-- 晒太阳的小木牌 -->
+    <g transform="translate(832 248)">
+      <path d="M-30 26 L0 2 L30 26" fill="none" stroke="var(--rope-d)" stroke-width="1.3"/>
+      <circle cx="0" cy="2" r="3" fill="oklch(0.55 0.02 250)"/>
+      <rect x="-38" y="22" width="76" height="26" rx="6" fill="url(#woodG)" stroke="oklch(0.52 0.07 60)" stroke-width="1.5"/>
+      <text x="0" y="40" text-anchor="middle" font-family="华文行楷, STXingkai, KaiTi" font-size="17" fill="oklch(0.32 0.04 60)">晒太阳</text>
+    </g>
+    <!-- 工具木板 -->
+    <g transform="translate(34 284)">
+      <rect x="4" y="6" width="224" height="26" rx="6" fill="oklch(0.4 0.04 80 / .22)" filter="url(#blur2)"/>
+      <rect x="0" y="0" width="224" height="24" rx="6" fill="url(#woodG)"/>
+      <path d="M8 8 C 60 5 120 11 216 7 M8 15 C 80 18 140 12 216 16" stroke="oklch(0.6 0.07 62 / .5)" stroke-width="1.2" fill="none"/>
+      ${[0, 1, 2, 3].map((i) => `<circle cx="${20 + i * 56}" cy="12" r="3" fill="oklch(0.5 0.03 80)"/>`).join('')}
+    </g>`;
+    // 窗玻璃上偶尔滑落的一颗水珠
+    setInterval(() => {
+      const x = WIN.x + 18 + Math.random() * (WIN.w - 36);
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', x); c.setAttribute('cy', WIN.y + 20); c.setAttribute('r', 2.4); c.setAttribute('fill', 'oklch(1 0 0 / .75)');
+      c.setAttribute('clip-path', 'url(#glass)');
+      $('backdrop').appendChild(c);
+      c.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${WIN.h - 40}px)` }], { duration: 2600 + Math.random() * 1600, easing: 'cubic-bezier(.6,0,.9,.6)' }).onfinish = () => c.remove();
+    }, 1400);
+    // 光柱里的浮尘
+    for (let i = 0; i < 22; i += 1) {
+      const m = document.createElement('div'); m.className = 'mote';
+      m.style.left = 700 + Math.random() * 220 + 'px'; m.style.top = 120 + Math.random() * 420 + 'px';
+      $('room').appendChild(m);
+      m.animate([{ transform: 'translate(0,0)', opacity: 0 }, { opacity: 0.85, offset: 0.4 }, { transform: `translate(${-30 - Math.random() * 40}px, ${20 + Math.random() * 40}px)`, opacity: 0 }],
+        { duration: 6000 + Math.random() * 6000, iterations: Infinity, delay: -Math.random() * 8000 });
+    }
+  }
+
+  // ================= 搪瓷盆（后半 / 前半两层，中间夹着水面上的对象） =================
+  function buildBasin() {
+    const { cx, cy, rx, ry, wrx, wry, wcy } = BASIN;
+    // 盆底红鲤鱼贴花（隔着水看，柔一点）
+    const carp = (x, y, s, rot, flip) => `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${flip ? -s : s} ${s})" opacity=".55">
+      <path d="M-22 0 C -12 -11 10 -11 18 0 C 10 11 -12 11 -22 0 Z" fill="var(--carp)"/>
+      <path d="M18 0 L30 -9 L27 0 L30 9 Z" fill="var(--carp)"/>
+      <path d="M-4 -8 C 0 -14 6 -14 8 -8" fill="oklch(0.55 0.16 30)"/>
+      <circle cx="-14" cy="-2" r="1.6" fill="oklch(0.25 0.02 30)"/>
+      <path d="M-6 -4 C -2 -1 -2 3 -6 5 M2 -5 C 6 -2 6 2 2 5" stroke="oklch(0.85 0.08 40)" stroke-width="1" fill="none"/></g>`;
+    $('basinBack').innerHTML = `
+    <defs>
+      <radialGradient id="waterG" cx=".45" cy=".35" r=".75"><stop offset="0" stop-color="oklch(0.95 0.03 215)"/><stop offset=".7" stop-color="oklch(0.86 0.05 222)"/><stop offset="1" stop-color="oklch(0.78 0.06 228)"/></radialGradient>
+      <linearGradient id="innerG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.9 0.01 95)"/><stop offset="1" stop-color="var(--enamel)"/></linearGradient>
+      <filter id="caustic" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="turbulence" baseFrequency=".035 .09" numOctaves="2" seed="3" result="t">
+          <animate attributeName="baseFrequency" dur="9s" values=".035 .09;.04 .08;.035 .09" repeatCount="indefinite"/>
+        </feTurbulence>
+        <feColorMatrix in="t" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 -2.6 1.25"/>
+        <feComposite in2="SourceGraphic" operator="in"/>
+      </filter>
+      <clipPath id="waterClip"><ellipse cx="${cx}" cy="${wcy}" rx="${wrx}" ry="${wry}"/></clipPath>
+    </defs>
+    <!-- 地面投影 -->
+    <ellipse cx="${cx + 8}" cy="${cy + 92}" rx="${rx + 20}" ry="28" fill="oklch(0.35 0.03 70 / .28)" filter="url(#soft)"/>
+    <!-- 小木凳 -->
+    <rect x="${cx - 128}" y="${cy + 70}" width="16" height="110" rx="5" fill="oklch(0.56 0.08 60)"/>
+    <rect x="${cx + 112}" y="${cy + 70}" width="16" height="110" rx="5" fill="oklch(0.56 0.08 60)"/>
+    <rect x="${cx - 150}" y="${cy + 58}" width="300" height="22" rx="8" fill="url(#woodG)"/>
+    <rect x="${cx - 150}" y="${cy + 58}" width="300" height="5" rx="3" fill="oklch(0.82 0.06 75)"/>
+    <!-- 盆后半口沿与内壁 -->
+    <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="var(--cobalt)"/>
+    <ellipse cx="${cx}" cy="${cy + 1}" rx="${rx - 9}" ry="${ry - 7}" fill="url(#innerG)"/>
+    <!-- 水面 -->
+    <ellipse cx="${cx}" cy="${wcy}" rx="${wrx}" ry="${wry}" fill="url(#waterG)"/>
+    <g clip-path="url(#waterClip)">
+      ${carp(cx - 64, wcy + 6, 1.1, -8, false)}${carp(cx + 70, wcy + 2, 1.0, 10, true)}
+      <rect x="${cx - wrx}" y="${wcy - wry}" width="${wrx * 2}" height="${wry * 2}" fill="white" filter="url(#caustic)" opacity=".5"/>
+      <ellipse cx="${cx - 40}" cy="${wcy - 16}" rx="70" ry="10" fill="oklch(1 0 0 / .35)"/>
+    </g>
+    <ellipse cx="${cx}" cy="${wcy}" rx="${wrx}" ry="${wry}" fill="none" stroke="oklch(1 0 0 / .55)" stroke-width="1.5"/>`;
+    // 前半：盆身外壁 + 口沿前半圈（压在对象下缘之上）
+    const chips = [[-150, 12], [128, 22], [-60, 46], [176, 6]].map(([dx, dy], i) => {
+      const x = cx + dx, y = cy + dy;
+      return `<path d="M${x} ${y} l${4 + i} -2 l3 ${3 + i} l-${5 + i} 2 z" fill="oklch(0.25 0.03 260)"/>`;
+    }).join('');
+    $('basinFront').innerHTML = `
+    <defs>
+      <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="oklch(0.88 0.01 95)"/><stop offset=".35" stop-color="var(--enamel)"/><stop offset=".7" stop-color="oklch(0.96 0.008 95)"/><stop offset="1" stop-color="oklch(0.84 0.012 95)"/></linearGradient>
+    </defs>
+    <path d="M${cx - rx} ${cy} C ${cx - rx + 10} ${cy + 46} ${cx - rx + 34} ${cy + 64} ${cx - 120} ${cy + 66} L ${cx + 120} ${cy + 66} C ${cx + rx - 34} ${cy + 64} ${cx + rx - 10} ${cy + 46} ${cx + rx} ${cy} A ${rx} ${ry} 0 0 1 ${cx - rx} ${cy} Z" fill="url(#bodyG)"/>
+    <path d="M${cx - 120} ${cy + 66} L ${cx + 120} ${cy + 66}" stroke="var(--cobalt)" stroke-width="5" stroke-linecap="round"/>
+    <path d="M${cx - rx} ${cy} A ${rx} ${ry} 0 0 0 ${cx + rx} ${cy}" fill="none" stroke="var(--cobalt)" stroke-width="10"/>
+    <path d="M${cx - rx + 12} ${cy + 6} A ${rx - 12} ${ry - 6} 0 0 0 ${cx - 40} ${cy + ry - 1}" fill="none" stroke="oklch(0.62 0.12 258)" stroke-width="2.5"/>
+    ${chips}
+    <!-- 盆身红双喜贴花 -->
+    <g transform="translate(${cx + 104} ${cy + 36}) scale(.9)" opacity=".85">
+      <circle r="11" fill="var(--carp)"/><path d="M-6 -4 H6 M-6 0 H6 M-4 4 H4 M0 -7 V7" stroke="var(--enamel)" stroke-width="1.6"/>
+    </g>`;
+  }
+
+  // ================= 便签、印章、罐子、手账 =================
+  function buildProps() {
+    $('noteArt').innerHTML = `
+      <defs><filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="1" seed="2"/><feDisplacementMap in="SourceGraphic" scale="2.2"/></filter>
+      <filter id="nshadow"><feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="oklch(0.35 0.03 90)" flood-opacity=".22"/></filter></defs>
+      <path d="M4 6 H242 V158 L232 164 L220 158 L206 166 L192 159 L176 165 L160 158 L146 166 L130 159 L114 165 L98 158 L84 166 L68 159 L52 165 L38 158 L22 166 L4 158 Z" fill="oklch(0.985 0.015 92)" filter="url(#nshadow)"/>
+      <line x1="16" y1="80" x2="232" y2="80" stroke="oklch(0.9 0.02 90)"/>
+      <circle cx="123" cy="10" r="7" fill="var(--carp)"/><circle cx="121" cy="8" r="2.4" fill="oklch(1 0 0 / .7)"/>
+      <g transform="translate(108 52) scale(.8)"><path d="M0 0 a8 8 0 0 1 16 0 a6 6 0 0 1 0 12 H-2 a6 6 0 0 1 2 -12" fill="oklch(0.86 0.02 240)"/>
+        <path d="M3 16 l-2 6 M9 16 l-2 6 M15 16 l-2 6" stroke="oklch(0.6 0.1 240)" stroke-width="2" stroke-linecap="round"/></g>`;
+    $('stamp').innerHTML = `<g filter="url(#rough)" opacity=".85">
+      <rect x="2" y="2" width="100" height="36" rx="6" fill="none" stroke="var(--carp)" stroke-width="2.6"/>
+      <rect x="6" y="6" width="92" height="28" rx="4" fill="none" stroke="var(--carp)" stroke-width="1.2"/>
+      <text x="52" y="25" text-anchor="middle" font-family="Noto Sans SC" font-weight="900" font-size="15" fill="var(--carp)" letter-spacing="1">回南天警报</text></g>`;
+    $('journalArt').innerHTML = `
+      <rect x="6" y="10" width="86" height="54" rx="6" fill="oklch(0.35 0.03 80 / .2)" filter="url(#blur2)"/>
+      <rect x="2" y="4" width="86" height="56" rx="6" fill="oklch(0.56 0.09 150)"/>
+      <rect x="2" y="4" width="12" height="56" rx="4" fill="oklch(0.47 0.08 150)"/>
+      <rect x="84" y="8" width="6" height="50" rx="2" fill="oklch(0.95 0.01 95)"/>
+      <rect x="24" y="18" width="52" height="24" rx="4" fill="oklch(0.96 0.02 95)"/>
+      <text x="50" y="35" text-anchor="middle" font-family="华文行楷, STXingkai, KaiTi" font-size="15" fill="oklch(0.35 0.05 150)">菇菇手账</text>
+      <path d="M62 60 L62 70 L66 66 L70 70 L70 60" fill="var(--carp)"/>`;
+    drawJar();
+  }
+  let coins = 24;
+  function drawJar() {
+    const n = Math.min(16, Math.round(coins / 3));
+    let stack = '';
+    for (let i = 0; i < n; i += 1) {
+      const x = 32 + (i % 4) * 12 + (Math.floor(i / 4) % 2) * 6, y = 112 - Math.floor(i / 4) * 7;
+      stack += `<ellipse cx="${x}" cy="${y}" rx="9" ry="3.6" fill="oklch(0.78 0.14 82)" stroke="oklch(0.6 0.13 70)" stroke-width="1"/>`;
+    }
+    $('jarArt').innerHTML = `
+      <ellipse cx="56" cy="124" rx="44" ry="6" fill="oklch(0.35 0.03 70 / .3)" filter="url(#blur2)"/>
+      <path d="M18 30 C 10 40 10 112 22 120 C 40 128 72 128 90 120 C 102 112 102 40 94 30 Z" fill="oklch(0.94 0.02 200 / .45)" stroke="oklch(0.85 0.02 200)" stroke-width="2"/>
+      ${stack}
+      <path d="M26 40 C 22 60 22 90 26 108" stroke="oklch(1 0 0 / .8)" stroke-width="4" stroke-linecap="round" fill="none"/>
+      <rect x="20" y="16" width="72" height="18" rx="6" fill="url(#woodG)"/><rect x="20" y="16" width="72" height="5" rx="3" fill="oklch(0.82 0.06 75)"/>
+      <rect x="30" y="64" width="52" height="44" rx="6" fill="oklch(0.985 0.015 92)" stroke="oklch(0.85 0.02 90)"/>`;
+  }
+
+  // ================= 绳：点荷载叠加（真实绳子被拽的样子是两段直线到钉子） =================
+  const ropeBase = (r, x) => { const t = (x - r.x1) / (r.x2 - r.x1); return r.y1 + (r.y2 - r.y1) * t + Math.sin(Math.PI * t) * r.sag; };
+  function ropeY(r, x, hangsOnRope) {
+    let y = ropeBase(r, x);
+    for (const h of hangsOnRope) {
+      const d = h.load;
+      if (d === 0) continue;
+      const xi = h.ax;
+      y += x <= xi ? d * (x - r.x1) / Math.max(1, xi - r.x1) : d * (r.x2 - x) / Math.max(1, r.x2 - xi);
+    }
+    return y;
+  }
+  function ropePath(r, list, dx = 0, dy = 0) {
+    let d = '';
+    for (let i = 0; i <= 64; i += 1) {
+      const x = r.x1 + (r.x2 - r.x1) * (i / 64);
+      d += `${i ? 'L' : 'M'}${(x + dx).toFixed(1)},${(ropeY(r, x, list) + dy).toFixed(1)}`;
+    }
+    return d;
+  }
+  function drawRopes() {
+    const on = (r) => hangs.filter((h) => h.rope === r && !h.gone);
+    let s = '<defs><filter id="rshadow"><feGaussianBlur stdDeviation="2.5"/></filter></defs>';
+    for (const r of [MAIN, SUN]) {
+      const list = on(r);
+      s += `<path d="${ropePath(r, list, 5, 9)}" fill="none" stroke="oklch(0.35 0.03 90 / .18)" stroke-width="4" filter="url(#rshadow)"/>`;
+      s += `<path d="${ropePath(r, list)}" fill="none" stroke="var(--rope-d)" stroke-width="4.6" stroke-linecap="round"/>`;
+      s += `<path d="${ropePath(r, list)}" fill="none" stroke="var(--rope)" stroke-width="3" stroke-linecap="round"/>`;
+      s += `<path d="${ropePath(r, list, 0, -0.6)}" fill="none" stroke="oklch(0.84 0.05 80)" stroke-width="1.2" stroke-dasharray="2.2 3.4" stroke-linecap="round"/>`;
+    }
+    $('ropes').innerHTML = s;
+  }
+
+  // ================= 挂件 =================
+  const PIN_SVG = `<svg class="pin" viewBox="0 0 16 40" width="16" height="40">
+    <rect x="1" y="1" width="6.6" height="38" rx="2.5" fill="var(--wood-l)" stroke="var(--wood-d)" stroke-width="1"/>
+    <rect x="8.4" y="1" width="6.6" height="38" rx="2.5" fill="var(--wood)" stroke="var(--wood-d)" stroke-width="1"/>
+    <rect x="0" y="15" width="16" height="6" rx="3" fill="oklch(0.72 0.02 250)" stroke="oklch(0.5 0.02 250)" stroke-width="1"/>
+    <circle cx="8" cy="18" r="2" fill="oklch(0.88 0.01 250)"/></svg>`;
+  const objects = window.CD_OBJECTS.map((o) => ({ ...o, done: false }));
+  const hangs = [];
+  function statusOf(o) {
+    if (o.done) return ['ok', '晒干中'];
+    if (o.mushroom === 'mature') return ['ripe', '有菇可采'];
+    return [o.family, `${FAMILY[o.family]} · ${LEVEL[o.stage]}`];
+  }
+  function makeHang(o, rope) {
+    const el = document.createElement('div');
+    el.className = 'hang' + (o.done ? ' dry' : '');
+    const [cls, txt] = statusOf(o);
+    el.innerHTML = `<div class="body">${PIN_SVG}<img class="icon" src="${o.done ? o.clean : (o.desk || o.dirty)}" alt=""></div>
+      <div class="tag"><div class="str"></div><div class="paper"><span class="st"><i class="${cls}"></i><b>${txt}</b></span><span class="nm">${o.name}</span></div></div>`;
+    $('hangs').appendChild(el);
+    const h = { o, el, rope, slot: 0.5, ax: 0, load: 7, weight: 7, swing: 0, swingV: 0, tagSwing: 0, tagV: 0, lastAx: 0, phase: Math.random() * 6, drag: null, gone: false };
+    h.axSpring = CDSpring(0, { stiffness: 0.08, damping: 0.82 });
+    const body = el.querySelector('.body');
+    body.addEventListener('pointerenter', () => { if (!h.drag) { h.swingV += 1.6; CDSound.tap(); } });
+    body.addEventListener('pointerdown', (e) => startDrag(h, e));
+    hangs.push(h);
+    return h;
+  }
+  function layout(instant) {
+    for (const r of [MAIN, SUN]) {
+      const list = hangs.filter((h) => h.rope === r && !h.gone && !h.drag);
+      const pad = r === MAIN ? 0.07 : 0.16;
+      list.forEach((h, i) => {
+        h.slot = pad + (i + 0.5) * ((1 - pad * 2) / Math.max(list.length, 1));
+        const x = r.x1 + (r.x2 - r.x1) * h.slot;
+        h.slotX = x;
+        if (instant) { h.axSpring.jump(x); h.ax = x; } else h.axSpring.set(x);
+      });
+    }
+  }
+
+  // 拽下来：往下拉，绳子跟着弯；超过阈值弹脱飞进盆
+  const DETACH = 112;
+  function startDrag(h, e) {
+    if (h.o.done || e.button !== 0) return;
+    e.preventDefault();
+    const body = h.el.querySelector('.body');
+    try { body.setPointerCapture(e.pointerId); } catch (_) { /* 合成指针 */ }
+    h.drag = { x0: e.clientX, y0: e.clientY, grabDy: e.clientY - ropeY(h.rope, h.ax, []), moved: 0 };
+    h.el.classList.add('dragging');
+    CDSound.pick();
+    const move = (ev) => {
+      if (!h.drag) return;
+      const dx = ev.clientX - h.drag.x0, dy = ev.clientY - h.drag.y0;
+      h.drag.moved = Math.max(h.drag.moved, Math.hypot(dx, dy));
+      h.dragX = Math.max(h.rope.x1 + 30, Math.min(h.rope.x2 - 30, h.axSpring.value + dx * 0.55));
+      h.dragLoad = Math.max(0, h.weight + dy);
+      if (h.dragLoad > DETACH) finish(true, ev);
+    };
+    const finish = (detach, ev) => {
+      body.removeEventListener('pointermove', move);
+      body.removeEventListener('pointerup', up);
+      body.removeEventListener('pointercancel', cancel);
+      const wasClick = h.drag && h.drag.moved < 6;
+      h.drag = null;
+      h.el.classList.remove('dragging');
+      if (detach) { pop(h); return; }
+      if (wasClick) { autoPull(h); return; }
+      // 没拽够：弹回去，绳子回弹两下
+      h.load = h.dragLoad ?? h.weight;
+      h.loadV = -6;
+      h.swingV += (Math.random() - 0.5) * 6;
+      CDSound.drop();
+    };
+    const up = (ev) => finish(false, ev);
+    const cancel = (ev) => finish(false, ev);
+    body.addEventListener('pointermove', move);
+    body.addEventListener('pointerup', up);
+    body.addEventListener('pointercancel', cancel);
+  }
+  // 点一下 = 帮你拽：一段向下的缓动，最后弹脱
+  function autoPull(h) {
+    if (current?.h === h) return;
+    const t0 = performance.now();
+    h.autoPulling = true;
+    (function step() {
+      const k = Math.min(1, (performance.now() - t0) / 260);
+      h.dragLoad = h.weight + (DETACH + 4 - h.weight) * (k * k);
+      if (k < 1) requestAnimationFrame(step); else { h.autoPulling = false; pop(h); }
+    })();
+  }
+  async function pop(h) {
+    if (current) returnToRope(true);
+    const icon = h.el.querySelector('.icon');
+    const from = icon.getBoundingClientRect();
+    h.gone = true;
+    h.el.classList.add('hidden');
+    // 绳子失去荷载：猛地弹回再晃
+    h.load = 0; h.dragLoad = undefined;
+    ropeKick(h.rope, h.ax, -18);
+    CDSound.snip();
+    const fly = document.createElement('img');
+    fly.src = h.o.desk || h.o.dirty;
+    Object.assign(fly.style, { position: 'fixed', left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', zIndex: 40, pointerEvents: 'none', filter: 'drop-shadow(4px 10px 6px oklch(0.3 0.03 90 / .35))' });
+    document.body.appendChild(fly);
+    const to = $('float').getBoundingClientRect();
+    const tx = to.left - from.left, ty = to.top - from.top, sc = to.width / from.width;
+    await fly.animate([
+      { transform: 'translate(0,0) scale(1) rotate(0deg)' },
+      { transform: `translate(${tx * 0.45}px, ${ty * 0.25 - 70}px) scale(${1 + (sc - 1) * 0.5}) rotate(-14deg)`, offset: 0.45 },
+      { transform: `translate(${tx * 0.96}px, ${ty * 1.04}px) scale(${sc * 1.03}) rotate(3deg)`, offset: 0.86 },
+      { transform: `translate(${tx}px, ${ty}px) scale(${sc}) rotate(0deg)` },
+    ], { duration: 680, easing: 'cubic-bezier(.45,0,.25,1)' }).finished;
+    fly.remove();
+    CDSound.drop();
+    const b = $('float').getBoundingClientRect();
+    CDFx.splash(b.left + 100, b.bottom - 6, 18);
+    ripple(BASIN.cx, BASIN.wcy - 4, 1.4);
+    ripple(BASIN.cx, BASIN.wcy - 4, 0.8, 140);
+    await openInBasin(h);
+  }
+  // 绳子整体回弹：给同一根绳上其他挂件一个摆动
+  const ropeKicks = [];
+  function ropeKick(r, x, amp) { ropeKicks.push({ r, x, amp, t: 0 }); hangs.forEach((o) => { if (o.rope === r && !o.gone) o.swingV += (o.ax < x ? -1 : 1) * 1.8; }); }
+
+  // 主循环：荷载弹簧、摆动、绳子形状、挂件位置
+  let tick = 0;
+  function frame() {
+    tick += 1;
+    for (const h of hangs) {
+      if (h.gone) continue;
+      h.ax = h.drag ? h.dragX : h.axSpring.value;
+      if (h.drag || h.autoPulling) h.load = h.dragLoad;
+      else {
+        // 荷载弹簧：被拽松手后上下回弹
+        h.loadV = ((h.loadV || 0) + (h.weight - h.load) * 0.16) * 0.8;
+        h.load += h.loadV;
+      }
+      // 摆动：锚点水平速度驱动 + 轻微常摆（风 = 窗缝透进来的风）
+      const vx = h.ax - h.lastAx; h.lastAx = h.ax;
+      h.swingV += (-h.swing * 0.06) - vx * 0.35;
+      h.swingV *= 0.9;
+      h.swing += h.swingV;
+      h.tagV += (h.swing - h.tagSwing) * 0.05; h.tagV *= 0.86; h.tagSwing += h.tagV;
+    }
+    // 回弹的绳波
+    for (let i = ropeKicks.length - 1; i >= 0; i -= 1) { const k = ropeKicks[i]; k.t += 1; if (k.t > 60) ropeKicks.splice(i, 1); }
+    drawRopes();
+    for (const h of hangs) {
+      if (h.gone) continue;
+      const list = hangs.filter((o) => o.rope === h.rope && !o.gone);
+      let y = ropeY(h.rope, h.ax, list);
+      for (const k of ropeKicks) if (k.r === h.rope) y += k.amp * Math.exp(-k.t / 14) * Math.sin(k.t / 3) * Math.exp(-Math.abs(h.ax - k.x) / 260);
+      const idle = Math.sin(tick / 47 + h.phase) * (h.o.done ? 1.2 : 2.4);
+      h.el.style.transform = `translate(${h.ax.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const ang = Math.max(-35, Math.min(35, h.swing * 4 + idle));
+      h.el.querySelector('.body').style.transform = `rotate(${ang.toFixed(2)}deg)`;
+      h.el.querySelector('.tag').style.transform = `rotate(${(ang * 0.6 + (h.tagSwing - h.swing) * 6).toFixed(2)}deg)`;
+      if (!h.o.done && h.o.family === 'damp' && !h.drag && Math.random() < 0.005) drip(h.ax + (Math.random() - 0.5) * 34, y + 70);
+      if (h.o.done && Math.random() < 0.012) steam(h.ax + (Math.random() - 0.5) * 30, y + 10);
+    }
+    requestAnimationFrame(frame);
+  }
+  function drip(x, y) {
+    const d = document.createElement('div'); d.className = 'drip'; d.style.left = x + 'px'; d.style.top = y + 'px'; $('room').appendChild(d);
+    const fall = 470 - y + Math.random() * 40;
+    d.animate([{ transform: 'translateY(0) scale(.5)', opacity: 1 }, { transform: 'translateY(2px) scale(1)', offset: 0.2 }, { transform: `translateY(${fall}px) scale(1, 1.2)`, opacity: 0.85 }],
+      { duration: 900 + fall * 1.6, easing: 'cubic-bezier(.55,0,1,.45)' }).onfinish = () => { d.remove(); CDFx.splash(x, y + fall, 3, ['oklch(0.8 0.07 230)', '#ffffff']); };
+  }
+  function steam(x, y) {
+    const s = document.createElement('div'); s.className = 'steam'; s.style.left = x + 'px'; s.style.top = y + 'px'; $('room').appendChild(s);
+    s.animate([{ transform: 'translateY(0) scaleX(1)', opacity: 0 }, { opacity: 0.7, offset: 0.3 }, { transform: 'translateY(-40px) scaleX(-1)', opacity: 0 }], { duration: 1800, easing: 'ease-out' }).onfinish = () => s.remove();
+  }
+
+  // ================= 水面涟漪（裁在水面椭圆内） =================
+  const rippleLayer = document.createElement('div');
+  Object.assign(rippleLayer.style, { position: 'absolute', inset: '0', pointerEvents: 'none', clipPath: `ellipse(${BASIN.wrx}px ${BASIN.wry}px at ${BASIN.cx}px ${BASIN.wcy}px)` });
+  $('room').insertBefore(rippleLayer, $('float'));
+  function ripple(x, y, size = 1, delay = 0) {
+    setTimeout(() => {
+      const r = document.createElement('div'); r.className = 'ripple';
+      Object.assign(r.style, { left: x - 10 + 'px', top: y - 3 + 'px', width: '20px', height: '6px' });
+      rippleLayer.appendChild(r);
+      r.animate([{ transform: 'scale(1)', opacity: 0.9 }, { transform: `scale(${9 * size}, ${7 * size})`, opacity: 0 }], { duration: 1300, easing: 'cubic-bezier(.2,.6,.3,1)' }).onfinish = () => r.remove();
+    }, delay);
+  }
+
+  // ================= 工具架 =================
+  const TOOLS = [
+    { id: 'sponge', name: '海绵', img: CARE + 'sponge-idle.png', act: CARE + 'sponge-active.png', radius: 24, fam: ['damp', 'mold', 'char'], tip: '万能，但慢一点' },
+    { id: 'squeegee', name: '刮水器', img: TOOLS_DIR + 'squeegee-idle.png', act: TOOLS_DIR + 'squeegee-active.png', radius: 36, fam: ['damp'], tip: '刮水膜最快' },
+    { id: 'scrubbrush', name: '清洁刷', img: TOOLS_DIR + 'scrubbrush-idle.png', act: TOOLS_DIR + 'scrubbrush-active.png', radius: 17, fam: ['mold', 'char'], tip: '对付霉斑和烟灰' },
+    { id: 'scissors', name: '剪刀', img: CARE + 'scissors-idle.png', act: CARE + 'scissors-active.png', radius: 0, fam: [], tip: '只剪成熟菇' },
+  ];
+  let tool = null;
+  TOOLS.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'tool';
+    el.style.left = 20 + i * 56 - 26 + 'px';
+    el.innerHTML = `<div class="loop"></div><img src="${t.img}" alt=""><div class="name">${t.name}<span class="key">${i + 1}</span></div>`;
+    el.title = t.tip;
+    const sw = CDSpring(0, { stiffness: 0.07, damping: 0.88 }).on((v) => { el.style.transform = `rotate(${v}deg)`; });
+    el.addEventListener('pointerenter', () => sw.kick(5));
+    el.addEventListener('click', () => selectTool(t));
+    t.el = el; t.sw = sw;
+    $('rack').appendChild(el);
+  });
+  const usable = (t) => !!current && (t.id === 'scissors' ? current.o.mushroom === 'mature' && !current.harvested : !current.wipe?.completed && t.fam.includes(current.o.family));
+  function refreshTools() {
+    for (const t of TOOLS) {
+      t.el.classList.toggle('off', !!current && !usable(t));
+      t.el.classList.toggle('taken', tool === t);
+    }
+  }
+  function putBackTool() {
+    if (!tool) return;
+    const t = tool; tool = null;
+    $('cursor').style.display = 'none';
+    $('cutline').style.opacity = 0;
+    t.sw.kick(-8);
+    refreshTools();
+  }
+  function selectTool(t) {
+    if (tool === t) { putBackTool(); CDSound.drop(); return; }
+    if (!current) { t.sw.kick(8); toast('先从绳子上拽一个下来'); return; }
+    if (!usable(t)) {
+      t.sw.kick(10);
+      toast(t.id === 'scissors' ? '只有成熟菇能剪' : `${t.name}对付不了${FAMILY[current.o.family]}，换一件试试`);
+      return;
+    }
+    if (tool) putBackTool();
+    tool = t;
+    CDSound.pick();
+    $('cursor').style.display = 'block';
+    $('cursor').querySelector('img').src = t.act;
+    current.wipe?.setRadius(t.radius || 24);
+    $('cutline').style.opacity = t.id === 'scissors' ? 1 : 0;
+    setHint(t.id === 'scissors' ? '沿白色虚线，<b>一刀划过</b>菌柄' : '按住来回擦 · <kbd>空格</kbd> 看剩哪里');
+    refreshTools();
+  }
+  // 跟手：位置即时，角度按水平速度倾斜（弹簧），擦的时候轻微下压
+  const tilt = CDSpring(0, { stiffness: 0.12, damping: 0.78 });
+  const press = CDSpring(1, { stiffness: 0.25, damping: 0.6 });
+  let lastX = 0, curX = 0, curY = 0;
+  const paintCursor = () => { $('cursor').querySelector('img').style.transform = `rotate(${tilt.value.toFixed(2)}deg) scale(${press.value.toFixed(3)})`; };
+  tilt.on(paintCursor); press.on(paintCursor);
+  addEventListener('pointermove', (e) => {
+    curX = e.clientX; curY = e.clientY;
+    if (!tool) return;
+    $('cursor').style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 20}px)`;
+    tilt.set(Math.max(-26, Math.min(26, (e.clientX - lastX) * 1.7)));
+    lastX = e.clientX;
+  });
+  addEventListener('pointerdown', () => { if (tool) press.set(0.9); });
+  addEventListener('pointerup', () => { press.set(1); });
+  addEventListener('blur', () => { tilt.set(0); press.set(1); });
+  addEventListener('keydown', (e) => {
+    const n = Number(e.key);
+    if (n >= 1 && n <= TOOLS.length) selectTool(TOOLS[n - 1]);
+    if (e.code === 'Space' && current?.wipe && !current.wipe.completed) { e.preventDefault(); current.wipe.highlight(); CDSound.drip(); }
+    if (e.key === 'Escape') { if (tool) putBackTool(); else if (current) returnToRope(); }
+  });
+
+  // ================= 盆里护理 =================
+  let current = null;
+  async function openInBasin(h) {
+    const o = h.o;
+    current = { h, o, harvested: false };
+    const m = $('mushroom');
+    m.style.display = o.mushroom !== 'none' ? 'block' : 'none';
+    if (o.mushroom !== 'none') m.src = `${SPECIES}${o.species}/${o.mushroom === 'mature' ? 'mature' : 'bud'}-256.png`;
+    const layers = LAYERS[o.family].slice(0, o.stage >= 2 ? 2 : 1);
+    $('layers').innerHTML = layers.map((n) => `<div class="lchip" style="--p:0"><span class="ring"></span>${n}</div>`).join('');
+    let lastRipple = 0;
+    current.wipe = await CDWipe({
+      host: $('wipe'), dirtySrc: o.dirty, cleanSrc: o.clean, size: 200, radius: tool?.radius || 24,
+      onStroke: (x, y) => {
+        if (!tool || tool.id === 'scissors') return;
+        const r = $('wipe').getBoundingClientRect();
+        if (Math.random() < 0.22) (o.family === 'damp' ? CDFx.splash : CDFx.dust)(r.left + x, r.top + y, 2);
+        const now = performance.now();
+        if (now - lastRipple > 220) { lastRipple = now; ripple(BASIN.cx + (x - 100) * 0.9, BASIN.wcy - 2, 0.7); }
+      },
+      onProgress: (p) => {
+        [...$('layers').children].forEach((el, i, all) => {
+          const lp = Math.max(0, Math.min(1, p * all.length - i));
+          el.style.setProperty('--p', lp.toFixed(3));
+          if (lp >= 0.999 && !el.classList.contains('done')) {
+            el.classList.add('done'); CDSound.layer();
+            const rr = el.getBoundingClientRect(); CDFx.sparkle(rr.left + rr.width / 2, rr.top + 14, 10);
+          }
+        });
+      },
+      onComplete: completeCare,
+    });
+    current.wipe.canvas.style.cursor = 'none';
+    current.wipe.canvas.addEventListener('pointerdown', (e) => {
+      if (!tool) { toast('先从左边的挂钩上拿一件工具（或按 1–4）'); e.stopImmediatePropagation(); }
+      else if (tool.id === 'scissors') e.stopImmediatePropagation();
+    }, true);
+    if (tool && !usable(tool)) putBackTool();
+    setHint(tool ? '按住来回擦 · <kbd>空格</kbd> 看剩哪里' : '从挂钩拿一件工具 · <kbd>1</kbd>–<kbd>4</kbd>');
+    refreshTools();
+  }
+  function returnToRope(silent) {
+    if (!current) return;
+    const { h } = current;
+    current.wipe?.destroy();
+    current = null;
+    $('layers').innerHTML = ''; $('mushroom').style.display = 'none';
+    h.gone = false; h.el.classList.remove('hidden');
+    h.load = h.weight + 40; h.loadV = 0;
+    layout();
+    putBackTool();
+    if (!silent) { CDSound.pick(); toast('先挂回去晾着'); }
+    setHint('把绳上的东西<b>往下拽</b>，或者点一下');
+  }
+
+  // ================= 剪刀 =================
+  let cut = null;
+  $('float').addEventListener('pointerdown', (e) => {
+    if (tool?.id !== 'scissors' || !current || current.harvested || current.o.mushroom !== 'mature') return;
+    e.preventDefault();
+    const r = $('cutline').getBoundingClientRect();
+    cut = { y0: e.clientY, line: r.top, minX: r.left, maxX: r.right, crossed: false };
+  }, true);
+  addEventListener('pointermove', (e) => {
+    if (cut && (cut.y0 - cut.line) * (e.clientY - cut.line) <= 0 && e.clientX > cut.minX && e.clientX < cut.maxX) cut.crossed = true;
+  });
+  addEventListener('pointerup', () => {
+    if (!cut) return;
+    const ok = cut.crossed; cut = null;
+    if (ok) harvest(); else toast('一刀要划过白色虚线');
+  });
+  async function harvest() {
+    current.harvested = true;
+    CDSound.snip();
+    const m = $('mushroom'); const mr = m.getBoundingClientRect();
+    const fly = m.cloneNode(); m.style.display = 'none';
+    Object.assign(fly.style, { position: 'fixed', left: mr.left + 'px', top: mr.top + 'px', width: mr.width + 'px', height: mr.height + 'px', zIndex: 45, display: 'block' });
+    document.body.appendChild(fly);
+    const bk = $('basket').getBoundingClientRect();
+    const tx = bk.left + bk.width / 2 - (mr.left + mr.width / 2), ty = bk.top - (mr.top + mr.height * 0.6);
+    await fly.animate([
+      { transform: 'translate(0,0) rotate(0) scale(1)' },
+      { transform: `translate(${tx * 0.35}px, -70px) rotate(-26deg) scale(.82)`, offset: 0.38 },
+      { transform: `translate(${tx}px, ${ty}px) rotate(18deg) scale(.36)` },
+    ], { duration: 820, easing: 'cubic-bezier(.3,0,.35,1)' }).finished;
+    fly.remove();
+    basketCount += 1;
+    $('basket').querySelector('.count').textContent = basketCount;
+    $('basket').animate([{ transform: 'scale(1)' }, { transform: 'scale(1.12, .88)' }, { transform: 'scale(.97, 1.04)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+    const jr = $('jar').getBoundingClientRect();
+    CDFx.coins({ x: bk.left + bk.width / 2, y: bk.top + 10 }, { x: jr.left + 55, y: jr.top + 40 }, 4, () => addCoins(1));
+    const zh = SPECIES_ZH[current.o.species] || '菇';
+    toast(Math.random() < 0.5 ? `剪得很准！+4 菇币，还掉了 1 枚${zh}孢子` : `采下一朵${zh}！+4 菇币 · 菇采了，霉还在`);
+    current.o.mushroom = 'none'; current.o.desk = undefined;
+    $('cutline').style.opacity = 0;
+    putBackTool();
+    refreshTools();
+    if (current.o.done) setTimeout(() => sendToSun(current.h), 700);
+    else setHint('菇采了，霉还在 · 拿工具接着擦');
+  }
+  let basketCount = 0;
+  function addCoins(n) {
+    coins += n;
+    $('jar').querySelector('.num').textContent = coins;
+    drawJar();
+    $('jar').classList.remove('bump'); void $('jar').offsetWidth; $('jar').classList.add('bump');
+    CDSound.coin();
+  }
+
+  // ================= 完成：跳出盆，挂到太阳那根绳上晒 =================
+  async function completeCare() {
+    const { h, o } = current;
+    o.done = true;
+    CDSound.done();
+    const f = $('float').getBoundingClientRect();
+    CDFx.sparkle(f.left + 100, f.top + 100, 28);
+    ripple(BASIN.cx, BASIN.wcy, 1.2);
+    const jr = $('jar').getBoundingClientRect();
+    CDFx.coins({ x: f.left + 100, y: f.top + 60 }, { x: jr.left + 55, y: jr.top + 40 }, 2, () => addCoins(1));
+    if (o.mushroom === 'mature') {
+      toast('干净了！菇还在——换剪刀剪下来');
+      setHint('换剪刀 <kbd>4</kbd>，沿虚线一刀划过');
+      putBackTool(); refreshTools();
+      return;
+    }
+    toast('干净了！拿去晒太阳 · 240 小时内不再发霉');
+    await new Promise((r) => setTimeout(r, 650));
+    sendToSun(h);
+  }
+  async function sendToSun(h) {
+    const from = $('wipe').getBoundingClientRect();
+    current?.wipe?.destroy();
+    current = null;
+    $('layers').innerHTML = ''; $('mushroom').style.display = 'none';
+    putBackTool();
+    setHint('把绳上的东西<b>往下拽</b>，或者点一下');
+    const fly = document.createElement('img');
+    fly.src = h.o.clean;
+    Object.assign(fly.style, { position: 'fixed', left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', zIndex: 40, pointerEvents: 'none' });
+    document.body.appendChild(fly);
+    // 先放进晒绳的队列，求出落点
+    h.el.remove();
+    const idx = hangs.indexOf(h); if (idx >= 0) hangs.splice(idx, 1);
+    const nh = makeHang(h.o, SUN);
+    nh.gone = true; nh.el.classList.add('hidden');
+    layout();
+    const targetX = nh.slotX;
+    nh.axSpring.jump(targetX); nh.ax = targetX; nh.lastAx = targetX;
+    const tx = targetX - 32 - from.left, ty = ropeBase(SUN, targetX) + 10 - from.top;
+    await fly.animate([
+      { transform: 'translate(0,0) scale(1)' },
+      { transform: `translate(${tx * 0.5}px, ${ty * 0.5 - 120}px) scale(.6) rotate(-20deg)`, offset: 0.5 },
+      { transform: `translate(${tx}px, ${ty}px) scale(${64 / from.width}) rotate(0)` },
+    ], { duration: 760, easing: 'cubic-bezier(.4,0,.2,1)' }).finished;
+    fly.remove();
+    nh.gone = false; nh.el.classList.remove('hidden');
+    nh.load = nh.weight + 26; nh.loadV = 0; nh.swingV = 3;
+    CDSound.pick();
+    CDFx.sparkle(targetX, ropeBase(SUN, targetX) + 40, 14);
+    const left = objects.filter((o) => !o.done).length;
+    if (left === 0) toast('都晾干了！今天的桌面清清爽爽');
+  }
+
+  // ================= 杂项 =================
+  let toastTimer = 0;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2300); }
+  function setHint(html) { $('hint').innerHTML = html; }
+  $('journal').addEventListener('click', () => toast('手账（图鉴 · 小铺 · 墙面 · 设置）在定稿后展开'));
+  $('basket').addEventListener('click', () => toast(basketCount ? `篮子里有 ${basketCount} 朵菇` : '篮子还空着'));
+  $('sound').addEventListener('click', () => { CDSound.enabled = !CDSound.enabled; $('sound').textContent = '音效 ' + (CDSound.enabled ? '开' : '关'); });
+
+  buildBackdrop();
+  buildBasin();
+  buildProps();
+  objects.forEach((o) => makeHang(o, MAIN));
+  layout(true);
+  hangs.forEach((h) => { h.lastAx = h.axSpring.value; h.ax = h.lastAx; });
+  refreshTools();
+  requestAnimationFrame(frame);
+  window.__demo = {
+    pick: (i) => autoPull(hangs.filter((h) => h.rope === MAIN && !h.gone)[i]),
+    selectTool: (i) => selectTool(TOOLS[i]),
+  };
+})();
+</script>
+</body>
+</html>

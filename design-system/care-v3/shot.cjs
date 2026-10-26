@@ -18,7 +18,10 @@ app.whenReady().then(async () => {
   for (const file of files) {
     const win = new BrowserWindow({ show: true, width: 960, height: 640, useContentSize: true, frame: false, webPreferences: { backgroundThrottling: false } });
     const errors = [];
-    win.webContents.on('console-message', (_e, level, msg) => { if (level >= 2) errors.push(msg); });
+    win.webContents.on('console-message', (e) => {
+      const level = typeof e.level === 'string' ? e.level : e.level;
+      if (level === 'error' || level === 'warning' || level >= 2) errors.push(`${e.message} @${e.lineNumber ?? ''}`);
+    });
     await win.loadFile(path.join(__dirname, file));
     await sleep(1600);
     const base = path.basename(file, '.html');
@@ -50,7 +53,8 @@ app.whenReady().then(async () => {
         send('mouseUp', x + w * 0.2, y + h * 0.5);
       }
     }
-    console.log(base, plan ? JSON.stringify(plan) : '', errors.length ? 'ERRORS: ' + errors.slice(0, 3).join(' | ') : 'no console errors');
+    const real = errors.filter((m) => !/Security Warning|Content-Security-Policy/.test(m));
+    console.log(base, plan ? JSON.stringify(plan) : '', real.length ? 'ERRORS: ' + real.slice(0, 6).join(' | ') : 'no console errors');
     win.destroy();
   }
   app.exit(0);

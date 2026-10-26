@@ -1,13 +1,15 @@
 # 护理台 v3 方向稿（huashu-design 三方向门）
 
-状态：**三个方向已出稿，等用户选择**。选定前不进入产品实现。用户选择后，记录在 `direction-approved.md`（含展示了哪几版、截图路径和用户原话）。
+状态：**用户已选定晾衣绳方向（2026-10-26），精修稿为 `dir-1-v2.html`，等待用户确认后再做进产品**。选择记录见 `direction-approved.md`。
 
 | 文件 | 内容 |
 |---|---|
 | [spec.md](spec.md) | 三版共用的设计 spec（用户原话、受众、核心信息、尺寸、约束、素材） |
 | [directions.md](directions.md) | 六张方向卡、轮盘抽签记录、挑三张的理由 |
 | [thumbs.html](thumbs.html) | 六个候选缩略图（截图 `shots/thumbs.png`） |
-| [dir-1.html](dir-1.html) | ② 晾衣绳（可玩） |
+| [dir-1-v2.html](dir-1-v2.html) | **② 晾衣绳 v2 精修（用户 2026-10-26 选定）**：分层 SVG 插画、可拽下的绳子物理、透视搪瓷盆、实时倒影与涟漪 |
+| [direction-approved.md](direction-approved.md) | 用户选择原话、v1 瑕疵清单、v2 精修要点 |
+| [dir-1.html](dir-1.html) | ② 晾衣绳 v1（保留旧版） |
 | [dir-2.html](dir-2.html) | ⑥ 菌圈（可玩） |
 | [dir-3.html](dir-3.html) | ③ 洗护工位（可玩） |
 | `assets/engine.js` | 三版共用的擦拭、音效、粒子、弹簧引擎 |
