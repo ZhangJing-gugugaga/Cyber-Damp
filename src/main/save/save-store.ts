@@ -5,18 +5,26 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { app } from 'electron';
-import { validateSave } from '../../shared/save/save-schema';
+import { migrateSave, validateSave } from '../../shared/save/save-schema';
 import type { SaveData } from '../../shared/types/save';
 
 function savePath(): string {
   return path.join(app.getPath('userData'), 'save.json');
 }
 
-/** 读存档：不存在/损坏/版本不符均返回 null（渲染层走新开局，禁止抛错） */
+/**
+ * 读存档：不存在/损坏/版本不符均返回 null（渲染层走新开局，禁止抛错）。
+ * 读时经 migrateSave 补齐 v1/v2→v3 与 v4 字段（纯增量、幂等，文件版本号保持 3）；
+ * 若迁移本身失败而原档仍合法，退回原档，绝不因迁移问题把有效存档当成新开局。
+ */
 export function loadSave(): SaveData | null {
   try {
-    const raw = fs.readFileSync(savePath(), 'utf8');
-    return validateSave(JSON.parse(raw));
+    const raw = JSON.parse(fs.readFileSync(savePath(), 'utf8'));
+    const migrated = migrateSave(raw);
+    if (migrated) return migrated;
+    const valid = validateSave(raw);
+    if (valid) console.warn('[save] 迁移失败，按原存档继续（未写回）');
+    return valid;
   } catch {
     return null;
   }

@@ -138,3 +138,32 @@ test('v1 的坏数据迁移仍返回 null（迁移不得放大接受面）', () 
   assert.equal(migrateSave({ ...v1Save, stats: undefined }), null);
   assert.equal(migrateSave(null), null);
 });
+
+test('0.1.28 回归：版本号 2 但已有 native 段的存档迁移后保留对象、账本与收藏（不清空）', () => {
+  const v2WithNative = {
+    ...v1Save,
+    schemaVersion: 2,
+    native: {
+      init: { status: 'legacy-initialized' },
+      dailyEvents: {
+        '2026-10-25': { date: '2026-10-25', id: 'e1', status: 'success', seed: 1, candidateOrder: ['d-1'], attempts: ['d-1'] },
+      },
+      objects: {
+        // 护理完成后的真实形态：stage=0 且残留 careProgress:0（0.1.27 实机存档中迁移失败的形态）
+        'd-1': { id: 'd-1', realPath: 'E:\\Desktop\\a', kind: 'dir', displayName: 'a', originalMtime: 1, damage: { family: 'damp', stage: 0, mushroom: 'none' }, careProgress: 0, lastCareCompletedAt: 5 },
+        'd-2': { id: 'd-2', realPath: 'E:\\Desktop\\b.lnk', kind: 'lnk', displayName: 'b', originalMtime: 2, damage: null },
+      },
+      lastSnapshot: null,
+      collection: { oyster: { species: 'oyster', firstSeenAt: 3, sourceName: 'a' } },
+    },
+  };
+  assert.ok(validateSave(v2WithNative), '夹具本身必须是合法存档');
+  const migrated = migrateSave(v2WithNative);
+  assert.ok(migrated);
+  assert.equal(migrated.schemaVersion, 3);
+  assert.deepEqual(Object.keys(migrated.native.objects).sort(), ['d-1', 'd-2']);
+  assert.equal(migrated.native.objects['d-1'].lastCareCompletedAt, 5);
+  assert.ok(migrated.native.dailyEvents['2026-10-25'], '日账本保留');
+  assert.ok(migrated.native.collection.oyster, '收藏保留');
+  assert.deepEqual(migrateSave(migrated), migrated, '幂等');
+});

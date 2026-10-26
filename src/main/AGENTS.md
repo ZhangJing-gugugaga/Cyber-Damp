@@ -27,6 +27,7 @@
 ## Verification
 
 - `npm run typecheck`、`npm test`、`npm run build`。
+- 胶囊点击/拖动接线：`node_modules/.bin/electron scripts/uat-capsule-input.cjs`（Chromium 输入管线，不证明原生命中）。
 - v0.2 通道：`npm run uat:ipc-v2`（需先 `npm run build`；真实 preload→IPC→临时存档，不写桌面）。A/B 合成样张：`node_modules/.bin/electron scripts/shot-state-icon-ab.cjs`（只读 Shell 提取，输出 previews/，不代替桌面观感验收）。
 - 原生验证遵守[项目 UAT 技能](../../.agents/skills/cyber-damp-uat/SKILL.md)；[scripts/uat-icon-mutate.cjs](../../scripts/uat-icon-mutate.cjs)、[scripts/uat-native-loop.cjs](../../scripts/uat-native-loop.cjs) 会创建探针并写引用，先读前提，不对当前用户环境盲跑。
 - 程序化、源码运行、安装包和感官验收分别记录；未观察项记 NOT TESTED。

@@ -16,4 +16,4 @@ run(['--test', '--test-concurrency=2',
   'scripts/test-species-roll.mjs', 'scripts/test-care-layers.mjs', 'scripts/test-care-tools.mjs',
   'scripts/test-spores.mjs', 'scripts/test-mold-spread.mjs', 'scripts/test-damp-alert.mjs',
   'scripts/test-wallpaper-effects.mjs', 'scripts/test-daily-v4.mjs', 'scripts/test-daily-cycle.mjs', 'scripts/test-species-assets.mjs',
-  'scripts/test-desktop-adjacency.mjs', 'scripts/test-daily-v4-rehearsal.mjs']);
+  'scripts/test-desktop-adjacency.mjs', 'scripts/test-daily-v4-rehearsal.mjs', 'scripts/test-city-options.mjs']);

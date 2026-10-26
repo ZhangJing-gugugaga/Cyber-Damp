@@ -123,15 +123,11 @@ app.whenReady().then(async () => {
     await new Promise((r) => setTimeout(r, 800));
     step('小铺购买不崩', true);
 
-    // ---- 设置：暂停/恢复 ----
+    // ---- 设置页（0.1.28 用户裁决取消"暂停自然变化"入口）----
     await click(`[...document.querySelectorAll('#tabs .tab')].find(t => t.textContent.includes('设置'))`);
     await new Promise((r) => setTimeout(r, 400));
-    await evalJs(`(() => { const t = document.getElementById('pause-toggle'); t.checked = true; t.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-    await new Promise((r) => setTimeout(r, 700));
-    const paused = await evalJs(`window.damp.native.status().then(s => s.paused)`);
-    await evalJs(`(() => { const t = document.getElementById('pause-toggle'); t.checked = false; t.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-    await new Promise((r) => setTimeout(r, 700));
-    step('暂停开关生效', paused === true);
+    const pauseGone = await evalJs(`document.getElementById('pause-toggle') === null`);
+    step('设置页不再有暂停自然变化入口', pauseGone === true);
 
     // ---- 天气中途切换（会话进行中选工具 → 切天气 → 重载后不崩）----
     await click(`[...document.querySelectorAll('#tabs .tab')].find(t => t.textContent.includes('护理台'))`);

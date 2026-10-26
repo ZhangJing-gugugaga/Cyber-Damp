@@ -3,7 +3,6 @@ import type { WebContents } from 'electron';
 import * as path from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { SceneStatus, ManagementCommand } from '../../shared/types/management';
-import { setNativePaused } from '../desktop/native-event-scheduler';
 
 
 let manager: BrowserWindow | null = null;
@@ -24,13 +23,7 @@ function publish(): void {
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: '打开护理台', click: openManagement },
     ...(nativeTrayActions ? [{ label: status.capsuleHidden ? '显示天气胶囊' : '隐藏天气胶囊', click: () => { const show = status.capsuleHidden === true; status.capsuleHidden = !show; nativeTrayActions!.toggleCapsule(show); publish(); } }] : []),
-    { label: status.paused ? '继续' : '暂停', click: () => {
-        const next = !status.paused;
-        // 原生模式：游戏节奏只认 save.native.paused，托盘必须写同一条状态，
-        // 否则菜单是死控件（自然变化照常推进）。存档未建立等异常仅保留内存态。
-        try { setNativePaused(next); } catch { /* 存档不可写 */ }
-        status.paused = next; publish();
-      } },
+    // 0.1.28 用户裁决：取消"暂停自然变化"入口（托盘与设置页同步移除）
     { label: '退出回南天', click: () => app.quit() },
   ]));
 }

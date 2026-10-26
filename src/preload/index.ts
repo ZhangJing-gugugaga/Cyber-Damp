@@ -41,6 +41,13 @@ contextBridge.exposeInMainWorld('damp', {
     cancelPlant: (objectId: string) => ipcRenderer.invoke('native:cancelPlant', { objectId }),
     setOverlayVariant: (variant: 'A' | 'B') => ipcRenderer.invoke('native:setOverlayVariant', { variant }),
   },
+  // 胶囊交互（0.1.28）：只有相对位移与点击，主进程校验发送方是胶囊窗本身
+  capsule: {
+    dragStart: () => ipcRenderer.send('capsule:dragStart'),
+    dragMove: (dx: number, dy: number) => ipcRenderer.send('capsule:dragMove', { dx, dy }),
+    dragEnd: () => ipcRenderer.send('capsule:dragEnd'),
+    click: () => ipcRenderer.send('capsule:click'),
+  },
   wallpaper: {
     status: () => ipcRenderer.invoke('wallpaper:status'),
     setEnabled: (on: boolean) => ipcRenderer.invoke('wallpaper:setEnabled', { on }),

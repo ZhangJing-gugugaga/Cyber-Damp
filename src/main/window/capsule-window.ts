@@ -16,7 +16,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { applyGlass, clearGlass, type GlassMode } from '../native/win32-glass';
 import { foregroundCoversRect, startForegroundWatch } from '../native/win32-foreground';
-import { installCapsuleHitTest } from '../native/win32-capsule-hittest';
+import { ipcMain } from 'electron';
 
 export const CAPSULE_WIDTH = 360;
 export const CAPSULE_HEIGHT = 56;
@@ -69,9 +69,12 @@ export interface CapsuleHandle {
   destroy(): void;
 }
 
-/** Windows 非客户区消息：drag 区域的按下/抬起（HTCAPTION） */
-const WM_NCLBUTTONDOWN = 0x00a1;
-const WM_NCLBUTTONUP = 0x00a2;
+/** 拖动位移的合法范围（单次相对按下点的 DIP 位移；超出视为非法载荷） */
+const MAX_DRAG_DELTA = 20000;
+
+function isFiniteDelta(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_DRAG_DELTA;
+}
 
 /**
  * 创建胶囊窗。HTML 由调用方提供（生产用胶囊页面；原型可传 data URL）。
@@ -106,10 +109,10 @@ export function createCapsuleWindow(
       backgroundThrottling: false,
     },
   });
-  // 透明留白穿透 + 内容命中（R2）：不再用 setIgnoreMouseEvents(forward)——
-  // 实测 focusable:false 透明窗上转发不投递事件（见 win32-capsule-hittest）。
-  // WM_NCHITTEST 子类化：留白 HTTRANSPARENT 穿透，本体 HTCAPTION 供拖动/点击。
-  const uninstallHitTest = installCapsuleHitTest(win, 4);
+  // 0.1.28：胶囊不再有透明留白，窗口即胶囊本体，鼠标事件走普通客户区 → DOM。
+  // 原 WM_NCHITTEST 子类化 + -webkit-app-region:drag 方案只做过进程内消息级验证，
+  // 0.1.27 实机"完全不可交互"；拖动区域在 Electron 中还会吞掉 click。
+  // 现在：渲染层 pointer 事件区分点击/拖动，拖动经 IPC 由主进程 setPosition。
   const glassMode = applyGlass(hwndNumber(win));
 
   let unwatch: (() => void) | null = null;
@@ -129,19 +132,36 @@ export function createCapsuleWindow(
   unwatch = startForegroundWatch(refreshCoverage);
 
   win.once('ready-to-show', () => win.showInactive());
-  // R2 点击/拖动按系统拖动阈值区分：drag 区域的鼠标事件全部以非客户区
-  // 消息到达主进程（DOM 收不到 click）。按下→抬起之间窗口位置变过 = 拖动，
-  // 不误开护理台；未移动 = 纯点击，打开护理台。
-  let pressing = false;
-  let pressMoved = false;
-  const onMoveDuringPress = () => { if (pressing) pressMoved = true; };
-  win.on('move', onMoveDuringPress);
-  win.hookWindowMessage(WM_NCLBUTTONDOWN, () => { pressing = true; pressMoved = false; });
-  win.hookWindowMessage(WM_NCLBUTTONUP, () => {
-    if (!pressing) return;
-    pressing = false;
-    if (!pressMoved) hooks.onCapsuleClick?.();
-  });
+
+  // 点击/拖动（R2）：渲染层判定（按下后移动超过阈值 = 拖动），主进程只执行。
+  // 发送方必须是本胶囊窗；载荷只接受有限位移，不接受绝对坐标。
+  let dragOrigin: { x: number; y: number } | null = null;
+  const fromCapsule = (sender: Electron.WebContents) => !win.isDestroyed() && sender === win.webContents;
+  const onDragStart = (event: Electron.IpcMainEvent) => {
+    if (!fromCapsule(event.sender)) return;
+    const [x, y] = win.getPosition();
+    dragOrigin = { x, y };
+  };
+  const onDragMove = (event: Electron.IpcMainEvent, payload: unknown) => {
+    if (!fromCapsule(event.sender) || !dragOrigin || typeof payload !== 'object' || payload === null) return;
+    const { dx, dy } = payload as { dx?: unknown; dy?: unknown };
+    if (!isFiniteDelta(dx) || !isFiniteDelta(dy)) return;
+    const next = clampToWorkArea({ x: Math.round(dragOrigin.x + dx), y: Math.round(dragOrigin.y + dy) });
+    win.setPosition(next.x, next.y);
+  };
+  const onDragEnd = (event: Electron.IpcMainEvent) => {
+    if (!fromCapsule(event.sender) || !dragOrigin) return;
+    dragOrigin = null;
+    remember();
+  };
+  const onClick = (event: Electron.IpcMainEvent) => {
+    if (!fromCapsule(event.sender)) return;
+    hooks.onCapsuleClick?.();
+  };
+  ipcMain.on('capsule:dragStart', onDragStart);
+  ipcMain.on('capsule:dragMove', onDragMove);
+  ipcMain.on('capsule:dragEnd', onDragEnd);
+  ipcMain.on('capsule:click', onClick);
   // data: 供原型探针；生产传 care/capsule 页面文件路径
   if (htmlDataUrl.startsWith('data:')) void win.loadURL(htmlDataUrl);
   else void win.loadFile(htmlDataUrl);
@@ -174,11 +194,11 @@ export function createCapsuleWindow(
     destroy() {
       unwatch?.();
       screen.off('display-metrics-changed', onDisplayChanged);
+      ipcMain.off('capsule:dragStart', onDragStart);
+      ipcMain.off('capsule:dragMove', onDragMove);
+      ipcMain.off('capsule:dragEnd', onDragEnd);
+      ipcMain.off('capsule:click', onClick);
       if (!win.isDestroyed()) {
-        uninstallHitTest();
-        win.unhookWindowMessage(WM_NCLBUTTONDOWN);
-        win.unhookWindowMessage(WM_NCLBUTTONUP);
-        win.off('move', onMoveDuringPress);
         clearGlass(hwndNumber(win));
         win.destroy();
       }

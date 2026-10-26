@@ -8,7 +8,7 @@
 import {
   DAILY_MAX_ATTEMPTS, DAILY_WEIGHT_CAP_DAYS, DAILY_WEIGHT_NO_BASELINE,
   HUMIDITY_THRESHOLD, INIT_HEAVY_CAP, INIT_HEAVY_MOLD_MUSHROOM_WEIGHTS,
-  INIT_INTENSITY_WEIGHTS, INIT_K_CHOICES, KNOWN_WMO_CODES, MOLD_IMMUNITY_MS,
+  INIT_HEAVY_CAP_RATIO, INIT_INTENSITY_WEIGHTS, INIT_RATIO_MAX, INIT_RATIO_MIN, KNOWN_WMO_CODES, MOLD_IMMUNITY_MS,
   PRECIPITATION_CODES,
 } from '../shared/types/native';
 import type {
@@ -105,7 +105,7 @@ export function applyCareImmunity(obj: NativeObjectState, careCompletedAt: numbe
 // ---------- R4.1 INIT 计划 ----------
 
 /**
- * 生成首批固定事务：K∈{5..10}，N=min(K,候选数)，mtime 旧→新取前 N（同 mtime 按 ID）。
+ * 生成首批固定事务：K = 候选数 × [60%,70%]（种子确定），mtime 旧→新取前 K（同 mtime 按 ID）。
  * 天气快照、随机状态与布局在事务建立时固定并持久化，全生命周期不变。
  */
 export function planInit(
@@ -117,16 +117,19 @@ export function planInit(
   const rand = createRand(seed);
   const weights = familyWeights(snapshot, false);
   if (!weights) throw new Error('INIT 只能在有效天气下生成（R4.1）');
-  const k = INIT_K_CHOICES[Math.floor(rand() * INIT_K_CHOICES.length)];
+  // K = round(候选数 × r)，r 在 [60%, 70%] 内由种子确定；有候选时至少 1 项
+  const ratio = INIT_RATIO_MIN + rand() * (INIT_RATIO_MAX - INIT_RATIO_MIN);
+  const k = candidates.length === 0 ? 0 : Math.max(1, Math.round(candidates.length * ratio));
   const sorted = [...candidates].sort((a, b) => (a.originalMtime - b.originalMtime) || (a.id < b.id ? -1 : 1));
   const n = Math.min(k, sorted.length);
+  const heavyCap = Math.max(INIT_HEAVY_CAP, Math.floor(n * INIT_HEAVY_CAP_RATIO));
   const targets: InitTargetPlan[] = [];
   let heavyCount = 0;
   for (let i = 0; i < n; i += 1) {
     const family = pickWeighted<DamageFamily>(weights, rand);
     // 强度：轻/中/重 = 50/35/15，重度最多 2 项；达到上限后只在轻/中重抽（50/35 归一）
     let intensity: 'light' | 'mid' | 'heavy' = pickWeighted<'light' | 'mid' | 'heavy'>(INIT_INTENSITY_WEIGHTS, rand);
-    if (intensity === 'heavy' && heavyCount >= INIT_HEAVY_CAP) {
+    if (intensity === 'heavy' && heavyCount >= heavyCap) {
       intensity = pickWeighted<'light' | 'mid'>({ light: INIT_INTENSITY_WEIGHTS.light, mid: INIT_INTENSITY_WEIGHTS.mid }, rand);
     }
     if (intensity === 'heavy') heavyCount += 1;

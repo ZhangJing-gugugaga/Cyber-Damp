@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>方向 3 · 洗护工位</title>
+<!--
+  方向 3 · 洗护工位（现实参照：PowerWash Simulator 的分部件进度、完成叮声、剩余高亮；未亲眼看到截图）
+  色彩论证：亮堂的洗护作坊——浅水青墙面（明度序列做底），向日葵黄做"可按"的厚按钮，番茄红只给完成与警报；
+  三个有彩色色相角相距 >60°。整体比方向 1 更亮更饱和，比方向 2 更白天。
+  form 来自内容：把最后一点擦干净的满足感——进度按层"叮"出来，连擦越久连击越高。
+-->
+<style>
+  :root {
+    --wall: oklch(0.94 0.04 215); --wall-2: oklch(0.88 0.06 215); --floor: oklch(0.80 0.06 230);
+    --ink: oklch(0.28 0.06 255); --ink-2: oklch(0.46 0.05 250);
+    --sun: oklch(0.86 0.16 90); --sun-d: oklch(0.70 0.15 75); --tomato: oklch(0.66 0.19 30); --mint: oklch(0.85 0.11 165);
+    --white: oklch(0.99 0.005 220);
+    --display: "YouYuan", "Microsoft YaHei UI", sans-serif; --body: "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 960px; height: 640px; overflow: hidden; background: var(--wall); color: var(--ink); font-family: var(--body); user-select: none; }
+  #shop { position: relative; width: 960px; height: 640px; overflow: hidden;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 79px, oklch(1 0 0 / .35) 79px 80px),
+      repeating-linear-gradient(0deg, transparent 0 79px, oklch(1 0 0 / .35) 79px 80px),
+      linear-gradient(180deg, var(--wall) 0%, var(--wall-2) 68%, var(--floor) 68%, oklch(0.74 0.06 232) 100%); }
+
+  /* 顶部：湿度表盘 */
+  #gauge { position: absolute; left: 24px; top: 18px; width: 220px; height: 120px; }
+  #gauge svg { position: absolute; inset: 0; }
+  #gauge .val { position: absolute; left: 0; right: 0; top: 52px; text-align: center; font-family: var(--display); font-size: 34px; }
+  #gauge .sub { position: absolute; left: 0; right: 0; top: 94px; text-align: center; font-size: 13px; color: var(--ink-2); }
+  #sticker { position: absolute; left: 34px; top: 146px; padding: 8px 14px; border-radius: 14px; background: var(--tomato); color: var(--white); font-family: var(--display); font-size: 17px; transform: rotate(-6deg); box-shadow: 0 4px 0 oklch(0.5 0.16 30); animation: wiggle 4s ease-in-out infinite; }
+  #sticker small { display: block; font-family: var(--body); font-size: 12px; opacity: .9; }
+  @keyframes wiggle { 0%, 90%, 100% { transform: rotate(-6deg) } 93% { transform: rotate(-10deg) } 96% { transform: rotate(-3deg) } }
+
+  /* 中央转台 */
+  #turntable { position: absolute; left: 270px; top: 120px; width: 380px; height: 380px; }
+  #turntable .plate { position: absolute; left: 20px; right: 20px; bottom: 6px; height: 90px; border-radius: 50%; background: radial-gradient(ellipse at 50% 30%, var(--white), oklch(0.86 0.03 220)); box-shadow: 0 14px 0 oklch(0.66 0.06 230), 0 24px 30px oklch(0.3 0.06 240 / .3); }
+  #turntable .plate::after { content: ""; position: absolute; inset: 14px 40px; border-radius: 50%; border: 3px dashed oklch(0.75 0.05 220); animation: spinDash 12s linear infinite; }
+  @keyframes spinDash { to { transform: rotate(360deg) } }
+  #stage { position: absolute; left: 40px; top: 6px; width: 300px; height: 300px; transform-origin: 50% 100%; }
+  #wipe { position: absolute; left: 0; top: 0; }
+  #mushroom { position: absolute; left: 0; top: -60px; width: 300px; height: 300px; pointer-events: none; display: none; }
+  #cutline { position: absolute; left: 60px; right: 60px; top: 94px; border-top: 4px dashed var(--tomato); opacity: 0; pointer-events: none; }
+  #empty { position: absolute; left: 0; right: 0; top: 140px; text-align: center; font-family: var(--display); font-size: 20px; color: var(--ink-2); }
+  #empty small { display: block; font-family: var(--body); font-size: 14px; margin-top: 6px; }
+
+  /* 分层进度胶囊 */
+  #layers { position: absolute; left: 270px; top: 22px; width: 380px; display: flex; justify-content: center; gap: 10px; }
+  .layer { position: relative; min-width: 128px; height: 52px; padding: 6px 14px; border-radius: 18px; background: var(--white); box-shadow: 0 5px 0 oklch(0.8 0.04 220); overflow: hidden; }
+  .layer .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--p) * 100%); background: linear-gradient(90deg, var(--mint), oklch(0.9 0.1 150)); transition: width .12s linear; }
+  .layer .t { position: relative; font-family: var(--display); font-size: 16px; }
+  .layer .n { position: relative; font-size: 13px; color: var(--ink-2); }
+  .layer.done { animation: pop .6s cubic-bezier(.3,1.9,.5,1); box-shadow: 0 5px 0 oklch(0.65 0.1 160); }
+  .layer.done .t::after { content: "  叮！"; color: oklch(0.5 0.13 160); }
+  @keyframes pop { 30% { transform: scale(1.18) rotate(-3deg) } 60% { transform: scale(.96) } }
+
+  /* 右侧：工具带（厚按钮）与连擦 */
+  #belt { position: absolute; right: 26px; top: 112px; width: 230px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .key { position: relative; height: 100px; border-radius: 22px; background: var(--white); box-shadow: 0 7px 0 oklch(0.78 0.04 220); cursor: pointer; transition: transform .08s, box-shadow .08s, background .15s; }
+  .key img { position: absolute; left: 50%; top: 8px; width: 64px; height: 64px; transform: translateX(-50%); pointer-events: none; transition: transform .25s cubic-bezier(.3,1.7,.5,1); }
+  .key .nm { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; font-size: 14px; }
+  .key .cap { position: absolute; left: 8px; top: 8px; width: 24px; height: 24px; border-radius: 8px; background: var(--wall-2); font-size: 13px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 2px 0 oklch(0.75 0.05 220); }
+  .key:hover img { transform: translateX(-50%) rotate(-10deg) scale(1.08); }
+  .key:active, .key.pressed { transform: translateY(6px); box-shadow: 0 1px 0 oklch(0.78 0.04 220); }
+  .key.active { background: var(--sun); box-shadow: 0 7px 0 var(--sun-d); }
+  .key.dim { opacity: .4; }
+  #combo { position: absolute; right: 26px; top: 346px; width: 230px; height: 96px; border-radius: 22px; background: var(--ink); color: var(--white); padding: 12px 16px; box-shadow: 0 7px 0 oklch(0.18 0.05 255); }
+  #combo .lbl { font-size: 13px; opacity: .8; }
+  #combo .x { font-family: var(--display); font-size: 40px; line-height: 1; margin-top: 4px; }
+  #combo .bar { position: absolute; left: 16px; right: 16px; bottom: 12px; height: 8px; border-radius: 4px; background: oklch(1 0 0 / .15); overflow: hidden; }
+  #combo .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--sun); border-radius: 4px; }
+  #combo.hot .x { color: var(--sun); animation: pop .4s; }
+  #scan { position: absolute; right: 26px; top: 456px; width: 230px; height: 44px; border-radius: 16px; background: var(--mint); box-shadow: 0 6px 0 oklch(0.65 0.1 165); font-family: var(--display); font-size: 16px; display: grid; place-items: center; cursor: pointer; }
+  #scan:active { transform: translateY(5px); box-shadow: 0 1px 0 oklch(0.65 0.1 165); }
+
+  /* 底部传送带 */
+  #conveyor { position: absolute; left: 0; right: 0; bottom: 0; height: 124px; background: linear-gradient(180deg, oklch(0.42 0.04 250), oklch(0.34 0.04 250)); box-shadow: inset 0 6px 0 oklch(0.55 0.04 250); }
+  #conveyor::before { content: ""; position: absolute; left: 0; right: 0; top: 14px; height: 6px; background: repeating-linear-gradient(90deg, oklch(0.6 0.03 250) 0 18px, transparent 18px 36px); animation: belt 1.2s linear infinite; }
+  @keyframes belt { to { background-position: 36px 0 } }
+  #track { position: absolute; left: 0; top: 26px; height: 92px; display: flex; gap: 14px; padding: 0 24px; will-change: transform; }
+  .crate { position: relative; flex: 0 0 88px; height: 88px; border-radius: 20px; background: var(--white); box-shadow: 0 6px 0 oklch(0.78 0.04 220); cursor: pointer; transition: transform .25s cubic-bezier(.3,1.7,.5,1); }
+  .crate img { position: absolute; left: 12px; top: 6px; width: 64px; height: 64px; pointer-events: none; }
+  .crate .nm { position: absolute; left: 2px; right: 2px; bottom: 3px; text-align: center; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+  .crate .badge { position: absolute; right: -6px; top: -8px; padding: 2px 8px; border-radius: 10px; color: var(--white); font-size: 12px; font-weight: 700; box-shadow: 0 2px 0 oklch(0 0 0 / .2); }
+  .badge.damp { background: oklch(0.6 0.12 235); } .badge.mold { background: oklch(0.55 0.1 300); } .badge.char { background: oklch(0.42 0.04 50); } .badge.ripe { background: var(--tomato); } .badge.ok { background: oklch(0.6 0.12 160); }
+  .crate:hover { transform: translateY(-10px) rotate(-2deg); }
+  .crate.onstage { opacity: .25; transform: scale(.9); }
+  .crate.done { filter: saturate(.9); }
+  #counter { position: absolute; right: 26px; top: 26px; display: flex; align-items: center; gap: 10px; padding: 8px 16px 8px 8px; border-radius: 99px; background: var(--white); box-shadow: 0 5px 0 oklch(0.8 0.04 220); font-family: var(--display); font-size: 24px; }
+  #counter i { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, oklch(0.95 0.1 95), var(--sun) 60%, var(--sun-d)); box-shadow: 0 3px 0 oklch(0.6 0.13 70); }
+  #counter.bump { animation: pop .4s; }
+  #nav { position: absolute; right: 26px; top: 76px; display: flex; gap: 8px; }
+  #nav span { padding: 4px 12px; border-radius: 99px; background: oklch(1 0 0 / .6); font-size: 13px; color: var(--ink-2); cursor: pointer; }
+  #toast { position: absolute; left: 460px; top: 470px; transform: translate(-50%, 0) scale(0); padding: 10px 20px; border-radius: 16px; background: var(--ink); color: var(--white); font-size: 14px; transition: transform .3s cubic-bezier(.3,1.6,.5,1); z-index: 60; white-space: nowrap; }
+  #toast.show { transform: translate(-50%, 0) scale(1); }
+  #cursor { position: fixed; left: 0; top: 0; width: 84px; height: 84px; pointer-events: none; z-index: 50; display: none; }
+  #cursor img { width: 84px; height: 84px; transform-origin: 30% 30%; filter: drop-shadow(0 10px 6px oklch(0.2 0.05 250 / .35)); }
+  .footnote { position: absolute; left: 24px; top: 226px; width: 210px; font-size: 12px; color: var(--ink-2); line-height: 1.6; }
+  .footnote b { display: block; font-family: var(--display); font-weight: normal; font-size: 16px; color: var(--ink); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="shop">
+  <div id="gauge"><svg viewBox="0 0 220 120"></svg><div class="val">92%</div><div class="sub">重庆 · 小雨 · 18°C · 09:40</div></div>
+  <div id="sticker">回南天警报<small>今天会变 5 个</small></div>
+  <div id="layers"></div>
+  <div id="turntable"><div class="plate"></div><div id="stage"><div id="wipe"></div><img id="mushroom" alt=""><div id="cutline"></div></div>
+    <div id="empty">从下面的传送带拎一个上来<small>或者直接按 →，下一个自己滚上来</small></div></div>
+  <div class="footnote" id="info"><b>今天的工单</b>8 个对象在等 · 2 朵菇成熟<br>水滴风铃菇偏爱今天的雨<br><br>1–4 换工具 · 空格扫描剩余污渍<br>连着擦不松手，连击越来越高</div>
+  <div id="counter"><i></i><span>24</span></div>
+  <div id="nav"><span>图鉴</span><span>小铺</span><span>墙面</span><span>设置</span></div>
+  <div id="belt"></div>
+  <div id="combo"><div class="lbl">连擦</div><div class="x">×1</div><div class="bar"><i></i></div></div>
+  <div id="scan">扫描剩余污渍 · 空格</div>
+  <div id="conveyor"><div id="track"></div></div>
+  <div id="toast"></div>
+  <div id="cursor"><img alt=""></div>
+</div>
+<script src="assets/objects.js"></script>
+<script src="assets/engine.js"></script>
+<script>
+(() => {
+  const { CDWipe, CDSound, CDFx, CDSpring } = window.CDEngine;
+  const $ = (id) => document.getElementById(id);
+  const SPECIES = '../../src/renderer/public/assets/care/species/';
+  const TOOLS_DIR = '../../previews/visual-assets-2026-10-24/repair-tools-v1/png/';
+  const CARE = '../../src/renderer/public/assets/care/';
+  const FAMILY = { damp: '受潮', mold: '霉变', char: '焦化' };
+  const LAYERS = { damp: ['水珠', '水膜'], mold: ['霉斑'], char: ['烟灰', '焦痕'] };
+  const objects = window.CD_OBJECTS.map((o) => ({ ...o, done: false }));
+  let coins = 24;
+
+  // ---------- 湿度表盘 ----------
+  (function gauge() {
+    const v = 92, a0 = Math.PI, a1 = Math.PI * 2;
+    const arc = (from, to, r) => { const x1 = 110 + Math.cos(from) * r, y1 = 110 + Math.sin(from) * r, x2 = 110 + Math.cos(to) * r, y2 = 110 + Math.sin(to) * r; return `M${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2}`; };
+    const end = a0 + (a1 - a0) * (v / 100);
+    let ticks = '';
+    for (let i = 0; i <= 10; i += 1) { const a = a0 + (a1 - a0) * (i / 10); ticks += `<line x1="${110 + Math.cos(a) * 70}" y1="${110 + Math.sin(a) * 70}" x2="${110 + Math.cos(a) * 78}" y2="${110 + Math.sin(a) * 78}" stroke="oklch(0.6 0.05 240)" stroke-width="2" stroke-linecap="round"/>`; }
+    $('gauge').querySelector('svg').innerHTML = `<path d="${arc(a0, a1, 92)}" fill="none" stroke="oklch(0.86 0.04 220)" stroke-width="16" stroke-linecap="round"/>
+      <path d="${arc(a0, end, 92)}" fill="none" stroke="oklch(0.66 0.13 230)" stroke-width="16" stroke-linecap="round" stroke-dasharray="400" stroke-dashoffset="400"><animate attributeName="stroke-dashoffset" from="400" to="0" dur="1.1s" fill="freeze" calcMode="spline" keySplines=".2 .8 .2 1"/></path>${ticks}`;
+  })();
+
+  // ---------- 传送带 ----------
+  const crates = objects.map((o) => {
+    const el = document.createElement('div');
+    el.className = 'crate';
+    el.innerHTML = `<img src="${o.desk || o.dirty}" alt=""><span class="badge ${o.mushroom === 'mature' ? 'ripe' : o.family}">${o.mushroom === 'mature' ? '可采' : FAMILY[o.family]}</span><div class="nm">${o.name}</div>`;
+    el.addEventListener('click', () => { if (!beltDrag.moved) load(o); });
+    $('track').appendChild(el);
+    o.crate = el;
+    return el;
+  });
+  // 传送带可拖动（惯性）
+  const beltX = CDSpring(0, { stiffness: 0.1, damping: 0.8 }).on((v) => { $('track').style.transform = `translateX(${v}px)`; });
+  const beltDrag = { on: false, x0: 0, v0: 0, moved: false };
+  const trackW = () => $('track').scrollWidth - 960;
+  $('conveyor').addEventListener('pointerdown', (e) => { beltDrag.on = true; beltDrag.moved = false; beltDrag.x0 = e.clientX; beltDrag.v0 = beltX.value; });
+  addEventListener('pointermove', (e) => {
+    if (!beltDrag.on) return;
+    const dx = e.clientX - beltDrag.x0;
+    if (Math.abs(dx) > 4) beltDrag.moved = true;
+    beltX.set(Math.max(-Math.max(0, trackW()) - 60, Math.min(60, beltDrag.v0 + dx)));
+  });
+  addEventListener('pointerup', () => { if (!beltDrag.on) return; beltDrag.on = false; beltX.set(Math.max(-Math.max(0, trackW()), Math.min(0, beltX.value))); setTimeout(() => { beltDrag.moved = false; }, 0); });
+
+  // ---------- 工具带 ----------
+  const TOOLS = [
+    { id: 'sponge', name: '海绵', img: CARE + 'sponge-idle.png', radius: 30, fam: ['damp', 'mold', 'char'] },
+    { id: 'squeegee', name: '刮水器', img: TOOLS_DIR + 'squeegee-idle.png', radius: 44, fam: ['damp'] },
+    { id: 'scrubbrush', name: '清洁刷', img: TOOLS_DIR + 'scrubbrush-idle.png', radius: 22, fam: ['mold', 'char'] },
+    { id: 'scissors', name: '剪刀', img: CARE + 'scissors-idle.png', radius: 0, fam: [] },
+  ];
+  let tool = null;
+  TOOLS.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'key';
+    el.innerHTML = `<span class="cap">${i + 1}</span><img src="${t.img}" alt=""><div class="nm">${t.name}</div>`;
+    el.addEventListener('click', () => selectTool(t));
+    $('belt').appendChild(el);
+    t.el = el;
+  });
+  function refreshTools() {
+    TOOLS.forEach((t) => {
+      const ok = current && (t.id === 'scissors' ? current.o.mushroom === 'mature' && !current.harvested : !current.wipe?.completed && t.fam.includes(current.o.family));
+      t.el.classList.toggle('dim', !ok);
+      t.el.classList.toggle('active', tool === t);
+    });
+  }
+  function selectTool(t) {
+    t.el.classList.add('pressed'); setTimeout(() => t.el.classList.remove('pressed'), 120);
+    if (t.el.classList.contains('dim')) { toast(!current ? '先拎一个对象上转台' : t.id === 'scissors' ? '只有成熟菇能剪' : `${t.name}对付不了${FAMILY[current.o.family]}`); return; }
+    tool = t; CDSound.pick();
+    $('cursor').style.display = 'block';
+    $('cursor').querySelector('img').src = t.img.replace('-idle', '-active');
+    current?.wipe?.setRadius(t.radius || 30);
+    $('cutline').style.opacity = t.id === 'scissors' ? 1 : 0;
+    refreshTools();
+  }
+  const tilt = CDSpring(0, { stiffness: 0.14, damping: 0.75 }).on((v) => { $('cursor').querySelector('img').style.transform = `rotate(${v}deg)`; });
+  let lx = 0;
+  addEventListener('pointermove', (e) => { if (!tool) return; $('cursor').style.transform = `translate(${e.clientX - 24}px, ${e.clientY - 24}px)`; tilt.set(Math.max(-28, Math.min(28, (e.clientX - lx) * 1.8))); lx = e.clientX; });
+  addEventListener('keydown', (e) => {
+    const n = Number(e.key); if (n >= 1 && n <= 4) selectTool(TOOLS[n - 1]);
+    if (e.code === 'Space') { e.preventDefault(); scan(); }
+    if (e.key === 'ArrowRight') { const next = objects.find((o) => !o.done && o !== current?.o); if (next) load(next); }
+  });
+
+  // ---------- 连擦 ----------
+  let combo = 1, comboHeat = 0, comboTimer = 0;
+  function bumpCombo() {
+    comboHeat = Math.min(1, comboHeat + 0.035);
+    const next = 1 + Math.floor(comboHeat * 4);
+    if (next > combo) { combo = next; $('combo').classList.remove('hot'); void $('combo').offsetWidth; $('combo').classList.add('hot'); CDSound.tap(); }
+    $('combo').querySelector('.x').textContent = '×' + combo;
+    $('combo').querySelector('.bar i').style.width = comboHeat * 100 + '%';
+    clearTimeout(comboTimer);
+    comboTimer = setTimeout(coolCombo, 450);
+  }
+  function coolCombo() {
+    comboHeat = Math.max(0, comboHeat - 0.08);
+    combo = 1 + Math.floor(comboHeat * 4);
+    $('combo').querySelector('.x').textContent = '×' + combo;
+    $('combo').querySelector('.bar i').style.width = comboHeat * 100 + '%';
+    if (comboHeat > 0) comboTimer = setTimeout(coolCombo, 120);
+  }
+  function scan() {
+    if (!current?.wipe || current.wipe.completed) return;
+    current.wipe.highlight();
+    CDSound.drip();
+    $('stage').animate([{ filter: 'none' }, { filter: 'drop-shadow(0 0 18px oklch(0.85 0.11 165))' }, { filter: 'none' }], { duration: 900 });
+  }
+  $('scan').addEventListener('click', scan);
+
+  // ---------- 上转台 ----------
+  let current = null;
+  async function load(o) {
+    if (o.done) { toast(`${o.name}已经干净了`); return; }
+    if (current?.o === o) return;
+    if (current) unload();
+    const from = o.crate.querySelector('img').getBoundingClientRect();
+    o.crate.classList.add('onstage');
+    const fly = document.createElement('img');
+    fly.src = o.desk || o.dirty;
+    Object.assign(fly.style, { position: 'fixed', left: from.left + 'px', top: from.top + 'px', width: '64px', height: '64px', zIndex: 40, pointerEvents: 'none' });
+    document.body.appendChild(fly);
+    CDSound.pick();
+    $('empty').style.display = 'none';
+    const to = $('stage').getBoundingClientRect();
+    await fly.animate([
+      { transform: 'translate(0,0) scale(1)' },
+      { transform: `translate(${(to.left + 118 - from.left) * 0.55}px, ${(to.top - from.top) * 0.6 - 40}px) scale(3.2) rotate(-14deg)`, offset: 0.55 },
+      { transform: `translate(${to.left + 118 - from.left}px, ${to.top + 118 - from.top}px) scale(${300 / 64})` },
+    ], { duration: 560, easing: 'cubic-bezier(.4,0,.2,1)' }).finished;
+    fly.remove();
+    CDSound.drop();
+    $('stage').animate([{ transform: 'scaleY(.86) scaleX(1.08)' }, { transform: 'scaleY(1.04) scaleX(.98)' }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+    current = { o, harvested: false };
+    $('mushroom').style.display = o.mushroom !== 'none' ? 'block' : 'none';
+    if (o.mushroom !== 'none') $('mushroom').src = `${SPECIES}${o.species}/${o.mushroom === 'mature' ? 'mature' : 'bud'}-256.png`;
+    const layers = LAYERS[o.family].slice(0, o.stage >= 2 ? 2 : 1);
+    $('layers').innerHTML = layers.map((n, i) => `<div class="layer" style="--p:0"><div class="fill"></div><div class="t">${n}</div><div class="n">0%</div></div>`).join('');
+    current.wipe = await CDWipe({
+      host: $('wipe'), dirtySrc: o.dirty, cleanSrc: o.clean, size: 300, radius: tool?.radius || 30,
+      onStroke: (x, y) => {
+        bumpCombo();
+        const r = $('wipe').getBoundingClientRect();
+        if (Math.random() < 0.3) (o.family === 'damp' ? CDFx.splash : CDFx.dust)(r.left + x, r.top + y, 2 + combo);
+      },
+      onProgress: (p) => {
+        [...$('layers').children].forEach((el, i, all) => {
+          const lp = Math.max(0, Math.min(1, p * all.length - i));
+          el.style.setProperty('--p', lp.toFixed(3));
+          el.querySelector('.n').textContent = Math.round(lp * 100) + '%';
+          if (lp >= 0.999 && !el.classList.contains('done')) {
+            el.classList.add('done'); CDSound.layer();
+            const r = el.getBoundingClientRect(); CDFx.sparkle(r.left + r.width / 2, r.top + 26, 12);
+          }
+        });
+      },
+      onComplete: complete,
+    });
+    current.wipe.canvas.addEventListener('pointerdown', (e) => { if (!tool || tool.id === 'scissors') { if (!tool) toast('先从右边按一个工具（1–4）'); e.stopImmediatePropagation(); } }, true);
+    if (tool && tool.id !== 'scissors' && !tool.fam.includes(o.family)) { tool = null; $('cursor').style.display = 'none'; }
+    refreshTools();
+  }
+  function unload() {
+    if (!current) return;
+    current.o.crate.classList.remove('onstage');
+    current.wipe?.destroy();
+    current = null;
+    $('layers').innerHTML = ''; $('mushroom').style.display = 'none'; $('cutline').style.opacity = 0;
+    $('empty').style.display = 'block';
+    refreshTools();
+  }
+  async function complete() {
+    const { o } = current;
+    o.done = true;
+    const fine = combo >= 3;
+    CDSound.done();
+    const r = $('stage').getBoundingClientRect();
+    CDFx.sparkle(r.left + 150, r.top + 150, 34);
+    $('stage').animate([{ transform: 'rotate(0)' }, { transform: 'rotate(-8deg) scale(1.06)' }, { transform: 'rotate(6deg)' }, { transform: 'none' }], { duration: 600, easing: 'ease-out' });
+    const c = $('counter').getBoundingClientRect();
+    CDFx.coins({ x: r.left + 150, y: r.top + 120 }, { x: c.left + 25, y: c.top + 25 }, fine ? 4 : 2, () => addCoins(1));
+    o.crate.querySelector('.badge').className = 'badge ok';
+    o.crate.querySelector('.badge').textContent = '干净';
+    o.crate.querySelector('img').src = o.clean;
+    toast(fine ? `精细护理！连擦 ×${combo}，额外 +2 · 光泽 24 小时` : '干净了！240 小时内不再发霉');
+    if (o.mushroom === 'mature') { refreshTools(); setTimeout(() => toast('菇还在——按 4 拿剪刀剪下来'), 1600); return; }
+    await new Promise((res) => setTimeout(res, 1100));
+    next();
+  }
+  function next() {
+    unload();
+    const n = objects.find((x) => !x.done);
+    if (n) { toast(`下一个：${n.name}`); setTimeout(() => load(n), 500); }
+    else toast('今天的工单全部完成！');
+  }
+
+  // ---------- 剪刀 ----------
+  let cut = null;
+  $('stage').addEventListener('pointerdown', (e) => {
+    if (tool?.id !== 'scissors' || !current || current.harvested || current.o.mushroom !== 'mature') return;
+    e.preventDefault();
+    const r = $('cutline').getBoundingClientRect();
+    cut = { y0: e.clientY, line: r.top, minX: r.left, maxX: r.right, crossed: false };
+  }, true);
+  addEventListener('pointermove', (e) => { if (cut && (cut.y0 - cut.line) * (e.clientY - cut.line) <= 0 && e.clientX > cut.minX && e.clientX < cut.maxX) cut.crossed = true; });
+  addEventListener('pointerup', () => {
+    if (!cut) return;
+    const ok = cut.crossed; cut = null;
+    if (!ok) { toast('一刀划过红色虚线'); return; }
+    current.harvested = true;
+    CDSound.snip();
+    const m = $('mushroom'); const mr = m.getBoundingClientRect();
+    const fly = m.cloneNode(); m.style.display = 'none';
+    Object.assign(fly.style, { position: 'fixed', left: mr.left + 'px', top: mr.top + 'px', width: mr.width + 'px', height: mr.height + 'px', zIndex: 45 });
+    document.body.appendChild(fly);
+    fly.animate([{ transform: 'translate(0,0) rotate(0)' }, { transform: 'translate(-40px,-120px) rotate(-25deg)', offset: 0.35 }, { transform: 'translate(-260px, 420px) rotate(-120deg) scale(.4)', opacity: 0 }],
+      { duration: 900, easing: 'cubic-bezier(.3,0,.6,1)' }).onfinish = () => fly.remove();
+    const c = $('counter').getBoundingClientRect();
+    CDFx.coins({ x: mr.left + 150, y: mr.top + 90 }, { x: c.left + 25, y: c.top + 25 }, 4, () => addCoins(1));
+    toast(Math.random() < 0.5 ? '咔嚓！+4，掉了 1 枚孢子' : '咔嚓！+4。菇采了，霉还在');
+    current.o.mushroom = 'none'; current.o.desk = undefined;
+    $('cutline').style.opacity = 0;
+    refreshTools();
+    if (current.o.done) setTimeout(next, 1100);
+  });
+
+  function addCoins(n) {
+    coins += n; $('counter').querySelector('span').textContent = coins;
+    $('counter').classList.remove('bump'); void $('counter').offsetWidth; $('counter').classList.add('bump');
+    CDSound.coin();
+  }
+  document.querySelectorAll('#nav span').forEach((s) => s.addEventListener('click', () => toast(`${s.textContent}在选定方向后展开`)));
+  let tt = 0;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
+  refreshTools();
+  window.__demo = { pick: (i) => load(objects[i]), selectTool: (i) => selectTool(TOOLS[i]) };
+})();
+</script>
+</body>
+</html>

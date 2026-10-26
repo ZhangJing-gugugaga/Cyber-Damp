@@ -103,10 +103,10 @@ function defaultNative(): NativeSaveSection {
 function ensureSave(): SaveData {
   const existing = loadSave();
   if (existing) {
-    if (!existing.native) {
-      // 旧版本升级用户：标记 legacy-initialized，不重发首批/奖励（R4.1）
-      existing.native = { ...defaultNative(), init: { status: 'legacy-initialized' } };
-    }
+    // 0.1.28 用户裁决："没有老用户，不必考虑"。缺 native 段或残留 legacy-initialized 一律按
+    // 未初始化处理，由下一轮事件循环正常发放首批（60–70% 桌面对象）。已有对象注册表与收藏保留。
+    if (!existing.native) existing.native = defaultNative();
+    else if (existing.native.init?.status === 'legacy-initialized') existing.native.init = null;
     return existing;
   }
   // 尚无存档：编排器建立骨架（渲染层新开局会基于同一存档继续）
@@ -298,7 +298,9 @@ async function executeCycle(
   const initStatus = native.init === null ? 'not-generated'
     : native.init.status === 'legacy-initialized' ? 'completed'
     : native.init.status;
-  const paused = native.paused === true || native.restored === true;
+  // 0.1.28 用户裁决：取消"暂停自然变化"。只有显式"恢复桌面图标并暂停"（restored）才停发事件；
+  // 旧版本存档残留的 paused=true 在这里归一为 restored 的值（下方 native.paused = paused 落盘）。
+  const paused = native.restored === true;
   const branch = decideNativeBranch({
     paused,
     hasValidWeather: usableForEvents && snapshot !== null,
@@ -434,8 +436,20 @@ async function executeDailyV4(
     return { key: `${id}|${iconStateKey(damage, plan.species ?? speciesFallback)}`, damage, species: plan.species ?? speciesFallback };
   };
 
+  // 只让当前桌面上的对象参与每日推进：注册表里已删除/移走的对象（含历史探针残留）保留记录
+  // 但不再消耗候选尝试（0.1.27 实测注册表 56 项中 12 项已不在桌面）。对象本体与真实存档
+  // 共享引用，结算对对象的修改直接落到存档；顶层字段（警报、播种、账本）结算后写回。
+  const presentView = (section: NativeSaveSection): NativeSaveSection => ({
+    ...section,
+    objects: Object.fromEntries(Object.entries(section.objects).filter(([id]) => byId.has(id))),
+  });
+  const writeBack = (section: NativeSaveSection, view: NativeSaveSection): void => {
+    const { objects: _objects, ...rest } = view;
+    Object.assign(section, rest);
+  };
+
   // 1) 预演
-  const rehearsal = structuredClone(native);
+  const rehearsal = presentView(structuredClone(native));
   const planned: Array<{ id: string; key: string; damage: DamageState; species?: string }> = [];
   runDailyCycleV4({
     ...baseDeps,
@@ -460,9 +474,10 @@ async function executeDailyV4(
   }
 
   // 3) 正式结算
+  const view = presentView(native);
   const result = runDailyCycleV4({
     ...baseDeps,
-    native,
+    native: view,
     applyIcon: (id, plan) => {
       const candidate = byId.get(id);
       if (!candidate) return false;
@@ -481,6 +496,7 @@ async function executeDailyV4(
     },
     log: (message) => console.info('[native-events v4]', message),
   });
+  writeBack(native, view);
 
   save.savedAt = now;
   writeSave(save);

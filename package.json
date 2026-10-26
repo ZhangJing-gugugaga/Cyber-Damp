@@ -1,6 +1,6 @@
 {
   "name": "cyber-damp",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "回南天 Cyber Damp - 原生桌面图标天气变化与轻量护理",
   "main": "dist/main/index.js",
   "author": "ZhangJing-gugugaga",

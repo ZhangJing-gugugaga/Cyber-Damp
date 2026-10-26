@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>护理台 v3 · 六个候选缩略图</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; width: 1536px; background: oklch(0.97 0.005 250); font-family: "Microsoft YaHei UI", sans-serif; color: oklch(0.3 0.03 250); }
+  h1 { margin: 0 0 4px; font-family: "YouYuan", sans-serif; font-weight: normal; font-size: 26px; }
+  p.lead { margin: 0 0 18px; font-size: 14px; color: oklch(0.5 0.03 250); }
+  .grid { display: grid; grid-template-columns: repeat(3, 480px); gap: 24px; }
+  .cell { position: relative; }
+  .frame { position: relative; width: 480px; height: 320px; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 0 oklch(0.85 0.01 250), 0 10px 24px oklch(0.3 0.03 250 / .12); background: #fff; }
+  .frame iframe { position: absolute; left: 0; top: 0; width: 960px; height: 640px; border: 0; transform: scale(.5); transform-origin: 0 0; pointer-events: none; }
+  .cap { margin-top: 10px; font-size: 14px; line-height: 1.5; }
+  .cap b { font-family: "YouYuan", sans-serif; font-weight: normal; font-size: 17px; }
+  .chip { display: inline-block; margin-left: 8px; padding: 1px 9px; border-radius: 99px; font-size: 12px; vertical-align: 2px; }
+  .chip.full { background: oklch(0.85 0.11 160); color: oklch(0.3 0.08 160); }
+  .chip.alt { background: oklch(0.9 0.01 250); color: oklch(0.45 0.02 250); }
+  .src { color: oklch(0.5 0.03 250); font-size: 13px; }
+
+  /* ① 回南天小屋 —— 速写 */
+  .house { position: absolute; inset: 0; background: linear-gradient(180deg, oklch(0.92 0.02 140) 0 78%, oklch(0.7 0.05 70) 78%); }
+  .house .shelf { position: absolute; left: 30px; top: 70px; width: 250px; height: 10px; border-radius: 5px; background: oklch(0.62 0.08 65); box-shadow: 0 4px 0 oklch(0.5 0.07 60); }
+  .house .shelf.b { top: 150px; }
+  .house img { position: absolute; width: 42px; height: 42px; }
+  .house .bench { position: absolute; left: 300px; top: 170px; width: 160px; height: 70px; border-radius: 12px 12px 4px 4px; background: oklch(0.72 0.08 70); box-shadow: 0 6px 0 oklch(0.55 0.07 62); }
+  .house .win { position: absolute; left: 330px; top: 30px; width: 110px; height: 90px; border-radius: 14px; background: linear-gradient(180deg, oklch(0.8 0.06 230), oklch(0.9 0.04 210)); box-shadow: inset 0 0 0 6px #fff; }
+  .house .peg { position: absolute; left: 40px; top: 205px; display: flex; gap: 18px; }
+  .house .peg i { width: 28px; height: 40px; border-radius: 8px; background: oklch(0.85 0.06 30); }
+  .house .book { position: absolute; left: 380px; top: 150px; width: 54px; height: 22px; border-radius: 4px; background: oklch(0.6 0.1 150); transform: rotate(-6deg); }
+  .house .t { position: absolute; left: 24px; top: 278px; font-family: "YouYuan", sans-serif; font-size: 15px; color: oklch(0.35 0.05 70); }
+
+  /* ④ 菇菇手账 */
+  .book2 { position: absolute; inset: 0; background: oklch(0.55 0.09 150); }
+  .book2 .pg { position: absolute; top: 20px; bottom: 20px; width: 214px; border-radius: 14px; background: oklch(0.97 0.02 95); box-shadow: 0 6px 0 oklch(0.85 0.03 90); }
+  .book2 .l { left: 22px; } .book2 .r { left: 244px; }
+  .book2 .row { position: absolute; left: 16px; right: 16px; height: 44px; border-radius: 22px; background: oklch(0.93 0.03 95); display: flex; align-items: center; gap: 8px; padding: 0 8px; font-size: 13px; }
+  .book2 .row img { width: 32px; height: 32px; }
+  .book2 .big { position: absolute; left: 50px; top: 50px; width: 120px; height: 120px; }
+  .book2 .bubble { position: absolute; left: 20px; right: 20px; bottom: 22px; padding: 10px 12px; border-radius: 16px; background: oklch(0.88 0.06 90); font-size: 13px; }
+
+  /* ⑤ 湿度小径 */
+  .path { position: absolute; inset: 0; background: linear-gradient(180deg, oklch(0.27 0.05 265), oklch(0.32 0.06 260)); }
+  .path svg { position: absolute; inset: 0; }
+  .path img { position: absolute; width: 40px; height: 40px; }
+  .path .t { position: absolute; left: 24px; top: 20px; color: oklch(0.92 0.03 200); font-family: "YouYuan", sans-serif; font-size: 18px; }
+  .path .s { position: absolute; left: 24px; top: 48px; color: oklch(0.8 0.05 180); font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>护理台 v3 · 六个候选</h1>
+<p class="lead">huashu-design 三方向门：三套逻辑（最佳设计师 / 现实参照 / 秒数轮盘）各出两个候选。标「完整版」的三张可直接打开 dir-*.html 上手玩；其余三张是备选，看中哪张我做成完整版。</p>
+<div class="grid">
+  <div class="cell">
+    <div class="frame"><div class="house">
+      <div class="win"></div><div class="shelf"></div><div class="shelf b"></div>
+      <img src="assets/objects/folder-desk.png" style="left:40px;top:28px"><img src="assets/objects/explorer-dirty.png" style="left:96px;top:28px"><img src="assets/objects/notepad-dirty.png" style="left:152px;top:28px"><img src="assets/objects/paint-desk.png" style="left:208px;top:28px">
+      <img src="assets/objects/cmd-desk.png" style="left:40px;top:108px"><img src="assets/objects/control-dirty.png" style="left:96px;top:108px"><img src="assets/objects/taskmgr-dirty.png" style="left:152px;top:108px">
+      <div class="bench"></div><img src="assets/objects/explorer-dirty.png" style="left:350px;top:120px;width:64px;height:64px"><div class="book"></div>
+      <div class="peg"><i></i><i></i><i></i><i></i></div>
+      <div class="t">没有导航栏：整个房间就是界面</div>
+    </div></div>
+    <div class="cap"><b>① 回南天小屋</b><span class="chip alt">备选</span><br><span class="src">最佳设计师 · 任天堂《动森》团队的思路：界面即场景，搁板是列表，工作台是护理区</span></div>
+  </div>
+  <div class="cell">
+    <div class="frame"><iframe src="dir-1.html" loading="eager"></iframe></div>
+    <div class="cap"><b>② 晾衣绳</b><span class="chip full">完整版 dir-1</span><br><span class="src">最佳设计师 · Witch Beam《Unpacking》：一次只摸一件，摘下放进搪瓷盆，洗完挂到太阳里晒</span></div>
+  </div>
+  <div class="cell">
+    <div class="frame"><iframe src="dir-3.html" loading="eager"></iframe></div>
+    <div class="cap"><b>③ 洗护工位</b><span class="chip full">完整版 dir-3</span><br><span class="src">现实参照 · PowerWash Simulator：分层进度"叮"、连擦倍数、扫描剩余污渍、传送带工单</span></div>
+  </div>
+  <div class="cell">
+    <div class="frame"><div class="book2">
+      <div class="pg l"><div class="row" style="top:18px"><img src="assets/objects/folder-desk.png">项目资料 · 可采</div><div class="row" style="top:70px"><img src="assets/objects/explorer-dirty.png">此电脑 · 受潮</div><div class="row" style="top:122px"><img src="assets/objects/notepad-dirty.png">记事本 · 焦化</div><div class="row" style="top:174px"><img src="assets/objects/paint-desk.png">画图 · 幼菇</div></div>
+      <div class="pg r"><img class="big" src="assets/objects/explorer-dirty.png"><div class="bubble">小助手：今天的潮气特别重哦～</div></div>
+    </div></div>
+    <div class="cap"><b>④ 菇菇手账</b><span class="chip alt">备选 · 不推荐</span><br><span class="src">现实参照 · 动森 NookPhone 与图鉴：骨架仍是"左列表 + 右内容"，和旧版太像</span></div>
+  </div>
+  <div class="cell">
+    <div class="frame"><div class="path">
+      <svg viewBox="0 0 480 320"><path d="M30,270 C 120,200 80,140 200,150 S 320,250 400,170 S 430,70 460,60" fill="none" stroke="oklch(0.4 0.05 260)" stroke-width="26" stroke-linecap="round"/><path d="M30,270 C 120,200 80,140 200,150 S 320,250 400,170" fill="none" stroke="url(#g)" stroke-width="10" stroke-linecap="round"/><defs><linearGradient id="g"><stop offset="0" stop-color="oklch(0.85 0.1 175)"/><stop offset="1" stop-color="oklch(0.82 0.08 280)"/></linearGradient></defs></svg>
+      <div class="t">今天适合慢慢擦</div><div class="s">没有断档，休息也是计划的一部分</div>
+      <img src="assets/objects/control-dirty.png" style="left:60px;top:220px"><img src="assets/objects/explorer-dirty.png" style="left:150px;top:130px"><img src="assets/objects/cmd-desk.png" style="left:290px;top:190px"><img src="assets/objects/folder-desk.png" style="left:420px;top:40px">
+    </div></div>
+    <div class="cap"><b>⑤ 湿度小径</b><span class="chip alt">备选</span><br><span class="src">秒数轮盘 · App #11 柔和鼓励式（#8 命令面板与 B 语境不兼容，按规则在兼容子集重抽）</span></div>
+  </div>
+  <div class="cell">
+    <div class="frame"><iframe src="dir-2.html" loading="eager"></iframe></div>
+    <div class="cap"><b>⑥ 菌圈</b><span class="chip full">完整版 dir-2</span><br><span class="src">秒数轮盘 · 东亚 #8 杉浦康平信息曼荼罗：对象排成仙女环，拖着转，转到灯下的跳进中心</span></div>
+  </div>
+</div>
+</body>
+</html>

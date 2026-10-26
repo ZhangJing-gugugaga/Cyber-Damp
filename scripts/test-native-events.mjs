@@ -28,10 +28,16 @@ function candidates(count, mtimeBase = T0 - 30 * DAY) {
 
 // ---------- A04：K 抽取与 N=min(K,候选数) ----------
 
-test('A04: 固定种子 K∈{5..10}，N=min(K,候选数)，只取 mtime 最旧的 N 个', () => {
+test('A04（0.1.28）: K = 候选数的 60%–70%，N=min(K,候选数)，只取 mtime 最旧的 N 个', () => {
+  for (const count of [10, 20, 44, 100]) {
+    for (const seed of [1, 7, 42, 12345, 999]) {
+      const plan = planInit(candidates(count), snap(61, 80), seed, T0);
+      assert.ok(plan.k >= Math.round(count * 0.6) && plan.k <= Math.round(count * 0.7), `count=${count} K=${plan.k}`);
+    }
+  }
   for (const seed of [1, 7, 42, 12345, 999]) {
     const plan12 = planInit(candidates(12), snap(61, 80), seed, T0);
-    assert.ok(plan12.k >= 5 && plan12.k <= 10, `K=${plan12.k}`);
+    assert.ok(plan12.k >= 7 && plan12.k <= 8, `K=${plan12.k}`);
     assert.equal(plan12.n, Math.min(plan12.k, 12));
     assert.equal(plan12.targets.length, plan12.n);
     // mtime 升序（旧→新）：candidates() 的 mtime 随下标递增
@@ -46,7 +52,8 @@ test('A04: 固定种子 K∈{5..10}，N=min(K,候选数)，只取 mtime 最旧�
 test('A04: 候选 0/3/8 时 N=min(K,候选数)；N=0 也返回计划（占额度由编排层处理）', () => {
   assert.equal(planInit(candidates(0), snap(61, 80), 5, T0).n, 0);
   const plan3 = planInit(candidates(3), snap(61, 80), 5, T0);
-  assert.equal(plan3.n, 3);
+  assert.equal(plan3.n, 2, '3 个候选 × 60–70% ≈ 2');
+  assert.equal(planInit(candidates(1), snap(61, 80), 5, T0).n, 1, '有候选时至少 1 项');
   const plan8 = planInit(candidates(8), snap(61, 80), 5, T0);
   assert.equal(plan8.n, Math.min(plan8.k, 8));
 });
@@ -59,7 +66,7 @@ test('A04: 同种子计划完全固定（重启不重抽）；异种子分布覆
   const later = planInit(candidates(12), snap(61, 80), 777, T0 + DAY);
   assert.equal(later.k, a.k); assert.equal(later.n, a.n); assert.equal(later.seed, a.seed);
   assert.deepEqual(later.targets, a.targets); assert.deepEqual(later.snapshot, a.snapshot);
-  const ks = new Set(Array.from({ length: 40 }, (_, i) => planInit(candidates(12), snap(61, 80), i, T0).k));
+  const ks = new Set(Array.from({ length: 40 }, (_, i) => planInit(candidates(44), snap(61, 80), i, T0).k));
   assert.ok(ks.size >= 3, `40 个种子应覆盖多种 K，实际 ${ks.size}`);
 });
 
@@ -81,6 +88,14 @@ test('R4.1: 首批重度最多 2 项；重霉对象菇状态 ∈ {none, young, m
     }
   }
   assert.ok(sawHeavyBatch, '60 个种子中应出现满 2 项重度的批次');
+});
+
+test('0.1.28: 大首批的重度上限随规模放大（≤ 15% 且至少 2 项）', () => {
+  for (let seed = 0; seed < 30; seed += 1) {
+    const plan = planInit(candidates(44), snap(61, 80), seed, T0);
+    const heavy = plan.targets.filter((t) => t.stage === 3).length;
+    assert.ok(heavy <= Math.max(2, Math.floor(plan.n * 0.15)), `种子${seed} n=${plan.n} 重度 ${heavy}`);
+  }
 });
 
 // ---------- A09/R5：天气权重表 ----------

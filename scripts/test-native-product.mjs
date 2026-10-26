@@ -21,7 +21,8 @@ test('current preload exposes care and capsule without desktop takeover or whole
     contextBridge: { exposeInMainWorld(name, value) { assert.equal(name, 'damp'); api = value; } },
     ipcRenderer: { invoke(...args) { calls.push(args); return Promise.resolve(); } },
   }) });
-  assert.deepEqual(Object.keys(api).sort(), ['app', 'management', 'native', 'wallpaper', 'weather', 'window']);
+  assert.deepEqual(Object.keys(api).sort(), ['app', 'capsule', 'management', 'native', 'wallpaper', 'weather', 'window']);
+  assert.deepEqual(Object.keys(api.capsule).sort(), ['click', 'dragEnd', 'dragMove', 'dragStart']);
   // v1.15：v0.2 玩法与壁纸通道都是具名、类型化的单一操作，没有整档写或任意文件能力
   assert.deepEqual(Object.keys(api.wallpaper).sort(), ['setEnabled', 'status', 'wipe']);
   for (const name of ['careProgressV2', 'careCompleteV2', 'harvestV2', 'plantSpore', 'cancelPlant', 'setOverlayVariant']) {
@@ -127,4 +128,19 @@ test('startup uses native components even with retired flags and exit retains ic
   assert.equal(calls.at(-1), 'open');
   events.get('before-quit')();
   assert.equal(calls.at(-1), 'restore');
+});
+
+test('0.1.28: 只有文件夹与 .lnk 是游戏对象（普通文件、虚拟项不参与）', () => {
+  const module = run('src/main/ipc/native-handlers.ts', { require(id) {
+    if (id === 'electron') return { app: {}, ipcMain: { handle() {} } };
+    return new Proxy({}, { get: () => () => undefined });
+  } });
+  const is = module.isGameObjectEntry;
+  assert.equal(is({ kind: 'dir', ext: '', realPath: 'E:\\Desktop\\work' }), true);
+  assert.equal(is({ kind: 'file', ext: 'lnk', realPath: 'E:\\Desktop\\QQ.lnk' }), true);
+  for (const [ext, name] of [['env', '.env'], ['json', 'package.json'], ['zip', 'a.zip'], ['exe', '猫猫清理工具V1.99.exe'], ['md', 'a.md'], ['pptx', 'a.pptx']]) {
+    assert.equal(is({ kind: 'file', ext, realPath: `E:\\Desktop\\${name}` }), false, name);
+  }
+  assert.equal(is({ kind: 'shell', ext: '', realPath: '::{20D04FE0-3AEA-1069-A2D8-08002B30309D}' }), false);
+  assert.equal(is({ kind: 'recycle', ext: '', realPath: '::{645FF040-5081-101B-9F08-00AA002F954E}' }), false);
 });

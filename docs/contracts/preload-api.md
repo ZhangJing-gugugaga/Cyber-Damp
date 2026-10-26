@@ -15,7 +15,7 @@
 | weather.searchCity | weather:searchCity | `{query}`；返回 `{ok,options}` 或 `{ok:false,error}`；保留中文城市补后缀与排序 |
 | native.status | native:status | NativeStatusSnapshot，当前对象/天气/暂停/收藏/余额/拥有/引导等投影 |
 | native.setLocation | native:setLocation | `{cityId,label,latitude,longitude}`；触发已有事件协调器，不增加日额度 |
-| native.setPaused | native:setPaused | `{paused}`；写原生存档并同步托盘 |
+| native.setPaused | native:setPaused | `{paused}`；保留通道兼容，0.1.28 起界面不再调用，调度器忽略普通暂停标记 |
 | native.careProgress | native:careProgress | `{objectId,progress,mask?}`；部分进度与掩码 |
 | native.careComplete | native:careComplete | `{objectId}`；完整护理、防霉、保留菇 |
 | native.quickCare | native:quickCare | `{objectId}`；与完整护理同规则，不自动采菇 |
@@ -32,6 +32,7 @@
 | native.plantSpore | native:plantSpore | `{objectId,species}`；仅新品种、仅当前桌面上的对象；失败不扣孢子 |
 | native.cancelPlant | native:cancelPlant | `{objectId}`；只取消 pending，退回孢子 |
 | native.setOverlayVariant | native:setOverlayVariant | `{variant:'A'\|'B'}`；只回显已有外观 |
+| capsule.dragStart / dragMove / dragEnd / click | capsule:dragStart / dragMove / dragEnd / click（send） | 0.1.28：胶囊交互。dragMove 只收相对位移 `{dx,dy}`（有限数，绝对值 ≤20000），主进程夹回工作区；所有消息只认胶囊窗自身发送方 |
 | wallpaper.status | wallpaper:status | `WallpaperView`；只读 |
 | wallpaper.setEnabled | wallpaper:setEnabled | `{on}`；Win32 接入前 `on:true` 一律 `ok:false` |
 | wallpaper.wipe | wallpaper:wipe | `{fogMask,progress}`；Win32 接入前一律 `ok:false` |

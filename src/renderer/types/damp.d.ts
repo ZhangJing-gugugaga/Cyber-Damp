@@ -44,6 +44,13 @@ declare global {
         /** PRD §11：本地 JSONL 埋点 */
         track(name: string, props: Record<string, string | number | boolean>): Promise<void>;
       };
+      /** 胶囊交互（0.1.28；仅胶囊窗有效，其他窗口调用被主进程忽略） */
+      capsule?: {
+        dragStart(): void;
+        dragMove(dx: number, dy: number): void;
+        dragEnd(): void;
+        click(): void;
+      };
       /** v0.2 壁纸效果组（R9；preload 已暴露。Win32 读写未接入前，开启/擦雾如实返回 ok:false） */
       wallpaper?: {
         status(): Promise<import('../../shared/types/gameplay').WallpaperView>;

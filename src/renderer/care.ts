@@ -93,7 +93,7 @@ function listStateOf(o: NativeObjectView): { rank: number; label: string; harves
 /** 没有可操作对象时说明实际原因（不只给空白页） */
 function emptyReason(): string {
   if (!status) return '正在读取状态…';
-  if (status.paused) return '已暂停自然变化，恢复后继续。';
+  if (status.restored) return '桌面已还原并暂停，点设置里的"继续游戏"恢复。';
   if (status.initStatus === 'not-generated') return '首批尚未开始：等待有效天气后，最久未动的对象会开始变化。';
   if (status.initStatus === 'active') return '首批进行中：完成后这里会列出受影响的对象。';
   if (status.restored) return '桌面外观已还原。点击设置中的“继续游戏”后恢复。';
@@ -551,8 +551,8 @@ function renderShop(): void {
 /** 省市级联数据：npm `china-division`（MIT，github.com/modood/Administrative-divisions-of-China），不自行维护区划表。 */
 import provinces from 'china-division/dist/provinces.json';
 import cities from 'china-division/dist/cities.json';
-
-interface Division { code: string; name: string; provinceCode?: string }
+import areas from 'china-division/dist/areas.json';
+import { cityChoicesFor, provinceQuery, type CityChoice, type Division } from '../shared/city-options';
 
 /** 搜索偶发网络抖动时自动补试一次（仅作"市名→坐标"桥接；选择本身走级联，无歧义）。 */
 async function searchCityWithRetry(query: string, attempts = 2): Promise<CitySearchResult> {
@@ -566,13 +566,10 @@ async function searchCityWithRetry(query: string, attempts = 2): Promise<CitySea
   return last;
 }
 
-function provinceShortName(provinceName: string): string {
-  return provinceName.replace(/(?:特别行政区|(?:壮族|回族|维吾尔)?自治区|省|市)$/u, '');
-}
-
-/** 省+市确定后解析坐标：默认城市直接用内置坐标（零网络）；其余经地理编码桥接。 */
-async function applyCity(provinceName: string, cityName: string, statusEl: HTMLElement | null): Promise<boolean> {
+/** 省+市确定后解析坐标：默认城市直接用内置坐标（零网络）；其余经地理编码桥接（查询词见 shared/city-options）。 */
+async function applyCity(provinceName: string, choice: CityChoice, statusEl: HTMLElement | null): Promise<boolean> {
   const report = (text: string): void => { if (statusEl) statusEl.textContent = text; };
+  const cityName = choice.label;
   report('正在设置城市…');
   if (cityName === DEFAULT_LOCATION.label) {
     const saved = await window.damp!.native.setLocation({
@@ -583,9 +580,9 @@ async function applyCity(provinceName: string, cityName: string, statusEl: HTMLE
     report(saved.message ?? '设置失败，可重试');
     return false;
   }
-  const result = await searchCityWithRetry(cityName);
+  const result = await searchCityWithRetry(choice.query);
   if (!result.ok) { report(`坐标解析失败：${result.error}。可重试。`); return false; }
-  const short = provinceShortName(provinceName);
+  const short = provinceQuery(provinceName);
   const matched = result.options.find((o) => {
     if (!o.admin1) return false;
     return o.admin1.includes(short) || short.includes(o.admin1);
@@ -615,12 +612,14 @@ function mountCityPicker(root: HTMLElement, statusEl: HTMLElement | null, onPick
     opt.value = p.code; opt.textContent = p.name;
     provinceSelect.appendChild(opt);
   }
+  let choices: CityChoice[] = [];
   const fillCities = (): void => {
     citySelect.innerHTML = '';
-    for (const c of cities as Division[]) {
-      if (c.provinceCode !== provinceSelect.value) continue;
+    const province = (provinces as Division[]).find((p) => p.code === provinceSelect.value);
+    choices = province ? cityChoicesFor(province, cities as Division[], areas as Division[]) : [];
+    for (const c of choices) {
       const opt = document.createElement('option');
-      opt.value = c.code; opt.textContent = c.name;
+      opt.value = c.code; opt.textContent = c.label;
       citySelect.appendChild(opt);
     }
   };
@@ -630,10 +629,10 @@ function mountCityPicker(root: HTMLElement, statusEl: HTMLElement | null, onPick
   const onApply = (): void => {
     if (busy) return;
     const province = (provinces as Division[]).find((p) => p.code === provinceSelect.value);
-    const city = (cities as Division[]).find((c) => c.code === citySelect.value);
-    if (!province || !city) return;
+    const choice = choices.find((c) => c.code === citySelect.value);
+    if (!province || !choice) return;
     busy = true;
-    void applyCity(province.name, city.name, statusEl).then((ok) => { busy = false; if (ok) onPicked(); });
+    void applyCity(province.name, choice, statusEl).then((ok) => { busy = false; if (ok) onPicked(); });
   };
   applyBtn.addEventListener('click', onApply);
   root.append(provinceSelect, citySelect, applyBtn);
@@ -652,11 +651,7 @@ $('autostart').addEventListener('change', async (event) => {
   (event.target as HTMLInputElement).checked = result.on ?? on;
 });
 
-$('pause-toggle').addEventListener('change', async (event) => {
-  const paused = (event.target as HTMLInputElement).checked;
-  const result = await window.damp!.native.setPaused(paused);
-  if (result.ok) toast(paused ? '已暂停自然变化' : '已继续');
-});
+// 0.1.28：用户裁决取消"暂停自然变化"入口；存档残留的 paused 由主进程启动时清除。
 
 $('btn-restore-pause').addEventListener('click', async () => {
   const ok = await confirmDialog('恢复桌面图标并暂停', '将还原全部原生图标并停止自然变化；点"继续游戏"才会恢复存档外观。', '还原并暂停');
@@ -681,7 +676,6 @@ function renderSettings(): void {
   if (!status) return;
   $('city-status').textContent = status.location ? `当前：${status.location.label}` : '当前：长沙市（内置默认，可在上方更换）';
   $('btn-resume').classList.toggle('hidden', !status.restored);
-  ($('pause-toggle') as HTMLInputElement).checked = status.paused;
   void window.damp!.native.getAutostart().then((r) => { ($('autostart') as HTMLInputElement).checked = r.on; });
 }
 

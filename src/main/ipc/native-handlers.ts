@@ -72,10 +72,19 @@ export function updateNativeEntries(entries: DesktopEntry[]): void {
   latestEntries = entries;
 }
 
+/**
+ * 可参与游戏的桌面对象：文件夹与 .lnk 快捷方式。图标引用只能改这两类（desktop.ini / .lnk IconLocation）；
+ * 普通文件（.env、package.json、图片等）改不了图标又不能改文件本身，此前被当作 'lnk' 纳入，
+ * 写入必然失败并出现在护理台列表里（0.1.27 实测"识别出不该有的对象"）。
+ */
+export function isGameObjectEntry(e: Pick<DesktopEntry, 'kind' | 'ext' | 'realPath'>): boolean {
+  if (e.realPath.startsWith('::')) return false;
+  if (e.kind === 'dir') return true;
+  return e.kind === 'file' && e.ext === 'lnk';
+}
+
 export function latestCycleCandidates(): CycleCandidate[] {
-  return latestEntries
-    .filter((e) => (e.kind === 'dir' || e.kind === 'file') && !e.realPath.startsWith('::'))
-    .map(entryToCandidate);
+  return latestEntries.filter(isGameObjectEntry).map(entryToCandidate);
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -176,7 +185,13 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     const now = Date.now();
     const neighbors = adjacencyFromDesktop(latestEntries.map((e) => ({ id: e.id, x: e.geometry?.x, y: e.geometry?.y })));
     const planted = native?.planted ?? {};
+    // 只列出当前桌面上实际存在的对象：删除/移走的对象（含历史探针残留）保留存档记录、
+    // 不复活，但不出现在护理台（0.1.27 实测：注册表 56 项中 12 项已不在桌面）。
+    // 尚未完成首次扫描时 latestEntries 为空，此时不过滤，避免启动瞬间列表闪空。
+    const scanned = latestEntries.length > 0;
+    const playable = new Set(latestEntries.filter(isGameObjectEntry).map((e) => e.id));
     const objects = Object.values(native?.objects ?? {})
+      .filter((obj) => !scanned || playable.has(obj.id))
       .map((obj) => {
         const entry = entries.get(obj.id);
         // 与当前损伤不一致的会话是旧回执（自然推进/完成后），不下发，由护理台新建

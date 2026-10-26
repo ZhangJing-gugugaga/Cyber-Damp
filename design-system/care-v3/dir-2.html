@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>方向 2 · 菌圈</title>
+<!--
+  方向 2 · 菌圈（秒数轮盘：东亚 #8 杉浦康平信息曼荼罗，卡通诠释）
+  色彩论证：取自黄昏的苔林——苔绿明度序列做底（低彩），菌盖的暖粉与提灯的琥珀做两个有彩色，
+  湿度刻度用冷青色只占细线。杉浦的"每一块说明都对应盘上一个位置"保留为引线注记。
+  form 来自内容：蘑菇在自然界真的会长成一个圈（仙女环）；桌面对象也被排成一圈，转到灯下才处理。
+-->
+<style>
+  :root {
+    --moss-0: oklch(0.22 0.035 160); --moss-1: oklch(0.29 0.045 155); --moss-2: oklch(0.38 0.06 150); --moss-3: oklch(0.52 0.08 140);
+    --cream: oklch(0.95 0.03 95); --cream-2: oklch(0.80 0.04 110);
+    --amber: oklch(0.80 0.14 75); --cap: oklch(0.74 0.11 15); --cyan: oklch(0.80 0.08 205);
+    --display: "YouYuan", "Microsoft YaHei UI", sans-serif; --body: "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 960px; height: 640px; overflow: hidden; background: var(--moss-0); color: var(--cream); font-family: var(--body); user-select: none; }
+  #forest { position: relative; width: 960px; height: 640px; overflow: hidden;
+    background:
+      radial-gradient(420px 360px at 50% 52%, var(--moss-2), transparent 72%),
+      radial-gradient(700px 300px at 50% -10%, oklch(0.55 0.08 70 / .55), transparent 70%),
+      linear-gradient(180deg, var(--moss-1), var(--moss-0)); }
+  /* 远处树影 */
+  .trunk { position: absolute; bottom: 0; width: 46px; border-radius: 23px 23px 0 0; background: oklch(0.2 0.03 160); opacity: .75; }
+  .canopy { position: absolute; border-radius: 50%; background: oklch(0.25 0.04 155); opacity: .8; }
+
+  svg#mandala { position: absolute; left: 0; top: 0; pointer-events: none; }
+  /* 环上的对象（石头） */
+  #ring { position: absolute; left: 480px; top: 330px; width: 0; height: 0; }
+  .stone { position: absolute; width: 78px; height: 78px; margin: -39px 0 0 -39px; cursor: grab; }
+  .stone .disc { position: absolute; inset: 0; border-radius: 42% 58% 52% 48% / 52% 44% 56% 48%; background: radial-gradient(circle at 35% 30%, oklch(0.72 0.04 120), oklch(0.5 0.04 130));
+    box-shadow: inset -6px -8px 0 oklch(0.4 0.04 135), 0 8px 14px oklch(0.1 0.03 160 / .55); transition: transform .3s cubic-bezier(.3,1.6,.5,1), filter .3s; }
+  .stone img { position: absolute; left: 12px; top: 9px; width: 54px; height: 54px; pointer-events: none; filter: drop-shadow(0 2px 2px oklch(0 0 0 / .35)); }
+  .stone .moss { position: absolute; left: 6px; right: 6px; bottom: -4px; height: 14px; border-radius: 50%; background: var(--moss-3); opacity: .9; }
+  .stone:hover .disc { transform: scale(1.08) rotate(-4deg); }
+  .stone.top .disc { filter: brightness(1.18) drop-shadow(0 0 18px oklch(0.85 0.12 80 / .7)); }
+  .stone.done .disc { background: radial-gradient(circle at 35% 30%, oklch(0.88 0.06 150), oklch(0.68 0.08 150)); }
+  .stone.done::after { content: ""; position: absolute; left: 50%; top: -14px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: radial-gradient(circle, var(--amber), transparent 70%); animation: glowdot 2.4s ease-in-out infinite; }
+  @keyframes glowdot { 50% { transform: scale(1.4); opacity: .6 } }
+  .stone .dot { position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--moss-1); }
+  .dot.damp { background: var(--cyan); } .dot.mold { background: oklch(0.68 0.09 310); } .dot.char { background: oklch(0.5 0.03 60); } .dot.ripe { background: var(--cap); width: 20px; height: 20px; }
+  .stone.away { opacity: 0; pointer-events: none; transform: scale(.4); transition: opacity .3s, transform .3s; }
+
+  /* 提灯：照在正上方的位置 */
+  #lantern { position: absolute; left: 456px; top: 4px; width: 48px; height: 64px; }
+  #lantern .cord { position: absolute; left: 23px; top: -10px; width: 2px; height: 22px; background: oklch(0.5 0.03 80); }
+  #lantern .body { position: absolute; left: 6px; top: 12px; width: 36px; height: 44px; border-radius: 14px; background: radial-gradient(circle at 50% 45%, oklch(0.97 0.08 90), var(--amber) 55%, oklch(0.62 0.13 60)); box-shadow: 0 0 40px 12px oklch(0.8 0.14 75 / .45); animation: flicker 3s ease-in-out infinite; }
+  @keyframes flicker { 0%,100% { box-shadow: 0 0 40px 12px oklch(0.8 0.14 75 / .45) } 47% { box-shadow: 0 0 34px 8px oklch(0.8 0.14 75 / .35) } 52% { box-shadow: 0 0 46px 14px oklch(0.8 0.14 75 / .5) } }
+  #beam { position: absolute; left: 400px; top: 50px; width: 160px; height: 60px; background: radial-gradient(ellipse at 50% 0, oklch(0.85 0.12 80 / .35), transparent 70%); pointer-events: none; }
+
+  /* 中心空地 */
+  #clearing { position: absolute; left: 340px; top: 190px; width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 45%, oklch(0.47 0.07 140), oklch(0.36 0.06 148) 70%); box-shadow: inset 0 10px 30px oklch(0.15 0.03 160 / .6); }
+  #stage { position: absolute; left: 40px; top: 18px; width: 200px; height: 200px; }
+  #wipe { position: absolute; left: 0; top: 0; }
+  #mushroom { position: absolute; left: 0; top: -46px; width: 200px; height: 200px; pointer-events: none; display: none; }
+  #cutline { position: absolute; left: 40px; right: 40px; top: 74px; border-top: 3px dashed oklch(1 0 0 / .85); opacity: 0; pointer-events: none; }
+  #center-hint { position: absolute; left: 20px; right: 20px; top: 104px; text-align: center; font-family: var(--display); font-size: 17px; color: var(--cream); line-height: 1.5; pointer-events: none; }
+  #center-hint small { display: block; font-family: var(--body); font-size: 13px; color: var(--cream-2); margin-top: 4px; }
+
+  /* 工具花：沿空地下缘张开的花瓣 */
+  .petal { position: absolute; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50% 50% 50% 8%; background: oklch(0.92 0.04 20); cursor: pointer;
+    box-shadow: inset -4px -5px 0 oklch(0.8 0.06 15), 0 6px 10px oklch(0.1 0.03 160 / .5); transition: transform .35s cubic-bezier(.3,1.7,.5,1), background .2s; }
+  .petal img { position: absolute; left: 7px; top: 7px; width: 48px; height: 48px; pointer-events: none; transform: rotate(var(--counter)); }
+  .petal .k { position: absolute; right: -2px; bottom: -2px; width: 18px; height: 18px; border-radius: 6px; background: var(--moss-1); color: var(--cream); font-size: 12px; display: grid; place-items: center; transform: rotate(var(--counter)); }
+  .petal.active { background: var(--amber); }
+  .petal.dim { filter: grayscale(.9) brightness(.7); }
+  .petal-label { position: absolute; width: 80px; margin-left: -40px; text-align: center; font-size: 12px; color: var(--cream-2); pointer-events: none; }
+
+  /* 注记（杉浦式引线说明） */
+  #title { position: absolute; left: 36px; top: 40px; writing-mode: vertical-rl; font-family: var(--display); font-size: 44px; letter-spacing: 8px; color: var(--cream); text-shadow: 0 3px 0 oklch(0.15 0.03 160); }
+  #title small { font-size: 15px; letter-spacing: 3px; color: var(--cream-2); margin-top: 14px; }
+  .note { position: absolute; width: 168px; font-size: 13px; line-height: 1.55; color: var(--cream-2); }
+  .note b { display: block; font-family: var(--display); font-weight: normal; font-size: 16px; color: var(--cream); }
+  .note .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); color: var(--moss-0); font-size: 12px; font-weight: 700; margin-right: 6px; }
+  #weather { left: 760px; top: 36px; width: 180px; }
+  #weather .big { font-family: var(--display); font-size: 34px; color: var(--cream); line-height: 1.1; }
+  #weather .alert { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 99px; background: oklch(0.8 0.08 205 / .2); color: var(--cyan); font-size: 13px; border: 1px solid oklch(0.8 0.08 205 / .5); }
+  #focus-note { left: 760px; top: 400px; }
+  #queue-note { left: 760px; top: 520px; }
+  #flower-core { position: absolute; left: 108px; top: 396px; width: 48px; height: 48px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, oklch(0.9 0.12 90), var(--amber)); box-shadow: 0 0 24px oklch(0.8 0.14 75 / .5); z-index: 5; pointer-events: none; }
+  #flower-stem { position: absolute; left: 130px; top: 440px; width: 4px; height: 84px; border-radius: 2px; background: var(--moss-3); }
+  #bottle { position: absolute; left: 36px; top: 548px; width: 120px; height: 72px; }
+  #bottle .glass { position: absolute; left: 0; top: 10px; width: 54px; height: 60px; border-radius: 16px 16px 22px 22px; background: oklch(0.85 0.05 200 / .18); box-shadow: inset 0 0 0 2px oklch(0.9 0.04 200 / .6); overflow: hidden; }
+  #bottle .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(180deg, var(--amber), oklch(0.66 0.13 60)); transition: height .5s cubic-bezier(.3,1.5,.5,1); }
+  #bottle .num { position: absolute; left: 62px; top: 16px; font-family: var(--display); font-size: 26px; color: var(--cream); }
+  #bottle .lbl { position: absolute; left: 62px; top: 48px; font-size: 12px; color: var(--cream-2); }
+  #bottle.bump { animation: popin .4s; }
+  @keyframes popin { 40% { transform: scale(1.15) } }
+  #toast { position: absolute; left: 50%; bottom: 36px; transform: translate(-50%, 90px); padding: 10px 20px; border-radius: 99px; background: var(--cream); color: var(--moss-0); font-size: 14px; transition: transform .35s cubic-bezier(.3,1.5,.5,1); z-index: 60; }
+  #toast.show { transform: translate(-50%, 0); }
+  #cursor { position: fixed; left: 0; top: 0; width: 72px; height: 72px; pointer-events: none; z-index: 50; display: none; }
+  #cursor img { width: 72px; height: 72px; filter: drop-shadow(0 8px 6px oklch(0 0 0 / .4)); }
+  .firefly { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: oklch(0.95 0.14 110); box-shadow: 0 0 10px 3px oklch(0.9 0.15 110 / .6); pointer-events: none; }
+  .footnote { position: absolute; right: 24px; bottom: 12px; font-size: 12px; color: var(--cream-2); opacity: .7; }
+  #layers { position: absolute; left: 50%; top: 436px; transform: translateX(-50%); display: flex; gap: 8px; z-index: 30; }
+  .layer { display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; border-radius: 99px; background: oklch(0.2 0.03 160 / .7); font-size: 13px; color: var(--cream); border: 1px solid oklch(0.6 0.05 140 / .5); }
+  .layer .ring { width: 20px; height: 20px; border-radius: 50%; background: conic-gradient(var(--amber) calc(var(--p) * 1turn), oklch(0.4 0.03 150) 0); display: grid; place-items: center; }
+  .layer .ring::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: oklch(0.22 0.03 160); }
+  .layer.done { border-color: var(--amber); animation: popin .5s cubic-bezier(.3,1.8,.5,1); }
+</style>
+</head>
+<body>
+<div id="forest">
+  <svg id="mandala" width="960" height="640"></svg>
+  <div id="beam"></div>
+  <div id="lantern"><div class="cord"></div><div class="body"></div></div>
+  <div id="clearing">
+    <div id="stage"><div id="wipe"></div><img id="mushroom" alt=""><div id="cutline"></div></div>
+    <div id="center-hint">转动菌圈<small>拖着转，或点一块石头；转到灯下的那个会跳进来</small></div>
+  </div>
+  <div id="ring"></div>
+  <div id="layers"></div>
+
+  <div id="title">菌圈<small>今晚潮气重</small></div>
+  <div class="note" id="weather">
+    <div class="big">92%</div>
+    重庆 · 小雨 · 18°C<br>09:40 更新
+    <div class="alert">回南天警报 · 今天 5 个</div>
+  </div>
+  <div class="note" id="focus-note"></div>
+  <div class="note" id="queue-note"></div>
+  <div id="flower-stem"></div><div id="flower-core"></div>
+  <div id="bottle"><div class="glass"><div class="fill"></div></div><div class="num">24</div><div class="lbl">露珠币</div></div>
+  <div id="toast"></div>
+  <div class="footnote">方向稿：苔地、石、提灯与花瓣为程序化占位，图标与菇为真实素材 · 1–4 换工具 · 空格看剩余</div>
+  <div id="cursor"><img alt=""></div>
+</div>
+<script src="assets/objects.js"></script>
+<script src="assets/engine.js"></script>
+<script>
+(() => {
+  const { CDWipe, CDSound, CDFx, CDSpring } = window.CDEngine;
+  const $ = (id) => document.getElementById(id);
+  const SPECIES = '../../src/renderer/public/assets/care/species/';
+  const TOOLS_DIR = '../../previews/visual-assets-2026-10-24/repair-tools-v1/png/';
+  const CARE = '../../src/renderer/public/assets/care/';
+  const FAMILY = { damp: '受潮', mold: '霉变', char: '焦化' };
+  const LEVEL = ['', '轻度', '中度', '重度'];
+  const SPECIES_ZH = { archive: '压缩包菇', waterfall: '截图瀑布菇', broken: '断线菇' };
+  const LAYERS = { damp: ['水珠', '水膜'], mold: ['霉斑'], char: ['烟灰', '焦痕'] };
+  const CX = 480, CY = 330, R = 222;
+  const FX = 132, FY = 420;   // 工具花的花心
+  const objects = window.CD_OBJECTS.map((o) => ({ ...o, done: false }));
+  const N = objects.length;
+  let coins = 24;
+
+  // ---------- 背景：树影、萤火 ----------
+  const forest = $('forest');
+  [[30, 300], [120, 220], [820, 260], [900, 330]].forEach(([x, h]) => {
+    const t = document.createElement('div'); t.className = 'trunk'; t.style.left = x + 'px'; t.style.height = h + 'px'; forest.prepend(t);
+  });
+  for (let i = 0; i < 14; i += 1) {
+    const f = document.createElement('div'); f.className = 'firefly';
+    f.style.left = Math.random() * 960 + 'px'; f.style.top = 100 + Math.random() * 500 + 'px';
+    forest.appendChild(f);
+    f.animate([{ transform: 'translate(0,0)', opacity: 0 }, { transform: `translate(${(Math.random() - 0.5) * 120}px, ${-40 - Math.random() * 80}px)`, opacity: 1, offset: 0.5 }, { transform: `translate(${(Math.random() - 0.5) * 160}px, ${-120 - Math.random() * 60}px)`, opacity: 0 }],
+      { duration: 5000 + Math.random() * 5000, iterations: Infinity, delay: -Math.random() * 6000 });
+  }
+
+  // ---------- 曼荼罗：外环 24 小时湿度刻度 ----------
+  const HUM = [78, 80, 83, 85, 88, 90, 92, 93, 92, 92, 90, 88, 86, 85, 84, 86, 88, 90, 91, 92, 93, 93, 92, 91];
+  const NOW_H = 9;
+  function drawMandala() {
+    let s = '';
+    const r0 = R + 54;
+    for (let h = 0; h < 24; h += 1) {
+      const a = (h / 24) * Math.PI * 2 - Math.PI / 2;
+      const len = 6 + (HUM[h] - 75) * 0.9;
+      const x1 = CX + Math.cos(a) * r0, y1 = CY + Math.sin(a) * r0;
+      const x2 = CX + Math.cos(a) * (r0 + len), y2 = CY + Math.sin(a) * (r0 + len);
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${h === NOW_H ? 'oklch(0.85 0.13 80)' : 'oklch(0.8 0.08 205 / .55)'}" stroke-width="${h === NOW_H ? 4 : 2.5}" stroke-linecap="round"/>`;
+      if (h % 6 === 0) {
+        const lx = CX + Math.cos(a) * (r0 + len + 16), ly = CY + Math.sin(a) * (r0 + len + 16);
+        s += `<text x="${lx}" y="${ly + 4}" fill="oklch(0.8 0.04 110 / .8)" font-size="12" text-anchor="middle" font-family="Microsoft YaHei UI">${h}时</text>`;
+      }
+    }
+    // 苔藓环
+    s += `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="oklch(0.45 0.07 140 / .55)" stroke-width="64"/>`;
+    s += `<circle cx="${CX}" cy="${CY}" r="${R + 30}" fill="none" stroke="oklch(0.55 0.08 140 / .35)" stroke-width="2" stroke-dasharray="2 9"/>`;
+    s += `<g id="leaders"></g>`;
+    $('mandala').innerHTML = s;
+  }
+  drawMandala();
+
+  // ---------- 环与石头：拖动转环，惯性，吸附 ----------
+  const stones = objects.map((o, i) => {
+    const el = document.createElement('div');
+    el.className = 'stone';
+    const dot = o.mushroom === 'mature' ? 'ripe' : o.family;
+    el.innerHTML = `<div class="moss"></div><div class="disc"></div><img src="${o.desk || o.dirty}" alt=""><span class="dot ${dot}"></span>`;
+    el.title = `${o.name} · ${FAMILY[o.family]}${LEVEL[o.stage]}${o.mushroom === 'mature' ? ' · 成熟菇' : ''}`;
+    $('ring').appendChild(el);
+    return { o, el, i };
+  });
+  let rot = 0;           // 环角度（弧度）
+  let vel = 0;
+  let dragging = null;
+  const slotAngle = (i) => (i / N) * Math.PI * 2 - Math.PI / 2;
+  function topIndex() {
+    let best = 0, bestD = Infinity;
+    stones.forEach((s, i) => {
+      let a = (slotAngle(i) + rot) % (Math.PI * 2); if (a < 0) a += Math.PI * 2;
+      const d = Math.abs(a - Math.PI * 1.5);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  }
+  function placeStones() {
+    const top = topIndex();
+    stones.forEach((s, i) => {
+      const a = slotAngle(i) + rot;
+      const x = Math.cos(a) * R, y = Math.sin(a) * R;
+      const depth = (Math.sin(a) + 1) / 2;   // 下方更近
+      s.el.style.transform = `translate(${x}px, ${y}px) scale(${0.86 + depth * 0.22})`;
+      s.el.style.zIndex = String(10 + Math.round(depth * 10));
+      s.el.classList.toggle('top', i === top);
+    });
+    drawLeaders(top);
+  }
+  let lastTop = -1;
+  function drawLeaders(top) {
+    if (top === lastTop) return;
+    lastTop = top;
+    const s = stones[top];
+    const a = slotAngle(top) + rot;
+    const sx = CX + Math.cos(a) * R, sy = CY + Math.sin(a) * R;
+    const o = s.o;
+    $('focus-note').innerHTML = `<span class="n">1</span><b>${o.name}</b>${FAMILY[o.family]} · ${LEVEL[o.stage]}${o.mushroom === 'mature' ? `<br>顶上冒出一朵${SPECIES_ZH[o.species] || '菇'}，可以剪` : o.mushroom === 'young' ? '<br>有一颗幼菇在长' : ''}${o.done ? '<br>已经干净了' : ''}`;
+    const pending = objects.filter((x) => !x.done).length;
+    const ripe = objects.filter((x) => x.mushroom === 'mature').length;
+    $('queue-note').innerHTML = `<span class="n">2</span><b>圈里 ${pending} 个待护理</b>${ripe} 朵菇成熟 · 今天还会再变 5 个`;
+    $('leaders').innerHTML = `<path d="M${sx},${sy - 40} C ${sx + 120},${sy - 80} 700,420 752,432" fill="none" stroke="oklch(0.85 0.12 80 / .7)" stroke-width="1.5"/>
+      <circle cx="${sx}" cy="${sy - 40}" r="4" fill="oklch(0.85 0.13 80)"/>
+`;
+  }
+  function spin() {
+    if (!dragging) {
+      vel *= 0.93;
+      // 吸附：靠近某格时轻拉到位
+      const step = (Math.PI * 2) / N;
+      const target = Math.round(rot / step) * step;
+      if (Math.abs(vel) < 0.012) vel += (target - rot) * 0.08;
+      rot += vel;
+      if (Math.abs(vel) < 0.0004 && Math.abs(target - rot) < 0.001) { rot = target; }
+    }
+    const prevTop = lastTop;
+    placeStones();
+    if (lastTop !== prevTop && prevTop !== -1) CDSound.tap();
+    requestAnimationFrame(spin);
+  }
+  const angleAt = (e) => Math.atan2(e.clientY - CY, e.clientX - CX);
+  forest.addEventListener('pointerdown', (e) => {
+    const d = Math.hypot(e.clientX - CX, e.clientY - CY);
+    if (d < R - 50 || d > R + 60) return;
+    dragging = { a: angleAt(e), rot, moved: 0, t: performance.now(), stone: e.target.closest('.stone') };
+    try { forest.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  forest.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    let da = angleAt(e) - dragging.a;
+    if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2;
+    const next = dragging.rot + da;
+    vel = next - rot;
+    rot = next;
+    dragging.moved += Math.abs(vel);
+  });
+  forest.addEventListener('pointerup', () => {
+    if (!dragging) return;
+    const { moved, stone } = dragging;
+    dragging = null;
+    if (moved < 0.02 && stone) {
+      const s = stones.find((x) => x.el === stone);
+      if (s) bringToTop(s);
+    } else if (moved >= 0.02) {
+      // 拖完松手：惯性停稳后若有人在灯下，提示可点
+      setTimeout(() => { if (!current) hint(); }, 700);
+    }
+  });
+  function bringToTop(s, andHop = true) {
+    const step = (Math.PI * 2) / N;
+    // 目标：该石头角度 = -π/2
+    let target = -Math.PI / 2 - slotAngle(s.i);
+    while (target - rot > Math.PI) target -= Math.PI * 2;
+    while (target - rot < -Math.PI) target += Math.PI * 2;
+    target = Math.round(target / step) * step;
+    const start = rot, t0 = performance.now();
+    vel = 0;
+    dragging = { a: 0, rot, moved: 0 }; // 暂停物理
+    (function go() {
+      const k = Math.min(1, (performance.now() - t0) / 520);
+      const e = 1 - Math.pow(1 - k, 3);
+      rot = start + (target - start) * e;
+      if (k < 1) requestAnimationFrame(go);
+      else { dragging = null; rot = target; if (andHop) hop(s); else hint(); }
+    })();
+  }
+  requestAnimationFrame(spin);
+
+  // ---------- 工具花 ----------
+  const TOOLS = [
+    { id: 'sponge', name: '海绵', img: CARE + 'sponge-idle.png', radius: 26, fam: ['damp', 'mold', 'char'] },
+    { id: 'squeegee', name: '刮水器', img: TOOLS_DIR + 'squeegee-idle.png', radius: 38, fam: ['damp'] },
+    { id: 'scrubbrush', name: '清洁刷', img: TOOLS_DIR + 'scrubbrush-idle.png', radius: 18, fam: ['mold', 'char'] },
+    { id: 'scissors', name: '剪刀', img: CARE + 'scissors-idle.png', radius: 0, fam: [] },
+  ];
+  let tool = null;
+  const petalSprings = [];
+  TOOLS.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'petal';
+    el.innerHTML = `<img src="${t.img}" alt=""><span class="k">${i + 1}</span>`;
+    const lbl = document.createElement('div'); lbl.className = 'petal-label'; lbl.textContent = t.name;
+    forest.append(el, lbl);
+    t.el = el; t.lbl = lbl;
+    // 工具花：环外左侧独立一朵，四瓣朝上/右/下/左；没对象时合成花苞，有对象时盛开
+    const ang = -Math.PI / 2 + i * (Math.PI / 2);
+    const sp = CDSpring(0, { stiffness: 0.12, damping: 0.72 }).on((open) => {
+      const r = 22 + open * 40;
+      const x = FX + Math.cos(ang) * r, y = FY + Math.sin(ang) * r;
+      const rotDeg = (ang * 180) / Math.PI + 135;
+      el.style.left = x + 'px'; el.style.top = y + 'px';
+      el.style.transform = `rotate(${rotDeg}deg) scale(${0.45 + open * 0.55})`;
+      el.style.setProperty('--counter', `${-rotDeg}deg`);
+      lbl.style.left = FX + Math.cos(ang) * (r + 50) + 'px';
+      lbl.style.top = FY + Math.sin(ang) * (r + 50) - 8 + 'px';
+      lbl.style.opacity = String(open);
+    });
+    petalSprings.push(sp);
+    el.addEventListener('click', () => selectTool(t));
+    el.addEventListener('pointerenter', () => { sp.kick(0.08); });
+  });
+  function openFlower(open) { petalSprings.forEach((sp, i) => setTimeout(() => sp.set(open ? 1 : 0), i * 60)); }
+  function refreshTools() {
+    TOOLS.forEach((t) => {
+      const ok = current && (t.id === 'scissors' ? current.o.mushroom === 'mature' && !current.harvested : !current.wipe?.completed && t.fam.includes(current.o.family));
+      t.el.classList.toggle('dim', !ok);
+      t.el.classList.toggle('active', tool === t);
+    });
+  }
+  function selectTool(t) {
+    if (t.el.classList.contains('dim')) { toast(t.id === 'scissors' ? '只有成熟菇能剪' : `${t.name}对付不了${FAMILY[current?.o.family] || '它'}`); return; }
+    tool = t; CDSound.pick();
+    $('cursor').style.display = 'block';
+    $('cursor').querySelector('img').src = t.img.replace('-idle', '-active');
+    current?.wipe?.setRadius(t.radius || 26);
+    $('cutline').style.opacity = t.id === 'scissors' ? 1 : 0;
+    refreshTools();
+  }
+  addEventListener('pointermove', (e) => { if (tool) $('cursor').style.transform = `translate(${e.clientX - 20}px, ${e.clientY - 20}px)`; });
+  addEventListener('keydown', (e) => {
+    const n = Number(e.key); if (n >= 1 && n <= 4 && current) selectTool(TOOLS[n - 1]);
+    if (e.code === 'Space' && current?.wipe && !current.wipe.completed) { e.preventDefault(); current.wipe.highlight(); }
+    if (e.key === 'ArrowLeft' && !current) vel -= 0.06;
+    if (e.key === 'ArrowRight' && !current) vel += 0.06;
+    if (e.key === 'Escape' && current) back();
+  });
+
+  // ---------- 跳进中心 ----------
+  let current = null;
+  async function hop(s) {
+    if (s.o.done) { toast(`${s.o.name}已经干净了`); return; }
+    if (current) back(true);
+    const from = s.el.getBoundingClientRect();
+    const fly = document.createElement('img');
+    fly.src = s.o.desk || s.o.dirty;
+    Object.assign(fly.style, { position: 'fixed', left: from.left + 12 + 'px', top: from.top + 9 + 'px', width: '54px', height: '54px', zIndex: 40, pointerEvents: 'none' });
+    document.body.appendChild(fly);
+    s.el.classList.add('away');
+    CDSound.pick();
+    const to = $('stage').getBoundingClientRect();
+    await fly.animate([
+      { transform: 'translate(0,0) scale(1)' },
+      { transform: `translate(${(to.left - from.left) * 0.5}px, ${(to.top - from.top) * 0.5 - 90}px) scale(2.6) rotate(200deg)`, offset: 0.5 },
+      { transform: `translate(${to.left + 73 - from.left - 12}px, ${to.top + 73 - from.top - 9}px) scale(${200 / 54}) rotate(360deg)` },
+    ], { duration: 640, easing: 'cubic-bezier(.4,0,.2,1)' }).finished;
+    fly.remove();
+    CDSound.drop();
+    CDFx.dust(to.left + 110, to.top + 200, 14, ['#9fd28a', '#c9e7a8', '#6d9a5a']);
+    $('center-hint').style.display = 'none';
+    const o = s.o;
+    current = { s, o, harvested: false };
+    $('mushroom').style.display = o.mushroom !== 'none' ? 'block' : 'none';
+    if (o.mushroom !== 'none') $('mushroom').src = `${SPECIES}${o.species}/${o.mushroom === 'mature' ? 'mature' : 'bud'}-256.png`;
+    const layers = LAYERS[o.family].slice(0, o.stage >= 2 ? 2 : 1);
+    $('layers').innerHTML = layers.map((n) => `<div class="layer" style="--p:0"><span class="ring"></span>${n}</div>`).join('');
+    current.wipe = await CDWipe({
+      host: $('wipe'), dirtySrc: o.dirty, cleanSrc: o.clean, size: 200, radius: tool?.radius || 26,
+      onStroke: (x, y) => { const r = $('wipe').getBoundingClientRect(); if (Math.random() < 0.2) (o.family === 'damp' ? CDFx.splash : CDFx.dust)(r.left + x, r.top + y, 2); },
+      onProgress: (p) => {
+        [...$('layers').children].forEach((el, i, all) => {
+          const lp = Math.max(0, Math.min(1, p * all.length - i));
+          el.style.setProperty('--p', lp.toFixed(3));
+          if (lp >= 0.999 && !el.classList.contains('done')) { el.classList.add('done'); CDSound.layer(); }
+        });
+      },
+      onComplete: complete,
+    });
+    current.wipe.canvas.addEventListener('pointerdown', (e) => { if (!tool || tool.id === 'scissors') { if (!tool) toast('先从花瓣里挑一件工具'); e.stopImmediatePropagation(); } }, true);
+    if (tool && tool.id !== 'scissors' && !tool.fam.includes(o.family)) tool = null;
+    if (!tool) $('cursor').style.display = 'none';
+    openFlower(true);
+    refreshTools();
+  }
+  function back(silent) {
+    if (!current) return;
+    current.s.el.classList.remove('away');
+    current.wipe?.destroy();
+    current = null;
+    $('layers').innerHTML = ''; $('mushroom').style.display = 'none'; $('cutline').style.opacity = 0;
+    $('center-hint').style.display = 'block';
+    openFlower(false);
+    if (!silent) CDSound.drop();
+  }
+  async function complete() {
+    const { s, o } = current;
+    o.done = true;
+    CDSound.done();
+    const r = $('stage').getBoundingClientRect();
+    CDFx.sparkle(r.left + 110, r.top + 110, 28, ['#fff3b0', '#ffe28a', '#d9f7c2']);
+    addCoins(2);
+    if (o.mushroom === 'mature' && !current.harvested) { toast('干净了！菇还在，换剪刀剪下来'); refreshTools(); return; }
+    toast('干净了！它回到圈里发光 · 240 小时不再发霉');
+    await new Promise((res) => setTimeout(res, 700));
+    returnHome(s);
+  }
+  function returnHome(s) {
+    s.el.querySelector('img').src = s.o.clean;
+    s.el.classList.add('done');
+    back(true);
+    lastTop = -1;
+    // 自动转到下一个待护理
+    const next = stones.find((x) => !x.o.done);
+    // 自动把下一个待护理转到灯下（只转不跳，让玩家自己点）
+    if (next) setTimeout(() => bringToTop(next, false), 500);
+  }
+
+  // ---------- 剪刀 ----------
+  let cut = null;
+  $('stage').addEventListener('pointerdown', (e) => {
+    if (tool?.id !== 'scissors' || !current || current.harvested || current.o.mushroom !== 'mature') return;
+    e.preventDefault();
+    const r = $('cutline').getBoundingClientRect();
+    cut = { y0: e.clientY, line: r.top, minX: r.left, maxX: r.right, crossed: false };
+  }, true);
+  addEventListener('pointermove', (e) => { if (cut && (cut.y0 - cut.line) * (e.clientY - cut.line) <= 0 && e.clientX > cut.minX && e.clientX < cut.maxX) cut.crossed = true; });
+  addEventListener('pointerup', () => {
+    if (!cut) return;
+    const ok = cut.crossed; cut = null;
+    if (!ok) { toast('一刀要划过虚线'); return; }
+    current.harvested = true;
+    CDSound.snip();
+    const m = $('mushroom'); const mr = m.getBoundingClientRect();
+    const fly = m.cloneNode(); m.style.display = 'none';
+    Object.assign(fly.style, { position: 'fixed', left: mr.left + 'px', top: mr.top + 'px', width: mr.width + 'px', height: mr.height + 'px', zIndex: 45 });
+    document.body.appendChild(fly);
+    const b = $('bottle').getBoundingClientRect();
+    fly.animate([{ transform: 'translate(0,0) scale(1) rotate(0)' }, { transform: `translate(120px,-80px) scale(.7) rotate(40deg)`, offset: 0.4 }, { transform: `translate(${b.left - mr.left - 60}px, ${b.top - mr.top - 80}px) scale(.2) rotate(120deg)`, opacity: 0.2 }],
+      { duration: 820, easing: 'cubic-bezier(.3,0,.3,1)' }).onfinish = () => fly.remove();
+    CDFx.coins({ x: mr.left + 110, y: mr.top + 60 }, { x: b.left + 27, y: b.top + 40 }, 4, () => addCoins(1));
+    toast(Math.random() < 0.5 ? '剪下来了！+4，还飘出 1 枚孢子——拖到圈里的空位就能种' : '剪下来了！+4。菇采了，霉还在');
+    current.o.mushroom = 'none'; current.o.desk = undefined;
+    $('cutline').style.opacity = 0;
+    refreshTools();
+    if (current.o.done) setTimeout(() => returnHome(current.s), 900);
+  });
+
+  function addCoins(n) {
+    coins += n; $('bottle').querySelector('.num').textContent = coins;
+    $('bottle').querySelector('.fill').style.height = Math.min(92, 30 + (coins - 24) * 3) + '%';
+    $('bottle').classList.remove('bump'); void $('bottle').offsetWidth; $('bottle').classList.add('bump');
+    CDSound.coin();
+  }
+  function hint() { const t = stones[topIndex()]; if (!t.o.done) toast(`灯下是「${t.o.name}」，点它跳进来`); }
+  let tt = 0;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2400); }
+  openFlower(false);
+  refreshTools();
+  window.__demo = { pick: (i) => bringToTop(stones[i]), selectTool: (i) => selectTool(TOOLS[i]) };
+})();
+</script>
+</body>
+</html>

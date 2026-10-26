@@ -57,11 +57,40 @@ async function refresh(): Promise<void> {
   capsule.title = `${placeEl.textContent} · ${ATTRIBUTION}`;
 }
 
-// 透明留白穿透与点击/拖动区分由主进程 WM_NCHITTEST 子类化接管
-// （win32-capsule-hittest）：留白 HTTRANSPARENT 穿透，本体 HTCAPTION →
-// 系统拖动阈值区分纯点击（开护理台）与拖动（移窗），渲染层不再参与
-// 命中翻转（setIgnoreMouseEvents(forward) 在 focusable:false 透明窗上
-// 实测不投递事件，旧 mousemove 翻转方案永不可达）。
+// 点击/拖动（R2，0.1.28 重做）：胶囊铺满窗口，普通 pointer 事件即可到达。
+// 按下后屏幕坐标移动超过阈值 = 拖动（主进程按位移 setPosition），否则抬起 = 点击（打开护理台）。
+// 用 screenX/Y：拖动时窗口随鼠标移动，窗口内坐标不可靠。
+const DRAG_THRESHOLD_PX = 4;
+let press: { x: number; y: number; id: number; dragging: boolean } | null = null;
+capsule.addEventListener('pointerdown', (event) => {
+  if (event.button !== 0) return;
+  press = { x: event.screenX, y: event.screenY, id: event.pointerId, dragging: false };
+  try { capsule.setPointerCapture(event.pointerId); } catch { /* 合成指针无捕获 */ }
+  capsule.classList.add('pressed');
+});
+capsule.addEventListener('pointermove', (event) => {
+  if (!press || event.pointerId !== press.id) return;
+  const dx = event.screenX - press.x;
+  const dy = event.screenY - press.y;
+  if (!press.dragging && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+    press.dragging = true;
+    capsule.classList.add('dragging');
+    window.damp?.capsule?.dragStart();
+  }
+  if (press.dragging) window.damp?.capsule?.dragMove(dx, dy);
+});
+const endPress = (event: PointerEvent, cancelled: boolean): void => {
+  if (!press || event.pointerId !== press.id) return;
+  const wasDragging = press.dragging;
+  press = null;
+  capsule.classList.remove('pressed', 'dragging');
+  try { capsule.releasePointerCapture(event.pointerId); } catch { /* 已释放 */ }
+  if (wasDragging) window.damp?.capsule?.dragEnd();
+  else if (!cancelled) window.damp?.capsule?.click();
+};
+capsule.addEventListener('pointerup', (event) => endPress(event, false));
+capsule.addEventListener('pointercancel', (event) => endPress(event, true));
+capsule.addEventListener('lostpointercapture', (event) => { if (press?.dragging) endPress(event, true); });
 
 void refresh();
 // 状态 30s 轮询：城市设置/INIT 发生在主进程，此前 30 分钟才刷新一次，

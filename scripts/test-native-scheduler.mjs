@@ -73,11 +73,11 @@ test('R4.1: 全部成功 → completed，摘要含 K/N/成功数；次日 DAILY 
   assert.equal(advanced.length, done + 1); // 首批对象 + 今日一个
 });
 
-test('R4.1: 候选不足按实数（N<5 受限分支不伪造）', () => {
+test('R4.1（0.1.28）: 首批按候选实数的 60–70% 取整，不伪造对象', () => {
   const { base } = deps({ candidates: candidates(3) });
   const r = runNativeCycle(base);
-  assert.equal(base.state.init.n, 3);
-  assert.match(r.summary, /N=3/);
+  assert.equal(base.state.init.n, 2);
+  assert.match(r.summary, /N=2/);
 });
 
 test('R4.1: 对象消失 → 跳过并给原因；N=0 完成检查', () => {

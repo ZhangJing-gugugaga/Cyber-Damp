@@ -98,9 +98,13 @@ export const HUMIDITY_THRESHOLD = 70;
 export const MOLD_IMMUNITY_MS = 240 * 60 * 60 * 1000;
 
 /** 第 2 节参数表常量 */
-export const INIT_K_CHOICES = [5, 6, 7, 8, 9, 10] as const;
+/** 首批覆盖比例（0.1.28 用户裁决：桌面可处理对象的 60%–70%，替代原 K∈{5..10}） */
+export const INIT_RATIO_MIN = 0.6;
+export const INIT_RATIO_MAX = 0.7;
 export const INIT_INTENSITY_WEIGHTS = { light: 50, mid: 35, heavy: 15 } as const;
+/** 重度上限：至少 2 项，且不超过首批的 15%（随规模放大后保持轻/中/重分布） */
 export const INIT_HEAVY_CAP = 2;
+export const INIT_HEAVY_CAP_RATIO = 0.15;
 export const INIT_HEAVY_MOLD_MUSHROOM_WEIGHTS = { none: 50, young: 25, mature: 25 } as const;
 export const DAILY_WEIGHT_CAP_DAYS = 30;
 export const DAILY_WEIGHT_NO_BASELINE = 31;

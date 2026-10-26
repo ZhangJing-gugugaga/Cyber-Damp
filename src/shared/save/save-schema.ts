@@ -265,11 +265,13 @@ export function migrateSave(raw: unknown): SaveData | null {
   if (validated.schemaVersion === 4) return validated;
   let upgraded: SaveData;
   if (validated.schemaVersion < 3) {
-    // 旧用户已有游戏进度：视为已初始化，避免把老玩家当新安装重发首批
+    // 旧版本号但已有 native 段（0.1.2x 写盘未提升版本号的真实存档）：原样保留对象注册表、
+    // 日账本与收藏，只提升版本号。此前一律覆盖为空 native，会清空真实玩家的全部对象与账本。
+    // 没有 native 段的旧存档：视为已初始化，避免把老玩家当新安装重发首批（主进程另按用户裁决处理）。
     upgraded = {
       ...validated,
       schemaVersion: 3,
-      native: { init: { status: 'legacy-initialized' }, dailyEvents: {}, objects: {}, lastSnapshot: null },
+      native: validated.native ?? { init: { status: 'legacy-initialized' }, dailyEvents: {}, objects: {}, lastSnapshot: null },
     };
   } else {
     upgraded = validated;
@@ -287,7 +289,10 @@ function upgradeFieldsToV4(save: SaveData): SaveData {
   if (!native) return save;
   const objects: NonNullable<SaveData['native']>['objects'] = {};
   for (const [id, obj] of Object.entries(native.objects)) {
-    const hasLegacyCare = (obj.careMask !== undefined || obj.careProgress !== undefined) && obj.damage;
+    // 只有"正在护理"的对象（有损伤）才建分层会话：完成护理后 stage=0 的对象仍残留
+    // careProgress:0，若为其建 stage=0 会话会使整份存档校验失败（0.1.27 实机存档复现）。
+    const hasLegacyCare = (obj.careMask !== undefined || obj.careProgress !== undefined)
+      && obj.damage !== null && obj.damage.stage > 0;
     if (obj.careSession !== undefined || !hasLegacyCare) {
       objects[id] = obj;
       continue;
