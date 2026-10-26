@@ -18,8 +18,9 @@ export default defineConfig(({ command, mode }) => {
     root: 'src/renderer',
     base: './',
     build: {
-      // 相对 src/renderer 回溯两级 = 项目根 dist/renderer（与 package.json main 入口约定一致）
-      outDir: '../../dist/renderer',
+      // 生产：dist/renderer（electron-builder 打包范围）；模拟：dist/renderer-mock（独立目录，
+      // 避免 build:mock 覆盖生产产物后误跑 uat:care-ui 测到 mock 包）
+      outDir: includeMock ? '../../dist/renderer-mock' : '../../dist/renderer',
       emptyOutDir: true,
       rolldownOptions: { input },
     },

@@ -42,7 +42,7 @@ export interface DailyCycleDeps {
 }
 
 export interface DailyCycleResult {
-  action: 'paused' | 'wait-weather' | 'terminal' | 'settled' | 'created';
+  action: 'paused' | 'wait-weather' | 'wait-init' | 'terminal' | 'settled' | 'created';
   advanced: number;
   skipped: number;
   alert: AlertState;
@@ -84,6 +84,13 @@ export function runDailyCycleV4(deps: DailyCycleDeps): DailyCycleResult {
     { defaulted: deps.weatherDefaulted, now: deps.now, seed: deps.seed },
   );
   native.alert = alert;
+
+  // R4.1 / 计划 Task 5：INIT 未完成（未生成或进行中）不创建当天 DAILY 记录。
+  // 分支表在编排层（员工 2 的调度器保留 INIT 分支作第二道防线），本函数再挡一次。
+  const init = native.init ?? null;
+  if (init === null || init.status === 'active') {
+    return { action: 'wait-init', advanced: 0, skipped: 0, alert, record: null, dailyUsed: 0, spreadInserted: 0 };
+  }
 
   const existing = v4Events[date] ?? null;
   if (existing && isDailyTerminal(existing)) {

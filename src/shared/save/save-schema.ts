@@ -307,9 +307,15 @@ function upgradeFieldsToV4(save: SaveData): SaveData {
   }
   const dailyEvents: NonNullable<SaveData['native']>['dailyEvents'] = {};
   for (const [date, record] of Object.entries(native.dailyEvents)) {
+    // v4 记录原样保留：slots/limit/alert 是当日额度与回放证据，
+    // 重启读档绝不能重写（员工2审查：每次读档补字段会抹掉当天账本）。
+    if ('slots' in record) {
+      dailyEvents[date] = record;
+      continue;
+    }
     dailyEvents[date] = {
       ...record,
-      // 旧日记录视为已结算：不重算、不补发
+      // 仅 v3 旧记录补字段：视为已结算，不重算、不补发
       limit: 1,
       alert: false,
       slots: [],

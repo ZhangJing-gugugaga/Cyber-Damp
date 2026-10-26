@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { runDailyCycleV4 } from '../dist/test/world/daily-cycle.js';
 import { buildAdjacency } from '../dist/test/world/mold-spread.js';
+import { migrateSave } from '../dist/test/shared/save/save-schema.js';
 
 const RAIN = { weatherCode: 63, humidityPct: 92, temperatureC: 17, observedAt: '2026-10-26T10:00:00Z', fetchedAt: 1 };
 /** 非警报降雨（RH<90，普通日额度 3） */
@@ -117,6 +118,74 @@ test('播种在当日循环里被吸收：长出指定品种（额度允许时�
   assert.equal(objects['d-1'].damage.mushroom, 'young');
   assert.equal(native.planted['d-1'].status, 'completed');
   assert.equal(result.dailyUsed, 1);
+});
+
+test('INIT 未完成（进行中/未生成）不创建当天 DAILY 记录（R4.1；员工2审查#2）', () => {
+  const objects = { 'd-1': obj('d-1') };
+  const now = new Date('2026-10-26T10:00:00').getTime();
+  for (const init of [
+    { status: 'active', k: 5, n: 5, seed: 1, targets: [], snapshot: RAIN, generatedAt: 1 },
+    null,
+  ]) {
+    const native = makeNative(objects);
+    native.init = init;
+    const result = runDailyCycleV4({
+      native, weather: RAIN_NORMAL, weatherDefaulted: false, now, seed: 1,
+      categories: {}, exists: () => true, applyIcon: () => true,
+    });
+    assert.equal(result.action, 'wait-init');
+    assert.equal(result.advanced, 0);
+    assert.deepEqual(native.dailyEvents, {}, 'INIT 期间不发 DAILY');
+  }
+  // legacy-initialized 与 completed 正常发放
+  for (const init of [
+    { status: 'legacy-initialized' },
+    { status: 'completed', k: 5, n: 5, seed: 1, targets: [], snapshot: RAIN, generatedAt: 1, completedAt: 2 },
+  ]) {
+    const native = makeNative({ 'd-1': obj('d-1') });
+    native.init = init;
+    const result = runDailyCycleV4({
+      native, weather: RAIN_NORMAL, weatherDefaulted: false, now, seed: 2,
+      categories: {}, exists: () => true, applyIcon: () => true,
+    });
+    assert.equal(result.action, 'created');
+  }
+});
+
+test('重启读档不抹账本：cycle → migrateSave → 再 cycle，记录与额度不变（员工2审查#1）', () => {
+  const objects = {};
+  for (let i = 0; i < 8; i += 1) objects[`d-${i}`] = obj(`d-${i}`, { damage: { family: 'damp', stage: 1, mushroom: 'none' } });
+  const native = makeNative(objects);
+  const now = new Date('2026-10-26T10:00:00').getTime();
+  const deps = { native, weather: RAIN_NORMAL, weatherDefaulted: false, now, seed: 21, categories: {}, exists: () => true, applyIcon: () => true };
+  const first = runDailyCycleV4(deps);
+  assert.equal(first.advanced, 3);
+  const recordBefore = JSON.parse(JSON.stringify(native.dailyEvents['2026-10-26']));
+  assert.equal(recordBefore.limit, 3);
+  assert.equal(recordBefore.slots.length, 3);
+
+  // 完整存档包一层，走真实读档迁移路径
+  const save = {
+    schemaVersion: 3, savedAt: now,
+    player: { coins: 24, owned: [], equipped: { rope: 'rope-1', clip: 'clip-1' } },
+    weather: { city: 'changsha', migratedOn: '2026-10-26' },
+    files: [], ropes: [], stats: { harvested: 0, earned: 0, playedMs: 0 },
+    native: JSON.parse(JSON.stringify(native)),
+  };
+  const migrated = migrateSave(save);
+  assert.ok(migrated);
+  const recordAfter = migrated.native.dailyEvents['2026-10-26'];
+  assert.deepEqual(recordAfter, recordBefore, 'v4 记录读档后原样保留（limit/slots/seed 不重写）');
+  assert.equal(migrated.schemaVersion, 3);
+
+  // 读档后再跑一次：终态，不重复推进
+  const again = runDailyCycleV4({
+    ...deps,
+    native: migrated.native,
+  });
+  assert.equal(again.action, 'terminal');
+  assert.equal(again.advanced, 0);
+  assert.deepEqual(migrated.native.dailyEvents['2026-10-26'], recordBefore);
 });
 
 test('写入全失败：维持同一事件身份（retryable），不创建第二个记录', () => {

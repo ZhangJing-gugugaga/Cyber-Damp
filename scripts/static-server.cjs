@@ -3,7 +3,8 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const ROOT = path.resolve(__dirname, '..', 'dist/renderer');
+// 模拟环境专用产物目录（生产 dist/renderer 不含 dev.html）
+const ROOT = path.resolve(__dirname, '..', 'dist/renderer-mock');
 const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json',
@@ -33,7 +34,7 @@ function startStaticServer(port) {
 /** 模拟环境探针前置检查：dev.html 只在 `npm run build:mock` 产物里。 */
 function verifyMockBuild() {
   if (!fs.existsSync(path.join(ROOT, 'dev.html'))) {
-    console.error('缺少 dist/renderer/dev.html：先运行 npm run build:mock（生产构建有意不含模拟环境）');
+    console.error('缺少 dist/renderer-mock/dev.html：先运行 npm run build:mock（生产构建有意不含模拟环境）');
     process.exit(2);
   }
 }

@@ -69,6 +69,14 @@
 | 次要：AGENTS.md 与 v4 矛盾 | 根/世界指南与 PRODUCT.md 缺席合并条款改为 v0.2 日额度（3/5 共用额度）。 |
 | 次要：probe-species-mushroom 假失败 | 改用 `imgs/loadState` 判定，退出码正确。 |
 
+## 员工 2 审查修复（第四轮，2026-10-27）
+
+| 审查项 | 处理 |
+|---|---|
+| #1 重启读档抹掉当天 v4 账本 | `upgradeFieldsToV4` 对 `dailyEvents` 增加 `'slots' in record` 判断：v4 记录原样保留（limit/slots/seed 不重写），只给 v3 旧记录补 `limit:1,alert:false,slots:[]`。回归测试：`runDailyCycleV4 → migrateSave → 再 cycle`，记录 deepEqual 不变、额度仍为 3、第二次为 terminal 不重复推进。 |
+| #2 runDailyCycleV4 未检查 INIT | 新增 `wait-init` 动作：`native.init` 为 null（未生成）或 `status:'active'` 时返回 wait-init、不创建 DAILY 记录；`legacy-initialized`/`completed` 正常发放。测试覆盖四种 init 状态。员工 2 的调度器保留 INIT 分支作第二道防线。 |
+| 小问题：build:mock 覆盖生产产物 | mock 构建改输出到 `dist/renderer-mock`；探针静态服务器只服该目录，`verifyMockBuild` 提示同上。生产 `dist/renderer` 不会被 mock 构建动到，`dist:win` 与 `uat:care-ui` 不再受探针顺序影响。 |
+
 ## 验证环境声明（员工 2 审查补充）
 
 - 计划书设定员工 1 在 macOS 开发，但本批提交实际在 **Windows 本机**完成（Git 作者身份与员工 2 相同，无 Mac 端提交）。模拟环境是纯浏览器页面（Vite + Chromium），不自带平台相关代码；**未在 Apple 硬件上跑过**，不算 Mac 验收。
