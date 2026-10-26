@@ -5,6 +5,7 @@
  */
 import { applyDamageMaterial, damageVariant } from '../shared/material/effects';
 import { CARE_MASK_CELLS, decodeCareMask, encodeCareMask } from '../shared/care-mask';
+import { isNewSpeciesId } from '../shared/types/gameplay';
 import './care-v2';
 import { DEFAULT_LOCATION } from '../shared/native-defaults';
 import type { NativeObjectView, NativeStatusSnapshot } from '../shared/types/native-status';
@@ -236,11 +237,15 @@ function buildDirt(obj: NativeObjectView): void {
       const saved = obj.careMask ? base64ToMask(obj.careMask) : null;
       if (saved) { mask = saved; applyMaskToCanvas(); }
     }
-    // 蘑菇独立层（清洗不掉菇、擦不到）；空 src 会渲染破图占位符，须隐藏
+    // 蘑菇独立层（清洗不掉菇、擦不到）；空 src 会渲染破图占位符，须隐藏。
+    // 13 款新品种用 species 素材目录（成熟/幼菇 256），旧品种沿用 round/cluster/fan 形状。
     if (obj.damage && obj.damage.mushroom !== 'none') {
-      const shape = MUSHROOM_ASSET[obj.mushroomSpecies ?? 'oyster'] ?? 'round';
+      const stage = obj.damage.mushroom === 'mature' ? 'mature' : 'bud';
+      const species = obj.mushroomSpecies;
       mushroomEl.classList.remove('hidden');
-      mushroomEl.src = `./assets/care/${shape}-${obj.damage.mushroom === 'mature' ? 'mature' : 'bud'}.png`;
+      mushroomEl.src = species && isNewSpeciesId(species)
+        ? `./assets/care/species/${species}/${stage}-256.png`
+        : `./assets/care/${MUSHROOM_ASSET[species ?? 'oyster'] ?? 'round'}-${stage}.png`;
     }
     updateProgressUi();
   };

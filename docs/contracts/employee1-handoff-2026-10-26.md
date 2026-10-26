@@ -53,7 +53,8 @@
 - `npm run build` 后任意静态伺服 `dist/renderer`，开 `dev.html`；或 `npm run dev` 开 `http://localhost:5173/dev.html`。
 - 控制面板：天气预设（晴/降雨/雾/高湿/警报/干热）、推进一天、重置模拟存档。
 - 演示脚本 27 步（计划书第九节）已可执行 1–27 全部（截图证据 `previews/care-v2-mock-2026-10-26/`）。
-- 探针（自包含，起静态服务）：`scripts/probe-dev-flow.cjs`（API 级 13 步）、`scripts/probe-dev-ui.cjs`（手势级 12 步）。
+- 探针（自包含，起静态服务）：`scripts/probe-dev-flow.cjs`（API 级 14 步）、`scripts/probe-dev-ui.cjs`（手势级 12 步）、`scripts/probe-dev-stress.cjs`（交互压力 12 步：引导/练习/快速处理/v1 采摘/剪刀/播种/小铺/暂停/天气中途切换/页签，断言无未捕获异常）。
+- 修复记录（2026-10-26 第二轮，cbc80b4+）：①care.ts/care-v2 所有 setPointerCapture 加 try/catch（合成或已释放指针会抛 NotFoundError 未捕获——用户报的"报错"来源）；②选中对象改为 care-selection-changed 事件驱动 + 1.2s 轮询兜底（原 2.5s 轮询导致剪刀等工具晚一拍出现）；③护理台菇层显示 13 款新品种素材（原误用旧版 round/cluster/fan 映射），主进程 state-icon.ts 的 SPECIES_SHAPE 同样需要员工 2 换成 species manifest 读取。
 
 ## 已知限制 / NOT TESTED
 - Windows 原生接线（IPC 注册、preload、图标合成、壁纸读写、调度器 v4 升级）：**NOT TESTED**。
