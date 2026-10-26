@@ -1,4 +1,4 @@
-/** 当前护理台与胶囊消费的 preload 类型；契约 v1.14。 */
+/** 当前护理台与胶囊消费的 preload 类型；契约 v1.15。 */
 
 declare global {
   interface Window {
@@ -30,7 +30,7 @@ declare global {
         resume(): Promise<{ ok: boolean }>;
         setAutostart(on: boolean): Promise<{ ok: boolean; on?: boolean; message?: string }>;
         getAutostart(): Promise<{ on: boolean }>;
-        // ---------- v0.2 玩法通道（gameplay-v2 契约 v1.15-draft；preload 接线由员工 2 完成，浏览器模拟环境按同名实现） ----------
+        // ---------- v0.2 玩法通道（gameplay-v2 契约 v1.15；preload 已暴露。保留可选标记供 care-v2 特性探测与浏览器模拟环境共用） ----------
         careProgressV2?(payload: import('../../shared/types/gameplay').CareProgressV2Payload): Promise<{ ok: boolean; message?: string }>;
         careCompleteV2?(objectId: string): Promise<import('../../shared/types/gameplay').CareCompleteV2Result>;
         harvestV2?(payload: import('../../shared/types/gameplay').HarvestV2Payload): Promise<import('../../shared/types/gameplay').HarvestV2Result>;
@@ -44,7 +44,7 @@ declare global {
         /** PRD §11：本地 JSONL 埋点 */
         track(name: string, props: Record<string, string | number | boolean>): Promise<void>;
       };
-      /** v0.2 壁纸效果组（R9；preload 尚未暴露，模拟环境已实现同名接口） */
+      /** v0.2 壁纸效果组（R9；preload 已暴露。Win32 读写未接入前，开启/擦雾如实返回 ok:false） */
       wallpaper?: {
         status(): Promise<import('../../shared/types/gameplay').WallpaperView>;
         setEnabled(on: boolean): Promise<{ ok: boolean; message?: string; view?: import('../../shared/types/gameplay').WallpaperView }>;

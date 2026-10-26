@@ -1,6 +1,6 @@
-# v0.2 玩法契约（草案 v1.15-draft，员工 1 已审阅）
+# v0.2 玩法契约 v1.15
 
-状态：**员工 1 审阅完成（2026-10-26，意见见文末），待员工 2 确认接线后去"草案"并定为 v1.15**。2026-10-25 由员工 2 起草。类型源为 [`src/shared/types/gameplay.ts`](../../src/shared/types/gameplay.ts)，规格依据 [PRODUCT.md](../PRODUCT.md) 的 R4/R5/R6/R9。表中新通道**尚未注册**，preload 也还没有暴露；接线由员工 2 在领域函数交付后完成（计划 Task 11/13）。现行接口仍以 [preload 契约 v1.14](preload-api.md) 为准。
+状态：**v1.15，2026-10-26 员工 2 接线确认**。2026-10-25 由员工 2 起草，2026-10-26 员工 1 审阅（意见见文末）。类型源为 [`src/shared/types/gameplay.ts`](../../src/shared/types/gameplay.ts)，规格依据 [PRODUCT.md](../PRODUCT.md) 的 R4/R5/R6/R9。下表通道已在 `src/main/ipc/native-handlers.ts`、`src/main/ipc/wallpaper-handlers.ts` 注册并由 preload 暴露，汇总见 [preload 契约 v1.15](preload-api.md)。接线的已知限制见文末"员工 2 接线说明"。
 
 ## 分工边界
 
@@ -21,7 +21,7 @@
 - 旧品种 `oyster, enoki, shy, bolete, lava` 的 ID 原样保留。**社恐缩头菇用 `timid`，不能用 `shy`**，因为旧存档的 `shy` 是胆小菇。旧品种归入收藏页的"早期品种"区，新事件不再产生旧品种。
 - 渲染层的 `SPECIES_LABEL` / `SPECIES_ASSET` 和主进程的 `SPECIES_SHAPE` 以后改为读取同一份 species manifest（由员工 1 生成），不再在三处各维护一张表。
 
-## 新通道草案
+## 新通道
 
 | 出口 | 通道 | 载荷 → 结果 | 规则 |
 |---|---|---|---|
@@ -33,14 +33,14 @@
 | native.cancelPlant | native:cancelPlant | `{objectId}` → `{ok}` | 只能取消 pending 的播种，孢子退回 |
 | native.setOverlayVariant | native:setOverlayVariant | `{variant:'A'\|'B'}` → `{ok}` | 用于实测比较；切换后只重新合成已有外观 |
 | wallpaper.status | wallpaper:status | → `WallpaperView` | 只读 |
-| wallpaper.setEnabled | wallpaper:setEnabled | `{on}` → `{ok,view?}` | 开启前先登记原值；遇到跳过条件时返回 skipped 和原因 |
-| wallpaper.wipe | wallpaper:wipe | `{fogMask,progress}` → `{ok,view?}` | 只在松手或确认时调用；主进程限频，不逐帧设置壁纸 |
+| wallpaper.setEnabled | wallpaper:setEnabled | `{on}` → `{ok,view?}` | 开启前先登记原值；遇到跳过条件时返回 skipped 和原因。**Win32 接入前：`on:true` 一律 `ok:false` 并说明未接入，`on:false` 返回当前 off 状态** |
+| wallpaper.wipe | wallpaper:wipe | `{fogMask,progress}` → `{ok,view?}` | 只在松手或确认时调用；主进程限频，不逐帧设置壁纸。**Win32 接入前一律 `ok:false`** |
 
 `native.status` 新增 `NativeStatusV4Fields`，对象视图新增 `NativeObjectViewV4Fields`。所有新通道限护理台 WebContents 调用，校验载荷；领域失败返回 `ok:false` 且不写盘，沿用 `mutateSave` 的语义。
 
-## 存档 v4 草案
+## 存档 v4 字段
 
-- `schemaVersion: 4`。v3 → v4 迁移：
+- 文件 `schemaVersion` 暂保持 3（旧版程序 `validateSave` 只认 1/2/3，保证可回退）；v4 字段纯增量写入，迁移幂等，已有 `slots` 的当日记录读档时原样保留（见 [save-format](save-format.md)）。字段迁移：
   - `dailyEvents` 原记录补 `limit:1, alert:false, slots:[]`，表示旧日记录已结算；不重新计算，也不补发。
   - `collection` 原样保留。
   - 旧 `careProgress/careMask` 迁移为单层 `careSession`：受潮迁到 `droplets`，霉变迁到 `mold`，焦化迁到 `soot`。
@@ -65,3 +65,15 @@
 - 品种 manifest 由员工 1 生成（含旧品种的展示条目，`legacy: true` 标记），员工 2 接入 `SPECIES_LABEL`/`SPECIES_ASSET`/`SPECIES_SHAPE` 时读取同一份。
 
 员工 2 确认可以接入 preload/IPC 后：去掉"草案"字样、版本号定 v1.15，并同步 preload-api.md、`src/preload/index.ts`、`src/renderer/types/damp.d.ts` 与 IPC 注册。
+
+## 员工 2 接线说明（2026-10-26，v1.15）
+
+- **调度器**：`decideNativeBranch` 仍决定唯一分支；INIT 未完成、暂停/恢复态、天气不可用、当日终态都不进入 v4。`daily-create`/`daily-resume` 改走 `runDailyCycleV4`（`native-event-scheduler.executeDailyV4`）。ICO 合成是异步而领域回调是同步的，因此先在存档深拷贝上预演收集图标计划、合成落缓存，再在真实存档上同输入正式结算；两遍计划一致由 `scripts/test-daily-v4-rehearsal.mjs` 锁定。正式结算中缓存缺失按写入失败记账（同一事件身份，下一次触发续写），不会多推进。
+- **种子**：续写沿用当日记录持久化的 `seed`；新建时随机一次并随记录持久化。剪刀采摘的孢子种子 = 当日 v4 记录种子（无记录时由日期派生）+ 对象 ID。
+- **默认天气**：PRODUCT R3 已接受"内置默认快照可驱动开箱事件"，因此调度器传 `weatherDefaulted:false`；内置快照为 67%/晴，不可能触发警报（R5.3）。今日菌讯按快照 `observedAt` 识别内置默认并标 `defaulted:true`。
+- **邻接**：主进程用扫描的桌面画布坐标（`DesktopEntry.geometry.x/y`）经 `src/shared/desktop-adjacency.ts` 估计格距（最近邻中位数）后取 1.5 格（含对角）；只读坐标，不移动图标。真实桌面上的阈值是否合适 **NOT TESTED**。
+- **INIT 幼菇品种**：改用 `rollSpecies`（种子 = 对象 ID + 快照时间），新事件不再产生旧品种；`rollSpecies` 返回 null 时退回 `bubble`。
+- **图标合成**：`state-icon.ts` 读 `assets/care/species/<id>/{bud|mature}-256.png`；A = 原图 0.60、B = 原图 0.86，菌群 256 全幅叠加（与员工 1 对照图比例一致）；旧品种沿用 v0.1 资产与布局。默认 A，`setOverlayVariant` 切换后只回显已有外观。ICO 内 48/32 条目由 256 合成图缩放，**未使用**素材包里单独的 48/32 PNG。样张见 `previews/state-icon-ab-2026-10-26/`（程序化样张，桌面观感 **NOT TESTED**）。
+- **v1 通道兼容**：v1 `careComplete`/`quickCare` 完成后清除 `careSession`；v2 写路径落盘前调 `mirrorCareSessionToLegacy`。
+- **壁纸**：Win32 读写、原值登记与恢复未实现，通道如实拒绝开启（护理台 v2 界面因此可以挂载，墙面页开启会提示未接入）。
+- 验证：`npm run uat:ipc-v2`（35 项，真实 preload→IPC→临时存档）；真实桌面上的 v4 每日推进、蔓延、播种长出与 A/B 观感 **NOT TESTED**。

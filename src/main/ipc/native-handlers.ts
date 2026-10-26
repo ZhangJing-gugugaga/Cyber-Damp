@@ -19,6 +19,34 @@ import {
 } from '../../world/native-care';
 import type { DamageState } from '../../shared/types/native';
 import type { DesktopEntry } from '../../shared/types/desktop';
+import {
+  isCareSessionStale, judgeFineCare, mirrorCareSessionToLegacy, validateCareSession,
+} from '../../shared/care-session';
+import { cancelPlant, completeCareV2, harvestV2, plantSpore } from '../../world/spores';
+import { buildDailyForecast } from '../../world/daily-forecast';
+import { dailyLimitFor, dailyUsedOf } from '../../world/daily-v4';
+import { localDateKey } from '../../world/native-events';
+import { hashString } from '../../shared/rand';
+import { adjacencyFromDesktop } from '../../shared/desktop-adjacency';
+import { DEFAULT_WEATHER_SNAPSHOT } from '../../shared/native-defaults';
+import {
+  isNewSpeciesId, type CareCompleteV2Result, type DailyEventRecordV4, type HarvestV2Result,
+} from '../../shared/types/gameplay';
+import type { NativeSaveSection } from '../../shared/types/save';
+
+const DAMAGE_FAMILIES = new Set(['damp', 'mold', 'char']);
+
+/** 当日 v4 记录（v3 记录或缺失返回 null） */
+function todayRecordV4(native: NativeSaveSection, now: number): DailyEventRecordV4 | null {
+  const record: unknown = native.dailyEvents[localDateKey(now)];
+  if (!record || typeof record !== 'object' || !('slots' in record)) return null;
+  return record as DailyEventRecordV4;
+}
+
+/** 内置默认快照识别：observedAt 与冻结快照一致（实况/缓存快照不会恰好等于该时刻） */
+function isDefaultSnapshot(snapshot: NativeSaveSection['lastSnapshot']): boolean {
+  return snapshot !== null && snapshot.observedAt === DEFAULT_WEATHER_SNAPSHOT.observedAt;
+}
 
 /** 最近一次真实桌面扫描（主进程原生模式自扫；缓存供图标操作取原图） */
 let latestEntries: DesktopEntry[] = [];
@@ -47,12 +75,7 @@ export function updateNativeEntries(entries: DesktopEntry[]): void {
 export function latestCycleCandidates(): CycleCandidate[] {
   return latestEntries
     .filter((e) => (e.kind === 'dir' || e.kind === 'file') && !e.realPath.startsWith('::'))
-    .map((e) => ({
-      id: e.id, realPath: e.realPath,
-      kind: (e.kind === 'dir' ? 'dir' : 'lnk') as 'dir' | 'lnk',
-      displayName: e.displayName ?? e.name,
-      originalMtime: e.mtime, iconDataUrl: e.iconDataUrl,
-    }));
+    .map(entryToCandidate);
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -86,6 +109,10 @@ function entryToCandidate(entry: DesktopEntry): CycleCandidate {
     kind: (entry.kind === 'dir' ? 'dir' : 'lnk') as 'dir' | 'lnk',
     displayName: entry.displayName ?? entry.name,
     originalMtime: entry.mtime, iconDataUrl: entry.iconDataUrl,
+    objectCategory: entry.objectCategory,
+    // 桌面画布坐标（只读，用于蔓延邻接；不移动、不重排图标）
+    x: entry.geometry?.x,
+    y: entry.geometry?.y,
   };
 }
 
@@ -116,6 +143,29 @@ function mutateSave(mutator: (save: NonNullable<ReturnType<typeof loadSave>>) =>
   return result.message ? { ok: true, message: result.message } : { ok: true };
 }
 
+/** native.status 的 v4 字段（gameplay-v2 NativeStatusV4Fields；只读投影，不改存档）。 */
+function v4StatusFields(native: NativeSaveSection | undefined, now: number) {
+  const alert = native?.alert ?? { active: false, precipitationStreak: 0 };
+  const record = native ? todayRecordV4(native, now) : null;
+  const snapshot = native?.lastSnapshot ?? null;
+  return {
+    forecast: buildDailyForecast({
+      date: localDateKey(now),
+      weather: snapshot,
+      defaulted: isDefaultSnapshot(snapshot),
+      alertActive: alert.active,
+      now,
+    }),
+    alert,
+    spores: native?.spores ?? {},
+    planted: Object.values(native?.planted ?? {}),
+    dailyLimit: record?.limit ?? dailyLimitFor(alert.active),
+    dailyUsed: dailyUsedOf(record),
+    overlayVariant: native?.overlayVariant === 'B' ? 'B' as const : 'A' as const,
+    fineCareCount: native?.fineCareCount ?? 0,
+  };
+}
+
 export function registerNativeHandlers(getWc: () => WebContents | null): void {
   ipcMain.handle('native:status', (event) => {
     allowSender(event.sender); // 护理台/胶囊每次调用自动登记（契约内的合法渲染层）
@@ -123,10 +173,23 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     const native = save?.native;
     const summary = nativeStatusSummary();
     const entries = new Map(latestEntries.map((e) => [e.id, e]));
+    const now = Date.now();
+    const neighbors = adjacencyFromDesktop(latestEntries.map((e) => ({ id: e.id, x: e.geometry?.x, y: e.geometry?.y })));
+    const planted = native?.planted ?? {};
     const objects = Object.values(native?.objects ?? {})
       .map((obj) => {
         const entry = entries.get(obj.id);
+        // 与当前损伤不一致的会话是旧回执（自然推进/完成后），不下发，由护理台新建
+        const session = obj.careSession && obj.damage && obj.damage.stage > 0
+          && !isCareSessionStale(obj.careSession, obj.damage.family, obj.damage.stage)
+          ? obj.careSession : undefined;
+        const pendingPlant = planted[obj.id]?.status === 'pending' ? planted[obj.id].species : undefined;
         return {
+          objectCategory: obj.objectCategory ?? entry?.objectCategory ?? 'other',
+          ...(session ? { careSession: session } : {}),
+          ...(pendingPlant ? { plantedSpecies: pendingPlant } : {}),
+          ...(obj.glossUntil ? { glossUntil: obj.glossUntil } : {}),
+          neighbors: neighbors.get(obj.id) ?? [],
           id: obj.id, displayName: obj.displayName, kind: obj.kind,
           realPath: obj.realPath, damage: obj.damage, careProgress: obj.careProgress ?? 0, careMask: obj.careMask,
           mushroomSpecies: obj.mushroomSpecies, moldImmuneUntil: obj.moldImmuneUntil ?? 0,
@@ -135,7 +198,6 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
           // 护理台基图为原图：对象当前桌面图标可能是我们生成的损伤态，
           // 直接回传会把"损伤叠损伤"带进窗口预览（R7 原图作为合成输入）。
           iconDataUrl: entry ? pristineDataUrlFor(obj.id, obj.realPath, entry.iconDataUrl) : '',
-          objectCategory: entry?.objectCategory,
         };
       })
       .sort((a, b) => {
@@ -152,6 +214,7 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
       coins: save?.player.coins ?? 0,
       owned: save?.player.owned ?? [],
       objects,
+      ...v4StatusFields(native, now),
     };
   });
 
@@ -212,6 +275,9 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     const outcome = mutateSave((save) => {
       const result = completeCare(save.native!, objectId, Date.now());
       if (!result.ok) return fail(result.error ?? '清理失败');
+      // v4：清理完成后分层会话作废（否则下次同族同级损伤会续上旧掩码）
+      const cleaned = save.native!.objects[objectId];
+      if (cleaned) cleaned.careSession = undefined;
       iconEntry = findEntryFor(objectId);
       damage = save.native!.objects[objectId]?.damage ?? null;
       return succeed('已清理完成，10 天内不再发霉（可受潮/发焦）');
@@ -323,6 +389,8 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     try { return { on: app.getLoginItemSettings().openAtLogin }; } catch { return { on: false }; }
   });
 
+  registerNativeV2Handlers(getWc);
+
   ipcMain.handle('native:restoreOne', (event, payload: unknown) => {
     // 单对象手动还原（设置页"恢复全部"的子集入口；也用于调试）
     if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string') {
@@ -330,5 +398,156 @@ export function registerNativeHandlers(getWc: () => WebContents | null): void {
     }
     const [report] = restoreIconReferences({ ids: [payload.objectId] });
     return { ok: report?.outcome === 'restored', outcome: report?.outcome, detail: report?.detail };
+  });
+}
+
+// ---------- v0.2 玩法通道（gameplay-v2 契约 v1.15；领域规则全部来自 src/world 与 src/shared） ----------
+
+/** 结算成功后把对象当前外观写回桌面（restored 模式只存不写，R8）；失败只记录，不回滚存档。 */
+function refreshObjectIcon(objectId: string, label: string): void {
+  const entry = findEntryFor(objectId);
+  if (!entry) return;
+  const save = loadSave();
+  if (!save?.native || save.native.restored === true) return;
+  const obj = save.native.objects[objectId];
+  if (!obj) return;
+  void applyAppearance(entryToCandidate(entry), obj.damage, obj.mushroomSpecies ?? undefined).catch((error) =>
+    console.warn(`[native] ${label}图标更新失败:`, error));
+}
+
+function registerNativeV2Handlers(getWc: () => WebContents | null): void {
+  ipcMain.handle('native:careProgressV2', (event, payload: unknown) => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string'
+      || typeof payload.family !== 'string' || !DAMAGE_FAMILIES.has(payload.family)
+      || typeof payload.stage !== 'number' || ![1, 2, 3].includes(payload.stage)) {
+      return { ok: false, message: 'invalid-request' };
+    }
+    // 掩码长度、进度有限性、工具 ID 由领域校验统一把关；非法直接拒绝，不静默修补
+    const session = validateCareSession(payload.session);
+    if (!session) return { ok: false, message: '护理会话数据非法' };
+    const { objectId, family, stage } = payload as { objectId: string; family: string; stage: number };
+    if (session.family !== family || session.stage !== stage) return { ok: false, message: '护理会话与载荷损伤不一致' };
+    return mutateSave((save) => {
+      const obj = save.native!.objects[objectId];
+      if (!obj) return fail('对象不存在');
+      if (!obj.damage || obj.damage.stage === 0) return fail('该对象已经干净，进度未记录');
+      // 旧回执：渲染层看到的损伤与存档不一致（自然推进/已完成后迟到）
+      if (obj.damage.family !== family || obj.damage.stage !== stage) return fail('对象损伤已变化，本次进度未记录');
+      obj.careSession = session;
+      mirrorCareSessionToLegacy(obj);
+      return succeed();
+    });
+  });
+
+  ipcMain.handle('native:careCompleteV2', (event, payload: unknown): CareCompleteV2Result => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string') {
+      return { ok: false, message: 'invalid-request' };
+    }
+    const objectId: string = payload.objectId;
+    let settled: CareCompleteV2Result = { ok: false };
+    const outcome = mutateSave((save) => {
+      const native = save.native!;
+      const obj = native.objects[objectId];
+      if (!obj) return fail('对象不存在');
+      if (!obj.damage || obj.damage.stage === 0) return fail('该对象已经干净了');
+      const session = obj.careSession ? validateCareSession(obj.careSession) : null;
+      const fine = session !== null
+        && !isCareSessionStale(session, obj.damage.family, obj.damage.stage)
+        && judgeFineCare(session, { quickCare: false });
+      const economy = { objects: native.objects, coins: save.player.coins, fineCareCount: native.fineCareCount };
+      const result = completeCareV2(economy, { objectId, now: Date.now(), fineCare: fine });
+      if (!result.ok) return fail(result.message ?? '清理失败');
+      save.player.coins = economy.coins;
+      native.fineCareCount = economy.fineCareCount;
+      settled = result;
+      return succeed(fine ? `精细护理完成 +${result.bonusCoins ?? 0} 菇币，10 天内不再发霉` : '已清理完成，10 天内不再发霉（可受潮/发焦）');
+    });
+    if (!outcome.ok) return { ok: false, message: outcome.message };
+    refreshObjectIcon(objectId, '护理');
+    return { ...settled, ok: true, message: outcome.message };
+  });
+
+  ipcMain.handle('native:harvestV2', (event, payload: unknown): HarvestV2Result => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string'
+      || typeof payload.cutQuality !== 'number' || !Number.isFinite(payload.cutQuality)) {
+      return { ok: false, message: 'invalid-request' };
+    }
+    const objectId: string = payload.objectId;
+    const cutQuality = Math.max(0, Math.min(1, payload.cutQuality));
+    let settled: HarvestV2Result = { ok: false };
+    const outcome = mutateSave((save) => {
+      const native = save.native!;
+      const now = Date.now();
+      // 孢子掉落种子：当日事件种子（无 v4 记录时由日期派生），与对象 ID 一起决定，重复点击刷不出
+      const seed = todayRecordV4(native, now)?.seed ?? (hashString(`harvest:${localDateKey(now)}`) >>> 0);
+      const state = { objects: native.objects, collection: native.collection, spores: native.spores };
+      const result = harvestV2(state, objectId, cutQuality, now, seed);
+      if (!result.ok) return fail(result.message ?? '采摘失败');
+      native.collection = state.collection;
+      native.spores = state.spores;
+      save.player.coins += result.coins ?? 0;
+      settled = result;
+      return succeed(`采摘 +${result.coins ?? 0} 菇币${result.spore ? '，获得 1 枚孢子' : ''}`);
+    });
+    if (!outcome.ok) return { ok: false, message: outcome.message };
+    refreshObjectIcon(objectId, '采摘');
+    return { ...settled, ok: true, message: outcome.message };
+  });
+
+  ipcMain.handle('native:plantSpore', (event, payload: unknown) => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string'
+      || !isNewSpeciesId(payload.species)) {
+      return { ok: false, message: 'invalid-request' };
+    }
+    const objectId: string = payload.objectId;
+    const species = payload.species;
+    // 只能播到当前桌面上实际存在的对象（删除/移走的对象不复活）
+    if (!findEntryFor(objectId)) return { ok: false, message: '对象不在桌面或不可写' };
+    return mutateSave((save) => {
+      const native = save.native!;
+      native.spores = native.spores ?? {};
+      native.planted = native.planted ?? {};
+      const result = plantSpore({
+        objects: native.objects, spores: native.spores, planted: native.planted,
+        todayRecord: todayRecordV4(native, Date.now()), now: Date.now(),
+      }, objectId, species);
+      if (!result.ok) return fail(result.message ?? '播种失败');
+      // deferred：今日记录已结算或尚未建立，播种留待下一次每日推进吸收（不额外占用今天的槽位）
+      return succeed(result.deferred ? '播种已登记，将在下一次每日推进时长出' : '播种成功，占用今日一个槽位，下一次推进时长出');
+    });
+  });
+
+  ipcMain.handle('native:cancelPlant', (event, payload: unknown) => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || typeof payload.objectId !== 'string') {
+      return { ok: false, message: 'invalid-request' };
+    }
+    const objectId: string = payload.objectId;
+    return mutateSave((save) => {
+      const native = save.native!;
+      native.spores = native.spores ?? {};
+      native.planted = native.planted ?? {};
+      const result = cancelPlant({
+        spores: native.spores, planted: native.planted, todayRecord: todayRecordV4(native, Date.now()),
+      }, objectId);
+      if (!result.ok) return fail(result.message ?? '没有可取消的播种');
+      return succeed('已取消播种，孢子已退回');
+    });
+  });
+
+  ipcMain.handle('native:setOverlayVariant', (event, payload: unknown) => {
+    if (event.sender !== getWc() || !isPlainObject(payload) || (payload.variant !== 'A' && payload.variant !== 'B')) {
+      return { ok: false, message: 'invalid-request' };
+    }
+    const variant: 'A' | 'B' = payload.variant;
+    const outcome = mutateSave((save) => {
+      save.native!.overlayVariant = variant;
+      return succeed();
+    });
+    // 只重新合成已有外观（回显，不是自然事件，不占额度）
+    if (outcome.ok) {
+      void reapplySavedAppearances(latestCycleCandidates()).catch((error) =>
+        console.warn('[native] 切换合成版本后回显失败:', error));
+    }
+    return outcome;
   });
 }

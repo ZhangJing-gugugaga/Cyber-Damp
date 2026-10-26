@@ -21,7 +21,20 @@ test('current preload exposes care and capsule without desktop takeover or whole
     contextBridge: { exposeInMainWorld(name, value) { assert.equal(name, 'damp'); api = value; } },
     ipcRenderer: { invoke(...args) { calls.push(args); return Promise.resolve(); } },
   }) });
-  assert.deepEqual(Object.keys(api).sort(), ['app', 'management', 'native', 'weather', 'window']);
+  assert.deepEqual(Object.keys(api).sort(), ['app', 'management', 'native', 'wallpaper', 'weather', 'window']);
+  // v1.15：v0.2 玩法与壁纸通道都是具名、类型化的单一操作，没有整档写或任意文件能力
+  assert.deepEqual(Object.keys(api.wallpaper).sort(), ['setEnabled', 'status', 'wipe']);
+  for (const name of ['careProgressV2', 'careCompleteV2', 'harvestV2', 'plantSpore', 'cancelPlant', 'setOverlayVariant']) {
+    assert.equal(typeof api.native[name], 'function', name);
+  }
+  const v2Calls = calls.length;
+  await api.native.careCompleteV2('object');
+  await api.native.setOverlayVariant('B');
+  await api.wallpaper.setEnabled(true);
+  assert.deepEqual(calls.slice(v2Calls).map((c) => c[0]), ['native:careCompleteV2', 'native:setOverlayVariant', 'wallpaper:setEnabled']);
+  // 载荷对象来自 vm 上下文（跨 realm），按 JSON 比较
+  assert.equal(JSON.stringify(calls.slice(v2Calls).map((c) => c[1])), JSON.stringify([{ objectId: 'object' }, { variant: 'B' }, { on: true }]));
+  calls.length = 0;
   await api.native.careProgress('object', 0.4, 'mask');
   await api.window.setIgnoreMouseEvents(false);
   await api.app.quit();
@@ -101,6 +114,7 @@ test('startup uses native components even with retired flags and exit retains ic
       };
       if (id.includes('native-event-scheduler')) return { runNativeEventCycle: async () => calls.push('cycle') };
       if (id.includes('resident-watch')) return { installResidentWatch: () => calls.push('resident-watch') };
+      if (id.includes('wallpaper-handlers')) return { registerWallpaperHandlers: () => calls.push('wallpaper-ipc') };
       throw new Error(`Unexpected retired startup dependency: ${id}`);
     },
   });
@@ -108,6 +122,7 @@ test('startup uses native components even with retired flags and exit retains ic
   assert.ok(calls.includes('bootstrap'));
   assert.ok(calls.includes('tray'));
   assert.ok(calls.includes('resident-watch'), '常驻跨日/唤醒必须接线');
+  assert.ok(calls.includes('wallpaper-ipc'), 'v1.15 壁纸组必须注册（未接入前如实拒绝开启）');
   events.get('second-instance')();
   assert.equal(calls.at(-1), 'open');
   events.get('before-quit')();

@@ -1,6 +1,6 @@
 # 当前实现状态与待办
 
-源码版本0.1.26，默认入口为护理台和天气胶囊，旧覆盖层及专属资产/测试已退役。文档与资料清理不等于功能缺陷已修复。
+源码版本0.1.27（v0.2 第一批接线试玩包），默认入口为护理台和天气胶囊，旧覆盖层及专属资产/测试已退役。文档与资料清理不等于功能缺陷已修复。
 
 ## 已有能力与验证边界
 
@@ -56,10 +56,12 @@
 
 | 项目 | 状态 | 证据 |
 |---|---|---|
-| 共享类型与契约草案 | 已起草，待员工 1 审阅 | `src/shared/types/gameplay.ts`、[玩法契约草案](contracts/gameplay-v2.md)；新通道尚未注册 |
-| 对象类别判定 | 已实现并接入扫描 | `src/shared/object-category.ts`；`scripts/test-object-category.mjs`；`native.status` 对象视图带 `objectCategory`；真实桌面类别分布 NOT TESTED |
-| 品种、日额度、分层护理、孢子、蔓延、警报、壁纸像素 | 员工 1 开发中 | — |
-| IPC 接线、菌群合成 A/B、Win32 壁纸与恢复、演示时钟 | 待员工 1 交付领域函数后进行 | — |
+| 共享类型与契约 | v1.15 已定稿 | `src/shared/types/gameplay.ts`、[玩法契约 v1.15](contracts/gameplay-v2.md)、[preload 契约](contracts/preload-api.md) |
+| 对象类别判定 | 已实现并接入扫描 | `src/shared/object-category.ts`；`scripts/test-object-category.mjs`；真实桌面类别分布 NOT TESTED |
+| 品种、日额度、分层护理、孢子、蔓延、警报、壁纸像素、护理台 v2 界面 | 员工 1 已交付 | 分支 `v0.2/employee1-gameplay`；[交接文档](contracts/employee1-handoff-2026-10-26.md)；浏览器模拟环境探针 |
+| v2 IPC 通道、v4 每日调度、13 品种 A/B 图标合成 | 员工 2 已接线（0.1.27） | `npm test` 205/205；`npm run uat:ipc-v2` 35/35；`uat:ipc` 24/24；`uat:care-ui` 22/22（3 次中 1 次因采摘提示超出 600ms 窗口失败，时序敏感）；A/B 程序化样张 `previews/state-icon-ab-2026-10-26/` |
+| 壁纸 Win32 读写与恢复 | 未实现 | `wallpaper.*` 已注册但开启/擦雾如实返回未接入，不改系统壁纸 |
+| 真实桌面：v4 每日推进、蔓延、播种长出、A/B 观感、32/48px 识别、v2 护理台手感 | NOT TESTED | 0.1.27 便携包交用户试玩 |
 | A25–A32 | NOT TESTED | — |
 
 ## 工作边界

@@ -22,14 +22,19 @@ import { composeStateIconPng } from '../icon/state-icon';
 import { getWeather } from '../weather/weather-service';
 import { DEFAULT_LOCATION } from '../../shared/native-defaults';
 import {
-  advanceDamage, decideNativeBranch, localDateKey, pickDailyFamily, planDailyOrder, planInit,
+  decideNativeBranch, localDateKey, planInit,
 } from '../../world/native-events';
 import { runNativeCycle, type SchedulerState } from './native-scheduler';
 import type {
   DailyEventRecord, DamageState, InitPlan,
 } from '../../shared/types/native';
-import type { SpeciesId } from '../../shared/types/gameplay';
+import type { DailyEventRecordV4, ObjectCategory, SpeciesId } from '../../shared/types/gameplay';
 import type { NativeSaveSection, SaveData } from '../../shared/types/save';
+import { rollSpecies } from '../../shared/species/species-roll';
+import { hashString } from '../../shared/rand';
+import { adjacencyFromDesktop } from '../../shared/desktop-adjacency';
+import { runDailyCycleV4 } from '../../world/daily-cycle';
+import type { OverlayVariant } from '../icon/state-icon';
 
 export interface CycleCandidate {
   /** 稳定对象 ID（d-<usageId>） */
@@ -41,6 +46,11 @@ export interface CycleCandidate {
   originalMtime: number;
   /** 原图 PNG data URL（扫描同步提取，R7 合成输入） */
   iconDataUrl: string;
+  /** v0.2 品种输入（classifyObject；缺省按 other） */
+  objectCategory?: ObjectCategory;
+  /** v0.2 蔓延邻接输入：桌面画布坐标（只读，不移动图标） */
+  x?: number;
+  y?: number;
 }
 
 export interface CycleResult {
@@ -51,12 +61,35 @@ export interface CycleResult {
   detail: string;
 }
 
-/** 事件/事务种子：创建时随机一次并持久化（重放确定性由纯领域层保证） */
-/** 由天气快照稳定选择菇品种（确定性映射；不外扩玩法）。 */
-function speciesForWeather(snapshot: NativeSaveSection['lastSnapshot']): SpeciesId {
-  const species: SpeciesId[] = ['oyster', 'enoki', 'shy', 'bolete', 'lava'];
-  if (!snapshot) return 'oyster';
-  return species[Math.abs(snapshot.weatherCode * 7 + Math.round(snapshot.temperatureC)) % species.length];
+/**
+ * 首批（INIT）幼菇品种（R5.1 v0.2）：与日账本同一判定 rollSpecies，种子由对象 ID 与快照时间派生，
+ * 同一对象同一快照结果稳定。新事件不再产生旧品种；未知天气（rollSpecies 返回 null）
+ * 退回 'bubble'（返潮泡泡菇：高湿基础品种），不伪造稀有品种。
+ */
+function initSpeciesFor(
+  snapshot: NativeSaveSection['lastSnapshot'],
+  objectId: string,
+  category: ObjectCategory | undefined,
+  now: number,
+): SpeciesId {
+  if (!snapshot) return 'bubble';
+  return rollSpecies({
+    category: category ?? 'other',
+    weatherCode: snapshot.weatherCode,
+    humidity: snapshot.humidityPct,
+    temperatureC: snapshot.temperatureC,
+    localHour: new Date(now).getHours(),
+    seed: hashString(`init:${objectId}:${snapshot.observedAt}`) >>> 0,
+    alertActive: false,
+  }) ?? 'bubble';
+}
+
+function overlayVariantOf(native: NativeSaveSection | undefined): OverlayVariant {
+  return native?.overlayVariant === 'B' ? 'B' : 'A';
+}
+
+function iconStateKey(damage: DamageState | null, species?: string): string {
+  return damage ? `${damage.family}-${damage.stage}-${damage.mushroom}-${damage.mushroom === 'none' ? '' : species ?? ''}` : 'clean';
 }
 
 function newSeed(): number {
@@ -192,10 +225,14 @@ export function pristineDataUrlFor(id: string, realPath: string, fallback: strin
   return fallback;
 }
 
+/** 合成状态 ICO 并落缓存（异步阶段）；同一状态+品种+版本内容寻址复用。 */
+async function materializeIcon(candidate: CycleCandidate, damage: DamageState | null, species: string | undefined, variant: OverlayVariant): Promise<string> {
+  const png = await composeStateIconPng(await pristineBasePng(candidate), damage, candidate.id, species, variant);
+  return writeIcoCache(png, [candidate.realPath, candidate.id, iconStateKey(damage, species), variant]);
+}
+
 async function applyObjectIcon(candidate: CycleCandidate, damage: DamageState | null, eventId: string, species?: string): Promise<void> {
-  const png = await composeStateIconPng(await pristineBasePng(candidate), damage, candidate.id, species);
-  const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id,
-    damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean']);
+  const iconPath = await materializeIcon(candidate, damage, species, overlayVariantOf(loadSave()?.native));
   const result = applyIconMutation({
     id: candidate.id, realPath: candidate.realPath, kind: candidate.kind as IconMutationKind,
     iconPath, eventId,
@@ -250,6 +287,12 @@ async function executeCycle(
     }
   }
 
+  // v0.2 品种输入随扫描刷新（类别只来自 .lnk 元数据，不读正文）
+  for (const c of candidates) {
+    const obj = native.objects[c.id];
+    if (obj && c.objectCategory) obj.objectCategory = c.objectCategory;
+  }
+
   const today = localDateKey(now);
   const todayRecord = native.dailyEvents[today] ?? null;
   const initStatus = native.init === null ? 'not-generated'
@@ -263,50 +306,41 @@ async function executeCycle(
     todayRecord: todayRecord ? { status: todayRecord.status } : null,
   });
 
-  // 预热：按纯核心的确定性预测，物化本轮需要的 ICO（异步阶段），核心回调只做同步引用写入
+  // v0.2：每日自然事件走 v4 账本（3/5 槽位 + 播种 + 蔓延 + 警报）。
+  // 分支仍由 decideNativeBranch 决定：INIT 未完成、暂停、天气不可用、当日终态都不会进入这里。
+  if ((branch === 'daily-create' || branch === 'daily-resume') && snapshot) {
+    return executeDailyV4(save, candidates, snapshot, now, todayRecord);
+  }
+
+  // 预热（INIT 分支）：按纯核心的确定性预测，物化本轮需要的 ICO（异步阶段），核心回调只做同步引用写入
+  const variant = overlayVariantOf(native);
+  const categoryOf = (id: string) => native.objects[id]?.objectCategory ?? candidates.find((c) => c.id === id)?.objectCategory;
+  const speciesOf = (id: string) => native.objects[id]?.mushroomSpecies ?? initSpeciesFor(snapshot, id, categoryOf(id), now);
   const seeds = [newSeed(), newSeed(), newSeed(), newSeed()];
   const iconPaths = new Map<string, string>();
-  const warm = async (candidate: CycleCandidate | undefined, damage: DamageState | null, species?: string): Promise<void> => {
+  const initKey = (id: string, plan: { family: string; stage: number; mushroom: string } | null) =>
+    `${id}|${plan ? `${plan.family}-${plan.stage}-${plan.mushroom}` : 'clean'}`;
+  const warm = async (candidate: CycleCandidate | undefined, damage: DamageState): Promise<void> => {
     if (!candidate) return;
-    const png = await composeStateIconPng(await pristineBasePng(candidate), damage, candidate.id, species);
-    const stateKey = damage ? `${damage.family}-${damage.stage}-${damage.mushroom}-${species ?? ''}` : 'clean';
-    const iconPath = await writeIcoCache(png, [candidate.realPath, candidate.id, stateKey]);
-    iconPaths.set(`${candidate.id}|${damage ? `${damage.family}-${damage.stage}-${damage.mushroom}` : 'clean'}`, iconPath);
+    const species = damage.mushroom === 'none' ? undefined : speciesOf(candidate.id);
+    iconPaths.set(initKey(candidate.id, damage), await materializeIcon(candidate, damage, species, variant));
   };
   try {
     if (branch === 'generate-init' && snapshot) {
       const plan = planInit(candidates, snapshot, seeds[0], now);
       for (const target of plan.targets) {
         const candidate = candidates.find((c) => c.id === target.id);
-        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom }, native.objects[target.id]?.mushroomSpecies ?? speciesForWeather(snapshot));
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
       }
     } else if (branch === 'continue-init' && native.init && 'targets' in native.init) {
       for (const target of native.init.targets) {
         if (target.status !== 'pending') continue;
         const candidate = candidates.find((c) => c.id === target.id);
-        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom }, native.objects[target.id]?.mushroomSpecies ?? speciesForWeather(snapshot));
-      }
-    } else if ((branch === 'daily-create' || branch === 'daily-resume') && snapshot) {
-      const recordSeed = branch === 'daily-resume' && todayRecord ? todayRecord.seed : seeds[1];
-      const order = planDailyOrder(Object.values(native.objects), snapshot, now, recordSeed);
-      for (const id of order.slice(0, 3)) {
-        const obj = native.objects[id];
-        const candidate = candidates.find((c) => c.id === id);
-        if (!obj || !candidate) continue;
-        const family = pickDailyFamily(obj, snapshot, now, recordSeed);
-        const advanced = advanceDamage(obj.damage, family);
-        await warm(candidate, advanced.damage, obj.mushroomSpecies ?? (advanced.damage.mushroom !== 'none' ? speciesForWeather(snapshot) : undefined));
+        await warm(candidate, { family: target.family, stage: target.stage, mushroom: target.mushroom });
       }
     }
   } catch (error) {
     console.warn('[native-events] 图标预热失败（回退为逐次写入）:', error);
-  }
-
-  // 幼菇品种（R5/R6）：核心不涉品种，落盘前补齐
-  for (const obj of Object.values(native.objects)) {
-    if (obj.damage?.mushroom === 'young' && !obj.mushroomSpecies) {
-      obj.mushroomSpecies = speciesForWeather(snapshot);
-    }
   }
 
   // 纯核心执行（R4.4 唯一入口）；图标写入失败返回 false 由核心记账重试/跳过
@@ -336,6 +370,13 @@ async function executeCycle(
     exists: (realPath) => { try { return fs.existsSync(realPath); } catch { return false; } },
   });
 
+  // 首批幼菇品种（R5.1）：v3 核心不涉品种，落盘前用与预热相同的确定性判定补齐
+  for (const obj of Object.values(native.objects)) {
+    if (obj.damage && obj.damage.mushroom !== 'none' && !obj.mushroomSpecies) {
+      obj.mushroomSpecies = speciesOf(obj.id);
+    }
+  }
+
   writeSave(save);
   return {
     branch: core.action,
@@ -343,6 +384,113 @@ async function executeCycle(
     initSkipped: core.initSkipped,
     dailyAdvanced: core.action === 'daily-create' || core.action === 'daily-resume',
     detail: core.summary,
+  };
+}
+
+/**
+ * v4 每日编排接线（R4.2 v0.2）：领域规则全部在 world/daily-cycle.runDailyCycleV4，
+ * 主进程只提供时钟、种子、存在性、类别、真实坐标邻接与图标写入。
+ *
+ * 图标写入是同步回调而 ICO 合成是异步的，因此分两遍：
+ * 1) 预演：在存档深拷贝上跑同一编排，applyIcon 只记录计划并返回成功；
+ * 2) 物化：把计划中的状态 ICO 全部合成落缓存；
+ * 3) 正式：在真实存档上用同样输入再跑一遍，applyIcon 只做引用写入。
+ * 编排对相同输入确定，两遍计划一致；若不一致（缓存缺失）applyIcon 返回 false，
+ * 由领域层按写入失败记账（同一事件身份，下次触发续写），不会多推进。
+ */
+async function executeDailyV4(
+  save: SaveData,
+  candidates: CycleCandidate[],
+  snapshot: NonNullable<NativeSaveSection['lastSnapshot']>,
+  now: number,
+  todayRecord: DailyEventRecord | DailyEventRecordV4 | null,
+): Promise<CycleResult> {
+  const native = save.native!;
+  const variant = overlayVariantOf(native);
+  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const categories: Record<string, ObjectCategory> = {};
+  for (const obj of Object.values(native.objects)) {
+    categories[obj.id] = obj.objectCategory ?? byId.get(obj.id)?.objectCategory ?? 'other';
+  }
+  const adjacency = adjacencyFromDesktop(candidates.map((c) => ({ id: c.id, x: c.x, y: c.y })));
+  const existsMemo = new Map<string, boolean>();
+  const exists = (objectId: string): boolean => {
+    const cached = existsMemo.get(objectId);
+    if (cached !== undefined) return cached;
+    const candidate = byId.get(objectId);
+    let ok = false;
+    if (candidate) { try { ok = fs.existsSync(candidate.realPath); } catch { ok = false; } }
+    existsMemo.set(objectId, ok);
+    return ok;
+  };
+  // 续写当日记录沿用其持久化种子；新建时随机一次（记录建立后持久化，重放确定）
+  const seed = todayRecord && typeof todayRecord.seed === 'number' ? todayRecord.seed : newSeed();
+  const baseDeps = {
+    weather: snapshot, weatherDefaulted: false, now, seed, categories, exists, adjacency,
+  };
+  type IconPlan = { family: DamageState['family']; stage: DamageState['stage']; mushroom: string; species?: string };
+  const planKey = (id: string, plan: IconPlan, speciesFallback?: string) => {
+    const damage = { family: plan.family, stage: plan.stage, mushroom: plan.mushroom } as DamageState;
+    return { key: `${id}|${iconStateKey(damage, plan.species ?? speciesFallback)}`, damage, species: plan.species ?? speciesFallback };
+  };
+
+  // 1) 预演
+  const rehearsal = structuredClone(native);
+  const planned: Array<{ id: string; key: string; damage: DamageState; species?: string }> = [];
+  runDailyCycleV4({
+    ...baseDeps,
+    native: rehearsal,
+    applyIcon: (id, plan) => {
+      const resolved = planKey(id, plan, rehearsal.objects[id]?.mushroomSpecies);
+      planned.push({ id, ...resolved });
+      return true;
+    },
+  });
+
+  // 2) 物化
+  const iconPaths = new Map<string, string>();
+  for (const item of planned) {
+    const candidate = byId.get(item.id);
+    if (!candidate || iconPaths.has(item.key)) continue;
+    try {
+      iconPaths.set(item.key, await materializeIcon(candidate, item.damage, item.species, variant));
+    } catch (error) {
+      console.warn('[native-events] v4 图标合成失败（该槽位按写入失败记账）:', candidate.realPath, error);
+    }
+  }
+
+  // 3) 正式结算
+  const result = runDailyCycleV4({
+    ...baseDeps,
+    native,
+    applyIcon: (id, plan) => {
+      const candidate = byId.get(id);
+      if (!candidate) return false;
+      const { key } = planKey(id, plan, native.objects[id]?.mushroomSpecies);
+      const iconPath = iconPaths.get(key);
+      if (!iconPath) {
+        console.warn('[native-events] v4 预演与正式计划不一致或合成失败:', key);
+        return false;
+      }
+      const written = applyIconMutation({
+        id: candidate.id, realPath: candidate.realPath, kind: candidate.kind as IconMutationKind,
+        iconPath, eventId: 'cycle-v4',
+      });
+      if (!written.ok) console.warn('[native-events] 图标引用写入失败:', candidate.realPath, written.reason);
+      return written.ok;
+    },
+    log: (message) => console.info('[native-events v4]', message),
+  });
+
+  save.savedAt = now;
+  writeSave(save);
+  const limit = result.record?.limit ?? 0;
+  return {
+    branch: `v4-${result.action}`,
+    initChanged: 0,
+    initSkipped: 0,
+    dailyAdvanced: result.advanced > 0,
+    detail: `推进 ${result.advanced}、跳过 ${result.skipped}、蔓延 ${result.spreadInserted}，额度 ${result.dailyUsed}/${limit}${result.alert.active ? '（回南天警报）' : ''}`,
   };
 }
 

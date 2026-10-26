@@ -7,7 +7,8 @@
 ## Ownership
 
 - [index.ts](index.ts) 只装配；[window/](window) 承载胶囊和护理台，[desktop/](desktop) 承载枚举、事件与引用恢复。
-- [ipc/register-handlers.ts](ipc/register-handlers.ts) 注册天气/应用/窗口公共通道，[ipc/native-handlers.ts](ipc/native-handlers.ts) 注册护理与原生状态；接口联动 preload、共享类型和根契约。
+- [ipc/register-handlers.ts](ipc/register-handlers.ts) 注册天气/应用/窗口公共通道，[ipc/native-handlers.ts](ipc/native-handlers.ts) 注册护理与原生状态（含 v0.2 玩法通道），[ipc/wallpaper-handlers.ts](ipc/wallpaper-handlers.ts) 注册壁纸组（Win32 接入前如实拒绝开启）；接口联动 preload、共享类型和根契约。
+- v0.2 每日推进：[desktop/native-event-scheduler.ts](desktop/native-event-scheduler.ts) 的 `executeDailyV4` 只提供时钟、种子、存在性、类别、坐标邻接与图标写入，规则调用 `world/daily-cycle.runDailyCycleV4`；先预演收集图标计划、异步合成，再同输入正式结算。图标合成 [icon/state-icon.ts](icon/state-icon.ts) 读 13 款品种素材并支持 A/B 版本。
 
 ## Local Contracts
 
@@ -26,6 +27,7 @@
 ## Verification
 
 - `npm run typecheck`、`npm test`、`npm run build`。
+- v0.2 通道：`npm run uat:ipc-v2`（需先 `npm run build`；真实 preload→IPC→临时存档，不写桌面）。A/B 合成样张：`node_modules/.bin/electron scripts/shot-state-icon-ab.cjs`（只读 Shell 提取，输出 previews/，不代替桌面观感验收）。
 - 原生验证遵守[项目 UAT 技能](../../.agents/skills/cyber-damp-uat/SKILL.md)；[scripts/uat-icon-mutate.cjs](../../scripts/uat-icon-mutate.cjs)、[scripts/uat-native-loop.cjs](../../scripts/uat-native-loop.cjs) 会创建探针并写引用，先读前提，不对当前用户环境盲跑。
 - 程序化、源码运行、安装包和感官验收分别记录；未观察项记 NOT TESTED。
 

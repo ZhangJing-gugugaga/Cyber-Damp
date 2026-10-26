@@ -1,4 +1,4 @@
-/** 当前护理台与胶囊的最小 preload 出口；契约 v1.14。 */
+/** 当前护理台与胶囊的最小 preload 出口；契约 v1.15（v1.14 + gameplay-v2 玩法通道与 wallpaper 组）。 */
 import { contextBridge, ipcRenderer } from 'electron';
 import type { CityOption, WeatherLocation, WeatherLookup } from '../shared/types/weather';
 
@@ -33,6 +33,18 @@ contextBridge.exposeInMainWorld('damp', {
     resume: () => ipcRenderer.invoke('native:resume'),
     setAutostart: (on: boolean) => ipcRenderer.invoke('native:setAutostart', { on }),
     getAutostart: () => ipcRenderer.invoke('native:getAutostart'),
+    // v0.2 玩法通道（gameplay-v2 契约 v1.15）
+    careProgressV2: (payload: unknown) => ipcRenderer.invoke('native:careProgressV2', payload),
+    careCompleteV2: (objectId: string) => ipcRenderer.invoke('native:careCompleteV2', { objectId }),
+    harvestV2: (payload: unknown) => ipcRenderer.invoke('native:harvestV2', payload),
+    plantSpore: (payload: unknown) => ipcRenderer.invoke('native:plantSpore', payload),
+    cancelPlant: (objectId: string) => ipcRenderer.invoke('native:cancelPlant', { objectId }),
+    setOverlayVariant: (variant: 'A' | 'B') => ipcRenderer.invoke('native:setOverlayVariant', { variant }),
+  },
+  wallpaper: {
+    status: () => ipcRenderer.invoke('wallpaper:status'),
+    setEnabled: (on: boolean) => ipcRenderer.invoke('wallpaper:setEnabled', { on }),
+    wipe: (payload: unknown) => ipcRenderer.invoke('wallpaper:wipe', payload),
   },
   app: {
     version: () => ipcRenderer.invoke('app:version'),

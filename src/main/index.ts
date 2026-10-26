@@ -8,6 +8,7 @@ import { createCapsuleWindow } from './window/capsule-window';
 import { reconcilePendingEntries, restoreAllIconReferences } from './desktop/icon-mutate';
 import { registerNativeHandlers, bootstrapNativeMode, scanForNative, latestCycleCandidates } from './ipc/native-handlers';
 import { runNativeEventCycle } from './desktop/native-event-scheduler';
+import { registerWallpaperHandlers } from './ipc/wallpaper-handlers';
 import { installResidentWatch } from './desktop/resident-watch';
 
 const startedAt = Date.now();
@@ -43,6 +44,7 @@ if (!app.requestSingleInstanceLock()) {
     // 产品仅保留原生图标、天气胶囊和护理窗口。
     registerHandlers();
     registerNativeHandlers(() => managementWebContents());
+    registerWallpaperHandlers(() => managementWebContents());
     const capsule = createCapsuleWindow(
       preload,
       path.join(__dirname, '..', 'renderer', 'capsule.html'),

@@ -31,13 +31,13 @@
 - 先由 [README](README.md) 确认规格入口。产品行为核对[当前产品规格](docs/PRODUCT.md)，已接受的后续裁决已合并于该文档；视觉任务读取[美术方向](design-system/ART-DIRECTION.md)，原生/护理验收读取[当前验收要求](docs/CARE-DESKTOP-UAT.md)。只读取任务需要的部分。
 - 旧 PRD、SPEC、代码注释及技能中的冲突条款不覆盖已确认的新决策。旧覆盖层与其 3–5 秒回放已于 2026-10-25 由用户明确要求退役；发现新冲突且无法确定有效决策时说明并澄清。
 - 不改写真实文件内容、名称、权限或 Explorer 图标位置；模拟损坏仅在存档和画面中。允许的桌面扫描/打开行为仍需遵守当前任务及测试授权，不运行未知可执行文件。
-- 跨进程契约涉及 [preload 出口](src/preload/index.ts)、[共享类型](src/shared/types)、[IPC 注册](src/main/ipc/register-handlers.ts) 和[契约文档](docs/contracts/preload-api.md)（v0.2 草案另见 [gameplay-v2](docs/contracts/gameplay-v2.md)）；新增或修改接口时核对这些位置，不只修一端。
+- 跨进程契约涉及 [preload 出口](src/preload/index.ts)、[共享类型](src/shared/types)、[IPC 注册](src/main/ipc/register-handlers.ts) 和[契约文档](docs/contracts/preload-api.md)（v0.2 玩法通道规则另见 [gameplay-v2](docs/contracts/gameplay-v2.md)，壁纸组注册于 [wallpaper-handlers](src/main/ipc/wallpaper-handlers.ts)）；新增或修改接口时核对这些位置，不只修一端。
 - 保留用户已有修改；不擅自重置工作区、升级依赖或提交/推送。项目是否暂停、恢复或进入下一阶段，以当前用户授权为准，不把临时进度固化为全局禁令。
 
 ## Work Guidance
 
 - 开发硬规则：编码前先搜索 GitHub 是否有现成项目；能复用的代码绝不重新写；Codex 只开发缺少的功能。优先盘点本项目旧版资产、代码与已有依赖，保留来源及必要的最小适配说明；跨项目规则的共享来源为 `D:/AI-Config/instructions/AGENTS.md`，由 Skillshare 维护和同步。
-- 当前仅保留原生图标变化、天气胶囊与护理台，以及 v0.2 起由玩家主动开启的静态壁纸效果（PRODUCT R9），不再通过环境变量启用旧版。v0.2 双人分工与新通道草案见[玩法契约](docs/contracts/gameplay-v2.md)。当前资产/材质和旧存档迁移保留，边界见[产品规格](docs/PRODUCT.md)，未解决问题见[当前状态](docs/CURRENT-STATUS.md)。历史体验认可不代表当前通过。
+- 当前仅保留原生图标变化、天气胶囊与护理台，以及 v0.2 起由玩家主动开启的静态壁纸效果（PRODUCT R9），不再通过环境变量启用旧版。v0.2 双人分工与通道契约 v1.15 见[玩法契约](docs/contracts/gameplay-v2.md)（Win32 壁纸读写尚未接入）。当前资产/材质和旧存档迁移保留，边界见[产品规格](docs/PRODUCT.md)，未解决问题见[当前状态](docs/CURRENT-STATUS.md)。历史体验认可不代表当前通过。
 
 - UI、桌面融合、领域逻辑分别进入下面的子域指南；涉及多个域时读取所有适用链。
 - 复现缺陷后选择覆盖相关行为的检查；测试环境和产物模式必须与所声称验证的行为一致。
@@ -48,7 +48,7 @@
 - 文档树与加载路径：`npm run qa:dox`；定位规则链：`npm run qa:dox -- --paths src/main/index.ts`。
 - 类型和跨进程接口：`npm run typecheck`；跨模块逻辑：`npm test`，后者已包含当前事件、护理、调度、迁移、天气与材质检查，不机械重复整套测试。
 - 运行效果前：`npm run build`；交付便携包：`npm run dist:win`，相关行为在实际打包产物上验证。
-- 护理与 IPC 端到端：`npm run uat:ipc`（真实 preload→IPC→临时存档的领域失败传播）、`npm run uat:care-ui`（护理台界面，Chromium 输入注入，临时存档，不触碰桌面）。二者需先 `npm run build`，证据范围是渲染层与 IPC 接线，不代替原生输入验收。
+- 护理与 IPC 端到端：`npm run uat:ipc`（真实 preload→IPC→临时存档的领域失败传播）、`npm run uat:ipc-v2`（v0.2 玩法与壁纸通道）、`npm run uat:care-ui`（护理台界面，Chromium 输入注入，临时存档，不触碰桌面；时序敏感，不与其他 Electron 探针并行）。三者需先 `npm run build`，证据范围是渲染层与 IPC 接线，不代替原生输入验收。
 - 原生交互按[项目 UAT 技能](.agents/skills/cyber-damp-uat/SKILL.md)执行。CDP 只能辅助诊断，不能替代原生输入与截图。未运行或不可观察的项目记为 NOT TESTED。
 
 ## Child DOX Index
